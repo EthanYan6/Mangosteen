@@ -335,6 +335,9 @@ extern volatile bool         gScheduleDualWatch;
 extern volatile uint16_t     gDualWatchCountdown_10ms;
 extern bool                  gDualWatchActive;
 
+/* Survival Mode not ported; keep symbol for GOGUFW messenger sources. */
+extern bool                  gSurvivalMode;
+
 extern volatile uint8_t      gSerialConfigCountDown_500ms;
 
 extern volatile bool         gNextTimeslice_500ms;

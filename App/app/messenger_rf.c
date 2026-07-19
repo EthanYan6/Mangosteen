@@ -15,7 +15,13 @@
 #include "radio.h"
 #include "settings.h"
 
-#ifdef ENABLE_AIRCOPY
+#if defined(ENABLE_AIRCOPY) || defined(ENABLE_MESSENGER)
+#define MSG_RF_HAS_FSK_PATH 1
+#else
+#define MSG_RF_HAS_FSK_PATH 0
+#endif
+
+#if MSG_RF_HAS_FSK_PATH
 extern uint8_t gFSKWriteIndex;
 #endif
 
@@ -169,7 +175,7 @@ static uint16_t s_dbg_02, s_dbg_0b, s_dbg_0c, s_dbg_30, s_dbg_3f, s_dbg_47, s_db
 static uint8_t  s_dbg_open_ticks;
 static uint8_t  s_dbg_last_decode_open;
 
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
 static uint8_t s_rx_words;
 #endif
 
@@ -517,7 +523,7 @@ static void MSG_RF_PlayAckSuccessBeepNow(void)
 
 static void MSG_RF_EnsureFskIrqMask(void)
 {
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     /* RF10 targeted fix: RF9 showed messages decode when REG_3F has
      * FSK IRQ bits enabled (0x3002) and fail when F4HWN leaves 3F at
      * voice-only values such as 0x0C0C. Preserve all existing F4HWN
@@ -594,7 +600,7 @@ static void MSG_RF_DisarmSidecarNoRadioReset(void)
     s_sidecar_armed = false;
     s_rx_capture_active = false;
     s_rx_stale_ticks = 0;
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     s_rx_words = 0;
     gFSKWriteIndex = 0;
 #endif
@@ -603,7 +609,7 @@ static void MSG_RF_DisarmSidecarNoRadioReset(void)
 }
 static void MSG_RF_KeepFskRxEnabled(void)
 {
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     /* Keep the proven working RX state: REG_59<12> FSK RX enable stays set.
      * Clear RX FIFO with a one-shot pulse, then immediately return to 0x3068.
      * Do not touch REG_47 or normal AF output. */
@@ -616,7 +622,7 @@ static void MSG_RF_KeepFskRxEnabled(void)
 
 void MSG_RF_OnRadioSetupRegisters(void)
 {
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     if (gSurvivalMode) return;
     if (!gMessengerConfig.msg_rx) return;
     if (gCurrentFunction == FUNCTION_TRANSMIT) return;
@@ -661,7 +667,7 @@ void MSG_RF_HardRestoreVoicePath(void)
 
 static void MSG_RF_ArmSidecarIfIdle(void)
 {
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     if (!gMessengerConfig.msg_rx) return;
     if (s_sidecar_armed) {
         /* If another path (dual-watch, scan, AM/FM retune, voice restore)
@@ -726,7 +732,7 @@ static bool MSG_RF_CanControlledReprimeNow(void)
 
 static void MSG_RF_DoControlledReprime(void)
 {
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     if (!MSG_RF_CanControlledReprimeNow()) return;
 
     if (!s_sidecar_armed) {
@@ -757,7 +763,7 @@ static void MSG_RF_FinishRxAttempt(bool parsed)
     s_sidecar_armed = true;
     s_rx_capture_active = false;
     s_rx_stale_ticks = 0;
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     s_rx_words = 0;
     gFSKWriteIndex = 0;
 #endif
@@ -785,7 +791,7 @@ void MSG_RF_Tick10ms(void)
         MSG_RF_RestoreFskAudioMute();
     }
 
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     /* Keep FSK IRQ enables present before the next burst arrives, but avoid
      * writing while a carrier is already active. This targets the observed
      * 3F:0C0C -> no FIFO/decode vs 3F:3002 -> FIFO/decode condition. */
@@ -862,7 +868,7 @@ void MSG_RF_Tick10ms(void)
         s_safe_keepalive_ticks = 0u;
     }
 
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     /* Stage 2: ACKs and retries are handled from the global RF tick, never
      * from the RX interrupt/parser path. This keeps voice/RX restore behavior
      * close to the RF17 stable baseline. */
@@ -995,7 +1001,7 @@ void MSG_RF_Tick10ms(void)
 
 static void MSG_RF_SendFskDataLongPreamble(uint16_t *pData)
 {
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     unsigned int i;
     uint8_t timeout = 200;
 
@@ -1031,7 +1037,7 @@ static void MSG_RF_SendFskDataLongPreamble(uint16_t *pData)
 
 static void bytes_to_aircopy_words(const uint8_t *bytes)
 {
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     memset(g_FSK_Buffer, 0, sizeof(g_FSK_Buffer));
     g_FSK_Buffer[0] = 0xABCDu;
     for (uint8_t i = 0; i < (MSG_RF_BYTES_CARRIED / 2u); i++) {
@@ -1046,7 +1052,7 @@ static void bytes_to_aircopy_words(const uint8_t *bytes)
 
 static bool MSG_RF_SendPacketFrame(const uint8_t *packet, bool count_tx, bool ignore_self_rx)
 {
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     if (!packet) return false;
     if (MSG_RF_FskBusy()) return false;
 
@@ -1079,7 +1085,7 @@ static bool MSG_RF_SendPacketFrame(const uint8_t *packet, bool count_tx, bool ig
 
 static bool MSG_RF_SendPacketFrameRepeated(const uint8_t *packet, bool count_tx, bool ignore_self_rx, uint8_t repeats)
 {
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     if (!packet) return false;
     if (repeats == 0u) repeats = 1u;
 
@@ -1107,7 +1113,7 @@ static bool MSG_RF_SendPacketFrameRepeated(const uint8_t *packet, bool count_tx,
 
 static bool MSG_RF_SendPacketFrameRepeatedOnVfo(const uint8_t *packet, bool count_tx, bool ignore_self_rx, uint8_t tx_vfo, uint8_t repeats)
 {
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     const uint8_t old_tx_vfo = gEeprom.TX_VFO;
     bool ok;
 
@@ -1137,7 +1143,7 @@ static bool MSG_RF_SendPacketFrameRepeatedOnVfo(const uint8_t *packet, bool coun
 
 static void MSG_RF_RangeTxWarmupCurrentVfo(void)
 {
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     /* 1.0.1b Range Check reliable TX path:
      * Single PING/PONG frames exposed a long-idle UV-K1 issue that the old
      * 3x PING burst used to hide: the first Range Check FSK TX could start
@@ -1175,7 +1181,7 @@ static void MSG_RF_RangeTxWarmupCurrentVfo(void)
 
 static bool MSG_RF_SendRangePacketFrameRepeatedOnVfo(const uint8_t *packet, bool count_tx, bool ignore_self_rx, uint8_t tx_vfo, uint8_t repeats)
 {
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     const uint8_t old_tx_vfo = gEeprom.TX_VFO;
     bool ok;
 
@@ -1214,7 +1220,7 @@ static void clamp_rf_text(char *dst, const char *src)
 
 static bool parse_aircopy_native_packet(MSG_Packet_t *pkt)
 {
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     /*
      * 1.0.1e RX alignment hotfix:
      * Do not require the Aircopy header to be exactly at g_FSK_Buffer[0].
@@ -1412,7 +1418,7 @@ static void MSG_RF_HandleAckFor(uint16_t ack_id, const char *ack_from)
 
 static void try_store_rx_packet(void)
 {
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     MSG_Packet_t pkt;
     if (!parse_aircopy_native_packet(&pkt)) return;
 
@@ -1502,7 +1508,7 @@ static void try_store_rx_packet(void)
 void MSG_RF_OnRadioInterrupt(uint16_t status)
 {
     if (gSurvivalMode) return;
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     const bool fsk_sync    = (status & BK4819_REG_02_FSK_RX_SYNC) != 0;
     const bool fifo_full   = (status & BK4819_REG_02_FSK_FIFO_ALMOST_FULL) != 0;
     const bool rx_finished = (status & BK4819_REG_02_FSK_RX_FINISHED) != 0;
@@ -1559,7 +1565,7 @@ void MSG_RF_OnRadioInterrupt(uint16_t status)
 
 static void MSG_RF_RangeForceRxReprime(void)
 {
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     /* 0.6.1 Range Check hardening:
      * Immediately before the PONG wait window, refresh only the FSK sidecar
      * receive path.  Do not touch REG_47/AF speaker routing or globally change
@@ -1593,7 +1599,7 @@ bool MSG_RF_SendRangePing(void)
 {
     if (gSurvivalMode) return false;
     MSG_RF_EnsureStoreInitialized();
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     /* 0.6.1: make Range Check self-healing after long idle.  Restore any
      * stale FSK/voice remnants before building and sending the PING; normal
      * Messenger TX still uses the proven generic path. */
@@ -1633,7 +1639,7 @@ bool MSG_RF_SendText(const char *text)
 {
     if (gSurvivalMode) return false;
     MSG_RF_EnsureStoreInitialized();
-#ifdef ENABLE_AIRCOPY
+#if MSG_RF_HAS_FSK_PATH
     uint8_t packet[MSG_PKT_WIRE_LEN];
     char rf_text[MSG_RF_TEXT_LIMIT + 1u];
     clamp_rf_text(rf_text, text);
@@ -1669,12 +1675,10 @@ bool MSG_RF_SendText(const char *text)
         s_ack_dbg_wait_active = 0u;
     }
 
-#ifdef ENABLE_AIRCOPY
     /* RF27: do not immediately poke FSK registers right after TX.
      * Schedule the same safe controlled re-prime used globally; ACK is delayed
      * long enough to arrive after this window. */
     MSG_RF_RequestControlledReprime(MSG_RF_REPRIME_DELAY_TICKS);
-#endif
 
     gUpdateDisplay = true;
     return true;

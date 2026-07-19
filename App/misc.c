@@ -301,6 +301,7 @@ uint8_t           gMenuListCount;
 uint8_t           gBackup_CROSS_BAND_RX_TX;
 uint8_t           gScanDelay_10ms;
 uint8_t           gFSKWriteIndex;
+bool              gSurvivalMode = false;
 
 #ifdef ENABLE_NOAA
     bool          gIsNoaaMode;
