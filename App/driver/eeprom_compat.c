@@ -73,6 +73,9 @@ static const AddrMapping_t ADDR_MAPPINGS[] = {
                                                 // [0x08..0x407] 128x64 monochrome bitmap, 1024 Bytes
                                                 // ST7565-native: 8 pages * 128 columns, column-major LSB-top
 
+    _MK_MAPPING(0x012000, 0x00E000, 0x00F000),  // Messenger/call settings sector (4 KB)
+                                                // CHIRP-visible alias only. Actual storage remains 0x012000.
+
     // Not mapped, for documentation only (the EEPROM API uses 16-bit
     // addresses and could not reach a 32 KB window anyway):
     //
