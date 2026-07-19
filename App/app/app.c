@@ -24,6 +24,10 @@
 #ifdef ENABLE_AIRCOPY
     #include "app/aircopy.h"
 #endif
+#ifdef ENABLE_MESSENGER
+#include "app/messenger.h"
+#include "app/messenger_rf.h"
+#endif
 #ifdef ENABLE_FEAT_F4HWN_BEAM
     #include "app/beam.h"
 #endif
@@ -122,6 +126,10 @@ void (*ProcessKeysFunctions[])(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) 
 
 #ifdef ENABLE_FEAT_F4HWN_RXTX_LOG
     [DISPLAY_RXTX_LOG] = &RXTX_LOG_ProcessKeys,
+#endif
+
+#ifdef ENABLE_MESSENGER
+    [DISPLAY_MESSENGER] = &MSG_ProcessKeys,
 #endif
 };
 
@@ -905,6 +913,10 @@ static void CheckRadioInterrupts(void)
 
         interrupts.__raw = BK4819_ReadRegister(BK4819_REG_02);
 
+#ifdef ENABLE_MESSENGER
+        if (!gSurvivalMode) MSG_RF_OnRadioInterrupt(interrupts.__raw);
+#endif
+
         // 0 = no phase shift
         // 1 = 120deg phase shift
         // 2 = 180deg phase shift
@@ -1626,6 +1638,13 @@ void APP_TimeSlice10ms(void)
 
     if (gCurrentFunction != FUNCTION_POWER_SAVE || !gRxIdleMode)
         CheckRadioInterrupts();
+
+#ifdef ENABLE_MESSENGER
+        if (!gSurvivalMode) {
+            MSG_RF_Tick10ms();
+            MSG_Tick();
+        }
+#endif
 
     if (gCurrentFunction == FUNCTION_TRANSMIT)
     {   // transmitting

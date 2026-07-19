@@ -25,6 +25,9 @@
 #ifdef ENABLE_FMRADIO
     #include "app/fm.h"
 #endif
+#ifdef ENABLE_MESSENGER
+    #include "app/messenger_rf.h"
+#endif
 #ifdef ENABLE_BK1080
     #include "driver/bk1080.h"
 #endif
@@ -1018,6 +1021,10 @@ void RADIO_SetupRegisters(bool switchToForeground)
 
     if (switchToForeground)
         FUNCTION_Select(FUNCTION_FOREGROUND);
+
+#ifdef ENABLE_MESSENGER
+    MSG_RF_OnRadioSetupRegisters();
+#endif
 }
 
 #ifdef ENABLE_NOAA
