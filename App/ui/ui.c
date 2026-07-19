@@ -33,6 +33,9 @@
 #ifdef ENABLE_FEAT_F4HWN_RXTX_LOG
     #include "app/rxtx_log.h"
 #endif
+#ifdef ENABLE_MESSENGER
+    #include "app/messenger_ui.h"
+#endif
 #include "driver/st7565.h"
 #include "ui/helper.h"
 #include "ui/inputbox.h"
@@ -65,6 +68,10 @@ void (*UI_DisplayFunctions[])(void) = {
 
 #ifdef ENABLE_FEAT_F4HWN_RXTX_LOG
     [DISPLAY_RXTX_LOG] = &UI_DisplayRxTxLog,
+#endif
+
+#ifdef ENABLE_MESSENGER
+    [DISPLAY_MESSENGER] = &UI_DisplayMessenger,
 #endif
 };
 

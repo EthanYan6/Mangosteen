@@ -38,6 +38,7 @@ static const uint16_t BEEP_Classic_array[][3] = { /* Tone    Duration    Repeats
     [BEEP_NONE]                                   = {0,      0,          0      },
     [BEEP_1KHZ_60MS_OPTIONAL]                     = {1000,   60,         1      },
     [BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL]        = {500,    60,         2      },
+    [BEEP_500HZ_60MS_DOUBLE_BEEP_FORCE]           = {500,    60,         2      },
 #ifdef ENABLE_DTMF_CALLING
     [BEEP_880HZ_200MS]                            = {880,    200,        1      },
     [BEEP_880HZ_500MS]                            = {880,    500,        1      },
