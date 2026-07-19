@@ -31,8 +31,8 @@
 #include "app/spectrum.h"
 #endif
 
-#ifdef ENABLE_FEAT_F4HWN_GAME
-#include "app/breakout.h"
+#ifdef ENABLE_MESSENGER
+#include "app/messenger.h"
 #endif
 
 #include "audio.h"
@@ -262,20 +262,17 @@ static void processFKeyFunction(const KEY_Code_t Key, const bool beep)
             break;
 
         case KEY_7:
-#ifdef ENABLE_FEAT_F4HWN_GAME
+#ifdef ENABLE_MESSENGER
             if (!beep) {
-                APP_RunBreakout();
-            } else {
+                if (!gSurvivalMode) MSG_RangeOpen();
+                else gBeepToPlay = BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL;
+            } else
 #endif
+            {
 #ifdef ENABLE_VOX
                 ACTION_Vox();
-//#else
-//              toggle_chan_scanlist();
 #endif
-#ifdef ENABLE_FEAT_F4HWN_GAME
             }
-#endif
-
             break;
 
         case KEY_8:
@@ -754,6 +751,19 @@ static void MAIN_Key_EXIT(bool bKeyPressed, bool bKeyHeld)
 
 static void MAIN_Key_MENU(bool bKeyPressed, bool bKeyHeld)
 {
+#ifdef ENABLE_MESSENGER
+    if (!bKeyHeld && !bKeyPressed && gWasFKeyPressed) {
+        gWasFKeyPressed = false;
+        if (!gSurvivalMode) {
+            MSG_Open();
+            gBeepToPlay = BEEP_1KHZ_60MS_OPTIONAL;
+        } else {
+            gBeepToPlay = BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL;
+        }
+        return;
+    }
+#endif
+
     if (bKeyPressed && !bKeyHeld) // menu key pressed
         gBeepToPlay = BEEP_1KHZ_60MS_OPTIONAL;
 
