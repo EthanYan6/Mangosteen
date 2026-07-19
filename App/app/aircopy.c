@@ -14,9 +14,14 @@
  *     limitations under the License.
  */
 
+#if defined(ENABLE_AIRCOPY) || defined(ENABLE_MESSENGER)
+#include "app/aircopy.h"
+
+uint16_t g_FSK_Buffer[36];
+#endif
+
 #ifdef ENABLE_AIRCOPY
 
-#include "app/aircopy.h"
 #include "audio.h"
 #include "driver/bk4819.h"
 #include "driver/crc.h"
@@ -40,8 +45,6 @@ AIRCOPY_State_t gAircopyState;
 uint16_t gAirCopyBlockNumber;
 uint16_t gErrorsDuringAirCopy;
 bool     gAirCopyIsSendMode;
-
-uint16_t g_FSK_Buffer[36];
 
 // ============================================================================
 // Transfer Maps Definition

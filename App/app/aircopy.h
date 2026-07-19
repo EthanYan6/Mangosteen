@@ -17,6 +17,13 @@
 #ifndef APP_AIRCOPY_H
 #define APP_AIRCOPY_H
 
+/* Shared FSK word buffer used by AirCopy and Messenger RF. */
+#if defined(ENABLE_AIRCOPY) || defined(ENABLE_MESSENGER)
+#include <stdint.h>
+
+extern uint16_t g_FSK_Buffer[36];
+#endif
+
 #ifdef ENABLE_AIRCOPY
 
 #include "driver/keyboard.h"
@@ -93,8 +100,6 @@ extern AIRCOPY_State_t gAircopyState;
 extern uint16_t        gAirCopyBlockNumber;
 extern uint16_t        gErrorsDuringAirCopy;
 extern bool            gAirCopyIsSendMode;
-
-extern uint16_t        g_FSK_Buffer[36];
 
 // ============================================================================
 // API
