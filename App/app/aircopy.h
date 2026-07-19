@@ -21,7 +21,8 @@
 #if defined(ENABLE_AIRCOPY) || defined(ENABLE_MESSENGER)
 #include <stdint.h>
 
-extern uint16_t g_FSK_Buffer[36];
+/* Messenger GGM2 frames need 50 FSK words; AirCopy/Beam only use [0..35]. */
+extern uint16_t g_FSK_Buffer[50];
 #endif
 
 #ifdef ENABLE_AIRCOPY

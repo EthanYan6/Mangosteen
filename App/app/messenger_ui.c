@@ -150,7 +150,7 @@ static void draw_rssi_bars(uint8_t x, uint8_t y, int8_t rssi)
     }
 }
 
-static void draw_rssi_bars_compact(uint8_t x, uint8_t y, int8_t rssi)
+static void __attribute__((unused)) draw_rssi_bars_compact(uint8_t x, uint8_t y, int8_t rssi)
 {
     uint8_t bars = range_rssi_bars(rssi);
     if (bars > 5u) bars = 5u;

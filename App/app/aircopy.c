@@ -17,7 +17,7 @@
 #if defined(ENABLE_AIRCOPY) || defined(ENABLE_MESSENGER)
 #include "app/aircopy.h"
 
-uint16_t g_FSK_Buffer[36];
+uint16_t g_FSK_Buffer[50];
 #endif
 
 #ifdef ENABLE_AIRCOPY
