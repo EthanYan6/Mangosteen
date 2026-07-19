@@ -159,9 +159,28 @@ uint32_t FREQUENCY_RoundToStep(uint32_t freq, uint16_t step)
     return (freq + (step + 1) / 2) / step * step;
 }
 
+bool FREQUENCY_IsBroadcastFm(const uint32_t Frequency)
+{
+    return Frequency >= FREQ_WFM_MIN && Frequency <= FREQ_WFM_MAX;
+}
+
+#ifdef ENABLE_BK1080
+uint8_t FREQUENCY_GetWfmBk1080Band(uint16_t freq_0_1_MHz)
+{
+    if (freq_0_1_MHz < 760)
+        return 3; /* 64.0 – 76.0 */
+    if (freq_0_1_MHz < 875)
+        return 1; /* 76.0 – 87.5 */
+    return 0;     /* 87.5 – 108.0 */
+}
+#endif
+
 int32_t TX_freq_check(const uint32_t Frequency)
 {   // return '0' if TX frequency is allowed
     // otherwise return '-1'
+
+    if (FREQUENCY_IsBroadcastFm(Frequency))
+        return -1; // broadcast FM band is RX-only
 
     if (RX_freq_check(Frequency))
         return -1;

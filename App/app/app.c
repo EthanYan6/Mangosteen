@@ -1286,6 +1286,7 @@ void APP_Update(void)
         && gScanStateDir == SCAN_OFF
         && !gPttIsPressed
         && gCurrentFunction != FUNCTION_POWER_SAVE
+        && !RADIO_IsBroadcastRadioActive()
 #ifdef ENABLE_FEAT_F4HWN_BEAM
         && !gBeamActive
 #endif
@@ -1309,6 +1310,10 @@ void APP_Update(void)
         gScanPauseMode     = false;
         gRxReceptionMode   = RX_MODE_NONE;
         gScheduleDualWatch = false;
+    } else if (RADIO_IsBroadcastRadioActive()) {
+        // Keep schedule bit clear so DW does not resume while on broadcast FM.
+        gScheduleDualWatch = false;
+        gDualWatchActive   = false;
     }
 
 #ifdef ENABLE_FMRADIO
@@ -1367,7 +1372,8 @@ void APP_Update(void)
 
             if (gEeprom.DUAL_WATCH != DUAL_WATCH_OFF &&
                 gScanStateDir == SCAN_OFF &&
-                !gCssBackgroundScan
+                !gCssBackgroundScan &&
+                !RADIO_IsBroadcastRadioActive()
 #ifdef ENABLE_FEAT_F4HWN_BEAM
                 && !gBeamActive
 #endif
@@ -1386,7 +1392,7 @@ void APP_Update(void)
 #ifdef ENABLE_FEAT_F4HWN_BEAM
             !gBeamActive &&
 #endif
-        (gEeprom.DUAL_WATCH == DUAL_WATCH_OFF || gScanStateDir != SCAN_OFF || gCssBackgroundScan || goToSleep))
+        (gEeprom.DUAL_WATCH == DUAL_WATCH_OFF || gScanStateDir != SCAN_OFF || gCssBackgroundScan || goToSleep || RADIO_IsBroadcastRadioActive()))
         {   // dual watch mode off or scanning or rssi update request
             // go back to sleep
 

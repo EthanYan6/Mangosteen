@@ -596,6 +596,8 @@ static void MAIN_Key_DIGITS(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
             }
 
             uint32_t Frequency = inputFreq * 100;
+            const uint32_t prevFrequency = gTxVfo->freq_config_RX.Frequency;
+            const ModulationMode_t prevMod = gTxVfo->Modulation;
 
             // clamp the frequency entered to some valid value
             if (Frequency < frequencyBandTable[0].lower) {
@@ -630,7 +632,14 @@ static void MAIN_Key_DIGITS(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
             }
 
             gTxVfo->freq_config_RX.Frequency = Frequency;
+            RADIO_ApplyWfmAutoMode(gTxVfo, prevFrequency, Frequency, prevMod);
 
+#ifdef ENABLE_BK1080
+            if (gTxVfo->Modulation == MODULATION_WFM || prevMod == MODULATION_WFM) {
+                RADIO_SelectVfos();
+                RADIO_SetupRegisters(true);
+            }
+#endif
             gRequestSaveChannel = 1;
             return;
 
@@ -978,15 +987,43 @@ static void MAIN_Key_UP_DOWN(bool bKeyPressed, bool bKeyHeld, int8_t Direction)
         {
             uint16_t Next;
             if (IS_FREQ_CHANNEL(Channel)) { // step/down in frequency
-                const uint32_t frequency = APP_SetFrequencyByStep(gTxVfo, Direction);
+                const uint32_t prevFrequency = gTxVfo->freq_config_RX.Frequency;
+                const ModulationMode_t prevMod = gTxVfo->Modulation;
+                uint32_t frequency = APP_SetFrequencyByStep(gTxVfo, Direction);
 
                 if (RX_freq_check(frequency) < 0) { // frequency not allowed
                     gBeepToPlay = BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL;
                     return;
                 }
-                gTxVfo->freq_config_RX.Frequency = frequency;
-                BK4819_SetFrequency(frequency);
-                BK4819_RX_TurnOn();
+
+                // Keep VFO band index in sync (108 MHz is BAND1/BAND2 boundary).
+                {
+                    const FREQUENCY_Band_t band = FREQUENCY_GetBand(frequency);
+                    if (gTxVfo->Band != band) {
+                        const uint8_t Vfo = gEeprom.TX_VFO;
+                        gTxVfo->Band               = band;
+                        gEeprom.ScreenChannel[Vfo] = band + FREQ_CHANNEL_FIRST;
+                        gEeprom.FreqChannel[Vfo]   = band + FREQ_CHANNEL_FIRST;
+                        SETTINGS_SaveVfoIndices();
+                        RADIO_ConfigureChannel(Vfo, VFO_CONFIGURE_RELOAD);
+                        gTxVfo->freq_config_RX.Frequency = frequency;
+                    } else {
+                        gTxVfo->freq_config_RX.Frequency = frequency;
+                    }
+                }
+
+                RADIO_ApplyWfmAutoMode(gTxVfo, prevFrequency, gTxVfo->freq_config_RX.Frequency, prevMod);
+
+#ifdef ENABLE_BK1080
+                if (gTxVfo->Modulation == MODULATION_WFM || prevMod == MODULATION_WFM) {
+                    RADIO_SelectVfos();
+                    RADIO_SetupRegisters(true);
+                } else
+#endif
+                {
+                    BK4819_SetFrequency(gTxVfo->freq_config_RX.Frequency);
+                    BK4819_RX_TurnOn();
+                }
                 gRequestSaveChannel = 1;
                 return;
             }

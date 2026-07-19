@@ -61,6 +61,10 @@ typedef enum {
     MODULATION_AM,
     MODULATION_USB,
 
+#ifdef ENABLE_BK1080
+    MODULATION_WFM,
+#endif
+
 #ifdef ENABLE_BYP_RAW_DEMODULATORS
     MODULATION_BYP,
     MODULATION_RAW,
@@ -167,6 +171,8 @@ BK4819_FilterBandwidth_t RADIO_GetAMFilterBandwidth(const VFO_Info_t *pVfo);
 void     RADIO_SetTxParameters(void);
 void     RADIO_SetupAGC(bool listeningAM, bool disable);
 void     RADIO_SetModulation(ModulationMode_t modulation);
+void     RADIO_ApplyWfmAutoMode(VFO_Info_t *pVfo, uint32_t prevFreq, uint32_t newFreq, ModulationMode_t prevMod);
+bool     RADIO_IsBroadcastRadioActive(void);
 void     RADIO_SetVfoState(VfoState_t State);
 void     RADIO_PrepareTX(void);
 void     RADIO_SendCssTail(void);

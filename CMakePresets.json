@@ -11,6 +11,7 @@
                 "CMAKE_BUILD_TYPE": "Release",
                 "ENABLE_LTO": false,
                 "ENABLE_FMRADIO": false,
+                "ENABLE_BK1080": true,
                 "ENABLE_UART": true,
                 "ENABLE_USB": true,
                 "ENABLE_AIRCOPY": false,

@@ -19,10 +19,11 @@
     #include "app/fm.h"
 #endif
 #include "audio.h"
-#ifdef ENABLE_FMRADIO
+#if defined(ENABLE_FMRADIO) || defined(ENABLE_BK1080)
     #include "driver/bk1080.h"
 #endif
 #include "driver/bk4819.h"
+#include "radio.h"
 #include "driver/gpio.h"
 #include "driver/system.h"
 #include "driver/systick.h"
@@ -70,8 +71,15 @@ void AUDIO_PlayBeep(BEEP_Type_t Beep)
     if (Beep >= ARRAY_SIZE(BEEP_Classic_array))
         return;
 
-#ifdef ENABLE_FMRADIO
-    if (gFmRadioMode)
+#if defined(ENABLE_FMRADIO) || defined(ENABLE_BK1080)
+    bool muteBk1080 = false;
+    #ifdef ENABLE_FMRADIO
+        muteBk1080 = gFmRadioMode;
+    #endif
+    #ifdef ENABLE_BK1080
+        muteBk1080 = muteBk1080 || (gRxVfo && gRxVfo->Modulation == MODULATION_WFM);
+    #endif
+    if (muteBk1080)
         BK1080_Mute(true);
 #endif
 
@@ -112,18 +120,16 @@ void AUDIO_PlayBeep(BEEP_Type_t Beep)
     SYSTEM_DelayMs(5);
     BK4819_WriteRegister(BK4819_REG_71, ToneConfig);
 
-#ifdef ENABLE_FMRADIO
-    const bool isFmRadio = gFmRadioMode;
-    
-    if (isFmRadio)
+#if defined(ENABLE_FMRADIO) || defined(ENABLE_BK1080)
+    if (muteBk1080)
         SYSTEM_DelayMs(10);
 #endif
 
     if (gEnableSpeaker)
         AUDIO_AudioPathOn();
 
-#ifdef ENABLE_FMRADIO
-    if (isFmRadio)
+#if defined(ENABLE_FMRADIO) || defined(ENABLE_BK1080)
+    if (muteBk1080)
         BK1080_Mute(false);
 #endif
 

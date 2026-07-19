@@ -30,7 +30,7 @@
 #endif
 #include "app/scanner.h"
 #include "audio.h"
-#ifdef ENABLE_FMRADIO
+#if defined(ENABLE_FMRADIO) || defined(ENABLE_BK1080)
     #include "driver/bk1080.h"
 #endif
 #include "driver/bk4819.h"
@@ -38,6 +38,7 @@
 #include "driver/backlight.h"
 #include "functions.h"
 #include "misc.h"
+#include "radio.h"
 #include "settings.h"
 #include "ui/inputbox.h"
 #include "ui/main.h"
@@ -284,12 +285,24 @@ void ACTION_Scan(bool bRestart)
 
 void ACTION_SwitchDemodul(void)
 {
+#ifdef ENABLE_BK1080
+    const ModulationMode_t prevMod = gTxVfo->Modulation;
+#endif
+
     gRequestSaveChannel = 1;
 
     gTxVfo->Modulation++;
 
     if(gTxVfo->Modulation == MODULATION_UKNOWN)
         gTxVfo->Modulation = MODULATION_FM;
+
+#ifdef ENABLE_BK1080
+    // Switching to/from WFM must reconfigure the BK1080 immediately.
+    if (gTxVfo->Modulation == MODULATION_WFM || prevMod == MODULATION_WFM) {
+        RADIO_SelectVfos();
+        RADIO_SetupRegisters(true);
+    }
+#endif
 }
 
 
@@ -656,7 +669,7 @@ void ACTION_Mute(void)
     gMute = !gMute;
 
     // Update the registers
-    #ifdef ENABLE_FMRADIO
+    #if defined(ENABLE_FMRADIO) || defined(ENABLE_BK1080)
         BK1080_WriteRegister(BK1080_REG_05_SYSTEM_CONFIGURATION2, gMute ? 0x0A10 : 0x0A1F);
     #endif
     gEeprom.VOLUME_GAIN = gMute ? 0 : gEeprom.VOLUME_GAIN_BACKUP;

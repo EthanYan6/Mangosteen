@@ -27,7 +27,7 @@
 #include "py32f071_ll_adc.h"
 #include "driver/voice.h"
 #include "driver/backlight.h"
-#ifdef ENABLE_FMRADIO
+#if defined(ENABLE_BK1080) || defined(ENABLE_FMRADIO)
     #include "driver/bk1080.h"
 #endif
 
@@ -116,7 +116,7 @@ void BOARD_GPIO_Init(void)
     InitStruct.Pin = LL_GPIO_PIN_13;
     LL_GPIO_Init(GPIOC, &InitStruct);
 
-#ifdef ENABLE_FMRADIO
+#if defined(ENABLE_BK1080) || defined(ENABLE_FMRADIO)
     // BK1080 SCK: PF5
     // BK1080 SDA: PF6
     InitStruct.Pin = LL_GPIO_PIN_6 | LL_GPIO_PIN_5;
@@ -184,7 +184,7 @@ void BOARD_Init(void)
 #endif
     PY25Q16_Init();
     ST7565_Init();
-#ifdef ENABLE_FMRADIO
+#if defined(ENABLE_BK1080) || defined(ENABLE_FMRADIO)
     BK1080_Init0();
 #endif
 

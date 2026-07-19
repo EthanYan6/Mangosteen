@@ -33,6 +33,7 @@
 #include "frequencies.h"
 #include "helper/battery.h"
 #include "misc.h"
+#include "radio.h"
 #include "settings.h"
 #include "../driver/st7565.h"
 #if defined(ENABLE_OVERLAY)
@@ -842,8 +843,20 @@ void MENU_AcceptSetting(void)
             break;
 
         case MENU_AM:
+#ifdef ENABLE_BK1080
+            {
+                const ModulationMode_t prevMod = gTxVfo->Modulation;
+                gTxVfo->Modulation = gSubMenuSelection;
+                gRequestSaveChannel = 1;
+                if (gTxVfo->Modulation == MODULATION_WFM || prevMod == MODULATION_WFM) {
+                    RADIO_SelectVfos();
+                    RADIO_SetupRegisters(true);
+                }
+            }
+#else
             gTxVfo->Modulation     = gSubMenuSelection;
             gRequestSaveChannel = 1;
+#endif
             return;
 
         #ifndef ENABLE_FEAT_F4HWN

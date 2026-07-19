@@ -23,7 +23,7 @@
 #include "audio.h"
 #include "dcs.h"
 #include "driver/backlight.h"
-#if defined(ENABLE_FMRADIO)
+#if defined(ENABLE_FMRADIO) || defined(ENABLE_BK1080)
     #include "driver/bk1080.h"
 #endif
 #include "driver/bk4819.h"
@@ -158,6 +158,10 @@ void FUNCTION_Transmit()
 
 #if defined(ENABLE_FMRADIO)
     if (gFmRadioMode)
+        BK1080_Init0();
+#endif
+#ifdef ENABLE_BK1080
+    if (gCurrentVfo->Modulation == MODULATION_WFM)
         BK1080_Init0();
 #endif
 

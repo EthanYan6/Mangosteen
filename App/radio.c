@@ -25,6 +25,9 @@
 #ifdef ENABLE_FMRADIO
     #include "app/fm.h"
 #endif
+#ifdef ENABLE_BK1080
+    #include "driver/bk1080.h"
+#endif
 #include "audio.h"
 #include "dcs.h"
 #include "driver/bk4819.h"
@@ -49,6 +52,10 @@ const char gModulationStr[MODULATION_UKNOWN][4] = {
     [MODULATION_FM]="FM",
     [MODULATION_AM]="AM",
     [MODULATION_USB]="USB",
+
+#ifdef ENABLE_BK1080
+    [MODULATION_WFM]="WFM",
+#endif
 
 #ifdef ENABLE_BYP_RAW_DEMODULATORS
     [MODULATION_BYP]="BYP",
@@ -738,6 +745,59 @@ BK4819_FilterBandwidth_t RADIO_GetAMFilterBandwidth(const VFO_Info_t *pVfo)
     return (pVfo->CHANNEL_BANDWIDTH == BANDWIDTH_WIDE) ? BK4819_FILTER_BW_WIDE : BK4819_FILTER_BW_AM;
 }
 
+void RADIO_ApplyWfmAutoMode(VFO_Info_t *pVfo, uint32_t prevFreq, uint32_t newFreq, ModulationMode_t prevMod)
+{
+#ifdef ENABLE_BK1080
+    if (pVfo == NULL)
+        return;
+
+    const bool prevIn = FREQUENCY_IsBroadcastFm(prevFreq);
+    const bool newIn  = FREQUENCY_IsBroadcastFm(newFreq);
+    /* 64.0 / 108.0 inclusive — also force enter on the band edges */
+    const bool onEdge = (newFreq == FREQ_WFM_MIN || newFreq == FREQ_WFM_MAX);
+
+    if (newIn && (!prevIn || onEdge)) {
+        pVfo->Modulation    = MODULATION_WFM;
+        pVfo->STEP_SETTING  = STEP_100kHz;
+        pVfo->StepFrequency = gStepFrequencyTable[STEP_100kHz];
+        pVfo->freq_config_RX.Frequency =
+            FREQUENCY_RoundToStep(newFreq, pVfo->StepFrequency);
+
+        // Stay on this VFO/chip; dual-watch toggling causes BK1080 re-init click/thump.
+        // Manual VFO switch via long-press 2 still works.
+        gDualWatchActive   = false;
+        gScheduleDualWatch = false;
+    } else if (newIn && prevIn && prevMod == MODULATION_WFM) {
+        // Band reload at 108 MHz (BAND1→BAND2) can wipe WFM — restore it.
+        pVfo->Modulation = MODULATION_WFM;
+    } else if (prevIn && !newIn && pVfo->Modulation == MODULATION_WFM) {
+        pVfo->Modulation = MODULATION_FM;
+    }
+#else
+    (void)pVfo;
+    (void)prevFreq;
+    (void)newFreq;
+    (void)prevMod;
+#endif
+}
+
+bool RADIO_IsBroadcastRadioActive(void)
+{
+#ifdef ENABLE_BK1080
+    // Any VFO in WFM uses BK1080 — pause dual-watch polling.
+    if (gEeprom.VfoInfo[0].Modulation == MODULATION_WFM ||
+        gEeprom.VfoInfo[1].Modulation == MODULATION_WFM)
+        return true;
+
+    if (gTxVfo && gTxVfo->Modulation == MODULATION_WFM)
+        return true;
+
+    if (gRxVfo && gRxVfo->Modulation == MODULATION_WFM)
+        return true;
+#endif
+    return false;
+}
+
 void RADIO_SetupRegisters(bool switchToForeground)
 {
     BK4819_FilterBandwidth_t Bandwidth = gRxVfo->CHANNEL_BANDWIDTH;
@@ -806,6 +866,41 @@ void RADIO_SetupRegisters(bool switchToForeground)
     #else
         Frequency = gRxVfo->pRX->Frequency;
     #endif
+
+#ifdef ENABLE_BK1080
+    // WFM always uses the BK1080 broadcast chip — regardless of frequency.
+    if (gRxVfo->Modulation == MODULATION_WFM)
+    {
+        // VFO unit = 10 Hz; BK1080 unit = 0.1 MHz → divide by 10000
+        // e.g. 103.9 MHz = 10390000 → 1039
+        uint16_t fmFreq = (uint16_t)(Frequency / 10000u);
+        if (fmFreq < 640)
+            fmFreq = 640;
+        else if (fmFreq > 1080)
+            fmFreq = 1080;
+
+        const uint8_t band = FREQUENCY_GetWfmBk1080Band(fmFreq);
+
+        BK4819_DisableVox();
+        BK4819_SetCompander(0);
+        BK4819_PickRXFilterPathBasedOnFrequency(10320000); // VHF LNA path for BK1080
+        BK1080_Init(fmFreq, band);
+
+        gDualWatchActive   = false;
+        gScheduleDualWatch = false;
+
+        AUDIO_AudioPathOn();
+        gEnableSpeaker = true;
+
+        FUNCTION_Init();
+        if (switchToForeground)
+            FUNCTION_Select(FUNCTION_FOREGROUND);
+        return;
+    }
+
+    BK1080_Init0();
+#endif
+
     BK4819_SetFrequency(Frequency);
 
     // Keep the demodulator in sync when retuning without entering RX audio.
@@ -1042,6 +1137,11 @@ void RADIO_SetTxParameters(void)
 
 void RADIO_SetModulation(ModulationMode_t modulation)
 {
+#ifdef ENABLE_BK1080
+    if (modulation == MODULATION_WFM)
+        return; // BK1080 path is handled in RADIO_SetupRegisters()
+#endif
+
     #ifdef ENABLE_BYP_RAW_DEMODULATORS
     if (modulation == MODULATION_BYP || modulation == MODULATION_RAW) {
         uint16_t reg_3d_val = 0x0000;
@@ -1232,6 +1332,12 @@ void RADIO_PrepareTX(void)
 #ifdef ENABLE_BYP_RAW_DEMODULATORS
     else if (gCurrentVfo->Modulation == MODULATION_BYP || gCurrentVfo->Modulation == MODULATION_RAW) {
         // BYP/RAW are receive-only modes.
+        State = VFO_STATE_TX_DISABLE;
+    }
+#endif
+#ifdef ENABLE_BK1080
+    else if (gCurrentVfo->Modulation == MODULATION_WFM) {
+        // Broadcast WFM is receive-only.
         State = VFO_STATE_TX_DISABLE;
     }
 #endif

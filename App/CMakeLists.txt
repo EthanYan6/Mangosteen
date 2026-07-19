@@ -119,11 +119,18 @@ endif()
 
 # ---- STOCK QUANSHENG FEATURES ----
 
+# BK1080 driver for VFO WFM (and optional legacy FM UI)
+enable_feature(ENABLE_BK1080
+    driver/bk1080.c
+)
+# Legacy standalone FM radio UI (requires ENABLE_BK1080 for the driver)
 enable_feature(ENABLE_FMRADIO
-    driver/bk1080.c 
-    app/fm.c 
+    app/fm.c
     ui/fmradio.c
 )
+if(ENABLE_FMRADIO AND NOT ENABLE_BK1080)
+    message(FATAL_ERROR "ENABLE_FMRADIO requires ENABLE_BK1080")
+endif()
 enable_feature(ENABLE_AIRCOPY
     app/aircopy.c
     ui/aircopy.c

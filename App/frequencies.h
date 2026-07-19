@@ -17,6 +17,7 @@
 #ifndef FREQUENCIES_H
 #define FREQUENCIES_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #define _1GHz_in_KHz 100000000
@@ -90,5 +91,14 @@ uint32_t         FREQUENCY_GetSortedIdxFromStepIdx(uint8_t step);
 
 int32_t          TX_freq_check(uint32_t Frequency);
 int32_t          RX_freq_check(uint32_t Frequency);
+
+/* Broadcast FM band in VFO units (0.01 kHz): 64.0 – 108.0 MHz inclusive */
+#define FREQ_WFM_MIN  6400000u
+#define FREQ_WFM_MAX 10800000u
+
+bool             FREQUENCY_IsBroadcastFm(uint32_t Frequency);
+#ifdef ENABLE_BK1080
+uint8_t          FREQUENCY_GetWfmBk1080Band(uint16_t freq_0_1_MHz);
+#endif
 
 #endif
