@@ -61,6 +61,12 @@ void UI_DisplayStatus()
     if (APP_IsScreenSaverDisplayed())
         return;
 
+#ifdef ENABLE_FEAT_F4HWN
+    /* Home card owns the top strip on the main screen. */
+    if (gScreenToDisplay == DISPLAY_MAIN)
+        return;
+#endif
+
     UI_StatusClear();
 
     uint8_t     *line = gStatusLine;

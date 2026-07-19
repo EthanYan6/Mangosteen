@@ -1,0 +1,160 @@
+<h2>双守页线框预览 v7</h2>
+<p class="subtitle">S 表刻度 <strong>1–9 均匀分布</strong>在 3/4 圆弧上（缺右下象限）；频率仍为七段 LED。</p>
+
+<div class="mockup">
+  <div class="mockup-header">Preview ×2</div>
+  <div class="mockup-body" style="display:flex;justify-content:center;padding:24px;background:#222;">
+    <svg width="512" height="256" viewBox="0 0 128 64" style="image-rendering:pixelated;border:3px solid #555;background:#000;box-shadow:0 8px 32px rgba(0,0,0,.5);">
+      <!-- BACK -->
+      <g opacity="0.35">
+        <rect x="8" y="10" width="116" height="50" rx="3" fill="none" stroke="#888" stroke-width="1" stroke-dasharray="1 1"/>
+        <path d="M 46 32 A 14 14 0 1 0 32 46" fill="none" stroke="#666" stroke-width="1" stroke-dasharray="2 2"/>
+      </g>
+
+      <!-- FRONT -->
+      <rect x="2" y="2" width="112" height="48" rx="3" fill="#0a0a0a" stroke="#e8e8e8" stroke-width="1.5"/>
+
+      <!--
+        Gauge: center C=(30,22), r=16
+        Visible arc = 270° from East (0°) CCW to South (270° / -90°)
+        In screen coords with Y-down, SVG angles from +X:
+          0° = East, CCW: 0→90 = North? Wait SVG Y-down so CCW from east goes North visually? 
+          Actually with Y-down: angle 0 = east, positive CCW goes toward north (negative Y).
+          Points on arc for S1..S9 evenly over 270°:
+          angle_i = 0 + (270° * (i-1) / 8)  for i=1..9  → S1 at East, S9 at South
+          Or S1 at South (weak) to S9 at East (strong) — typical S-meter left=weak right=strong
+          Common radio S-meter: left/low = S1, right/high = S9
+          On our arc going CCW from East to South: that would put S9 at East and S1 at South
+          Better: start at South (S1) going CW through West, North to East (S9)
+          Or: labels from South=1 ... West ... North ... East=9 along the drawn arc direction.
+
+        Drawn path: East → CCW → South, so along the path from start to end:
+          t=0 at East, t=1 at South. If we want 1 at start of weak... 
+          User said 1-9 evenly. Classic: S1 left/low, S9 right/high.
+          Left of our arc is West, right is East. So S1 near South-West side progressing to S9 at East.
+          Place S1 at South, then evenly CCW... no that's wrong direction.
+          
+        Along visible arc from South → West → North → East (CW from south, or CCW from east reversed):
+          angle from +X: South=90° (Y-down SVG: south is +90° clockwise from east... )
+          
+        SVG standard: angle 0 at 3 o'clock, positive = clockwise when using some APIs;
+        For parametric: 
+          x = cx + r*cos(θ)
+          y = cy + r*sin(θ)  with θ from east, clockwise (Y-down):
+          θ=0 East, θ=90° South, θ=180 West, θ=270 North
+          
+        Visible 3/4 excluding SE (θ 0→90). Visible: θ from 90° (South) to 360°/0° (East) going 
+        through West and North = θ = 90° → 360°, which is 270°.
+        
+        S1 at θ=90° (South), S9 at θ=360° (East):
+        θ_i = 90° + (270° * (i-1) / 8)  for i=1..9
+             = 90 + 33.75*(i-1)
+      -->
+      <g id="gauge">
+        <path d="M 46 22 A 16 16 0 1 0 30 38"
+              fill="none" stroke="#f0f0f0" stroke-width="1.4"/>
+
+        <!-- ticks + labels 1..9, θ = 90 + 33.75*(n-1) degrees, Y-down clockwise from east -->
+        <!-- computed:
+          n=1 θ=90  → (30, 38)
+          n=2 θ=123.75 → (20.1, 35.3)
+          n=3 θ=157.5 → (15.2, 28.1)
+          n=4 θ=191.25 → (14.3, 19.0)
+          n=5 θ=225 → (18.7, 10.7)
+          n=6 θ=258.75 → (26.9, 6.3)
+          n=7 θ=292.5 → (36.2, 7.2)
+          n=8 θ=326.25 → (43.3, 13.1)
+          n=9 θ=360 → (46, 22)
+        -->
+        <g stroke="#ddd" stroke-width="0.9" fill="#bbb" font-size="4" font-family="monospace" text-anchor="middle">
+          <!-- helper: tick from r=16 to r=13 toward center; label at r=19.5 outward -->
+          <!-- n=1 South -->
+          <line x1="30" y1="38" x2="30" y2="35.2"/>
+          <text x="30" y="43" fill="#bbb">1</text>
+          <!-- n=2 -->
+          <line x1="20.1" y1="35.3" x2="21.8" y2="33.2"/>
+          <text x="16" y="39" fill="#bbb">2</text>
+          <!-- n=3 -->
+          <line x1="15.2" y1="28.1" x2="17.6" y2="27.0"/>
+          <text x="10" y="30" fill="#bbb">3</text>
+          <!-- n=4 -->
+          <line x1="14.3" y1="19.0" x2="16.8" y2="19.5"/>
+          <text x="9" y="19" fill="#bbb">4</text>
+          <!-- n=5 -->
+          <line x1="18.7" y1="10.7" x2="20.7" y2="12.4"/>
+          <text x="14" y="9" fill="#bbb">5</text>
+          <!-- n=6 -->
+          <line x1="26.9" y1="6.3" x2="27.5" y2="9.1"/>
+          <text x="26" y="4" fill="#bbb">6</text>
+          <!-- n=7 -->
+          <line x1="36.2" y1="7.2" x2="34.9" y2="9.8"/>
+          <text x="39" y="5" fill="#bbb">7</text>
+          <!-- n=8 -->
+          <line x1="43.3" y1="13.1" x2="41.0" y2="14.7"/>
+          <text x="48" y="12" fill="#bbb">8</text>
+          <!-- n=9 East -->
+          <line x1="46" y1="22" x2="43.2" y2="22"/>
+          <text x="51" y="24" fill="#bbb">9</text>
+        </g>
+
+        <!-- needle ~ S6-7 -->
+        <line x1="30" y1="22" x2="36" y2="9" stroke="#fff" stroke-width="1.2"/>
+        <circle cx="30" cy="22" r="1.8" fill="#fff"/>
+      </g>
+
+      <!-- channel name — shift right to clear "8""9" -->
+      <text x="54" y="18" fill="#ddd" font-size="5.5" font-family="monospace">REPEATER</text>
+
+      <!-- 7-seg freq in SE cutout -->
+      <g transform="translate(31,23) scale(0.72)">
+        <!-- 1 -->
+        <g transform="translate(0,0)" fill="#fff">
+          <rect x="7" y="1" width="2" height="6"/><rect x="7" y="8" width="2" height="6"/>
+        </g>
+        <!-- 4 -->
+        <g transform="translate(11,0)" fill="#fff">
+          <rect x="1" y="1" width="2" height="6"/><rect x="7" y="1" width="2" height="6"/>
+          <rect x="7" y="8" width="2" height="6"/><rect x="2" y="7" width="6" height="2"/>
+        </g>
+        <!-- 5 -->
+        <g transform="translate(22,0)" fill="#fff">
+          <rect x="2" y="0" width="6" height="2"/><rect x="1" y="1" width="2" height="6"/>
+          <rect x="2" y="7" width="6" height="2"/><rect x="7" y="8" width="2" height="6"/>
+          <rect x="2" y="14" width="6" height="2"/>
+        </g>
+        <circle cx="33" cy="14" r="1.3" fill="#fff"/>
+        <!-- 5 -->
+        <g transform="translate(35,0)" fill="#fff">
+          <rect x="2" y="0" width="6" height="2"/><rect x="1" y="1" width="2" height="6"/>
+          <rect x="2" y="7" width="6" height="2"/><rect x="7" y="8" width="2" height="6"/>
+          <rect x="2" y="14" width="6" height="2"/>
+        </g>
+        <!-- 5 -->
+        <g transform="translate(46,0)" fill="#fff">
+          <rect x="2" y="0" width="6" height="2"/><rect x="1" y="1" width="2" height="6"/>
+          <rect x="2" y="7" width="6" height="2"/><rect x="7" y="8" width="2" height="6"/>
+          <rect x="2" y="14" width="6" height="2"/>
+        </g>
+        <!-- 0 -->
+        <g transform="translate(57,0)" fill="#fff">
+          <rect x="2" y="0" width="6" height="2"/><rect x="7" y="1" width="2" height="6"/>
+          <rect x="7" y="8" width="2" height="6"/><rect x="2" y="14" width="6" height="2"/>
+          <rect x="1" y="8" width="2" height="6"/><rect x="1" y="1" width="2" height="6"/>
+        </g>
+      </g>
+
+      <text x="6" y="46" fill="#ccc" font-size="5" font-family="monospace">L3  CT88.5  FM  SQL3</text>
+    </svg>
+  </div>
+</div>
+
+<div class="section">
+  <p class="label">刻度规则</p>
+  <ul>
+    <li><strong>1</strong> 在圆弧南端（缺角起点旁），<strong>9</strong> 在圆弧东端（缺角另一侧）</li>
+    <li>中间 2–8 按 270° 弧长等分</li>
+    <li>指针按 S 值映射到同一角度</li>
+  </ul>
+</div>
+
+<p class="subtitle">刷新看 v7。1→9 的走向（弱→强）这样排是否 OK？</p>

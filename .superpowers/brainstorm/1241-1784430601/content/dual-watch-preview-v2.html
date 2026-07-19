@@ -1,0 +1,72 @@
+<h2>双守页线框预览 v2</h2>
+<p class="subtitle">已修正：圆只缺<strong>右下 1/4</strong>（东南象限）；频率落在缺角外侧。</p>
+
+<div class="mockup">
+  <div class="mockup-header">Preview ×2</div>
+  <div class="mockup-body" style="display:flex;justify-content:center;padding:24px;background:#222;">
+    <svg width="512" height="256" viewBox="0 0 128 64" style="image-rendering:pixelated;border:3px solid #555;background:#000;box-shadow:0 8px 32px rgba(0,0,0,.5);">
+      <!-- BACK CARD -->
+      <g opacity="0.4">
+        <rect x="6" y="8" width="118" height="52" rx="3" fill="none" stroke="#888" stroke-width="1" stroke-dasharray="1 1"/>
+        <!-- back faint 3/4: same cutout SE -->
+        <path d="M 54 32 A 18 18 0 1 0 36 50" fill="none" stroke="#777" stroke-width="1" stroke-dasharray="2 2"/>
+        <text x="58" y="22" fill="#666" font-size="5" font-family="monospace">UHF-B</text>
+        <text x="58" y="48" fill="#777" font-size="7" font-family="monospace">445.000</text>
+      </g>
+
+      <!-- FRONT CARD -->
+      <rect x="2" y="2" width="112" height="48" rx="3" fill="#0a0a0a" stroke="#e8e8e8" stroke-width="1.5"/>
+
+      <!--
+        Circle center (30,24), r=18
+        Visible 3/4: East -> North -> West -> South (CCW), OPEN = SE (East->South clockwise)
+        East  (48,24)  South (30,42)
+      -->
+      <path d="M 48 24 A 18 18 0 1 0 30 42"
+            fill="none" stroke="#f0f0f0" stroke-width="1.5"/>
+
+      <!-- ghost guide: missing SE quarter (for review only, lighter) -->
+      <path d="M 48 24 A 18 18 0 0 1 30 42"
+            fill="none" stroke="#333" stroke-width="1" stroke-dasharray="1 2"/>
+
+      <!-- ticks on visible arc -->
+      <g stroke="#ccc" stroke-width="0.9">
+        <line x1="48" y1="24" x2="44" y2="24"/>           <!-- E ~S9 -->
+        <line x1="42" y1="12" x2="40" y2="15"/>           <!-- NE -->
+        <line x1="30" y1="6"  x2="30" y2="10"/>           <!-- N ~S5 -->
+        <line x1="18" y1="12" x2="20" y2="15"/>           <!-- NW -->
+        <line x1="12" y1="24" x2="16" y2="24"/>           <!-- W ~S0 -->
+        <line x1="18" y1="36" x2="20" y2="33"/>           <!-- SW -->
+        <line x1="30" y1="42" x2="30" y2="38"/>           <!-- S -->
+      </g>
+      <text x="46" y="22" fill="#999" font-size="3.5" font-family="monospace">9</text>
+      <text x="28" y="5"  fill="#999" font-size="3.5" font-family="monospace">5</text>
+      <text x="8"  y="26" fill="#999" font-size="3.5" font-family="monospace">0</text>
+
+      <!-- needle -->
+      <line x1="30" y1="24" x2="40" y2="12" stroke="#fff" stroke-width="1.3"/>
+      <circle cx="30" cy="24" r="2" fill="#fff"/>
+
+      <!-- channel name: right of upper arc (above frequency) -->
+      <text x="52" y="12" fill="#eee" font-size="7" font-family="monospace">REPEATER</text>
+
+      <!-- frequency: outside the missing SE quarter -->
+      <text x="50" y="36" fill="#fff" font-size="10" font-family="monospace" font-weight="bold">145.550</text>
+      <text x="50" y="42" fill="#999" font-size="4.5" font-family="monospace">A</text>
+
+      <!-- info under circle + freq -->
+      <text x="6" y="48" fill="#ccc" font-size="5.5" font-family="monospace">L3  CT88.5  FM  SQL3</text>
+    </svg>
+  </div>
+</div>
+
+<div class="section">
+  <p class="label">圆的说明</p>
+  <ul>
+    <li>实线 = 显示的 3/4（左上为主）</li>
+    <li>极淡虚线 = 故意不画的右下 1/4（仅预览示意，真机不会画）</li>
+    <li>频率在缺角外侧（圆心右下方向）</li>
+  </ul>
+</div>
+
+<p class="subtitle">刷新 [http://localhost:53499](http://localhost:53499) 查看。缺角方向对了吗？</p>

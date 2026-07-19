@@ -756,6 +756,17 @@ void APP_StartListening(FUNCTION_Type_t function)
 
         gScheduleDualWatch       = false;
 
+        /* Promote receiving VFO to main/TX so home-card front, main, and PTT match. */
+        if (gEeprom.TX_VFO != gEeprom.RX_VFO) {
+            gEeprom.TX_VFO = gEeprom.RX_VFO;
+            if (gEeprom.CROSS_BAND_RX_TX != CROSS_BAND_OFF)
+                gEeprom.CROSS_BAND_RX_TX = gEeprom.TX_VFO + 1;
+            gEeprom.DUAL_WATCH = gEeprom.TX_VFO + 1;
+            gTxVfo = &gEeprom.VfoInfo[gEeprom.TX_VFO];
+            gRequestSaveSettings = 1;
+            gUpdateDisplay = true;
+        }
+
         // when crossband is active only the main VFO should be used for TX
         if(gEeprom.CROSS_BAND_RX_TX == CROSS_BAND_OFF)
             gRxVfoIsActive = true;
@@ -1620,7 +1631,7 @@ void APP_TimeSlice10ms(void)
 
 #ifdef ENABLE_FEAT_F4HWN_AUDIO_SCOPE
     if (gSetting_mic_bar && (gFlashLightBlinkCounter % (20 / 10)) == 0) // once every 20ms
-        // Sample audio amplitude and refresh display during TX only (FM RX has no usable audio register)
+        // Home card: paints scope on screen-bottom row during TX
         UI_DisplayAudioScope();
 #endif
 

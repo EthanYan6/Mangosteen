@@ -73,6 +73,11 @@ else()
     set(EXE_NAME "firmware")
 endif()
 
+# Presets may still pass TARGET when VERSION_STRING_2 naming is preferred.
+if(TARGET)
+    message(STATUS "Preset TARGET=${TARGET}; using EXE_NAME=${EXE_NAME}")
+endif()
+
 message("EXE_NAME = " ${EXE_NAME})
 
 add_executable(${EXE_NAME})

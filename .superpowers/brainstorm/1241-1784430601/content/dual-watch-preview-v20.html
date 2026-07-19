@@ -1,0 +1,98 @@
+<h2>双守页线框预览 v20</h2>
+<p class="subtitle">卡片右侧：竖条 VU，由小方块堆成；发射时高度随麦音量变化。接收时可不显示或压暗。</p>
+
+<div class="mockup">
+  <div class="mockup-header">Preview · 发射中（麦条跳动）</div>
+  <div class="mockup-body" style="display:flex;justify-content:center;padding:24px;background:#222;">
+    <svg width="512" height="256" viewBox="0 0 128 64" style="image-rendering:pixelated;border:3px solid #555;background:#000;box-shadow:0 8px 32px rgba(0,0,0,.5);">
+      <!-- BACK -->
+      <g opacity="0.55">
+        <rect x="8" y="10" width="116" height="50" rx="3" fill="none" stroke="#777" stroke-width="1" stroke-dasharray="1 1"/>
+        <text x="12" y="56" fill="#888" font-size="5" font-family="monospace">UHF-B  445.000  FM</text>
+      </g>
+
+      <!-- FRONT — slightly narrower on right to leave VU column inside card -->
+      <rect x="2" y="2" width="112" height="48" rx="3" fill="#0a0a0a" stroke="#e8e8e8" stroke-width="1.5"/>
+
+      <text x="6" y="10" fill="#fff" font-size="7" font-family="monospace">S7</text>
+
+      <!-- battery shifted left a bit for VU -->
+      <g transform="translate(78,4)">
+        <rect x="0" y="1" width="9" height="5" rx="0.5" fill="none" stroke="#eee" stroke-width="0.8"/>
+        <rect x="9" y="2.2" width="1.2" height="2.6" fill="#eee"/>
+        <rect x="1" y="2" width="5.5" height="3" fill="#eee"/>
+      </g>
+      <text x="91" y="9" fill="#eee" font-size="5" font-family="monospace">72%</text>
+
+      <path d="M 44 22 A 15 15 0 1 0 29 37" fill="none" stroke="#e0e0e0" stroke-width="1.2"/>
+      <g stroke="#aaa" stroke-width="0.7">
+        <line x1="29" y1="37" x2="29" y2="34.8"/>
+        <line x1="19.5" y1="34.5" x2="21" y2="32.8"/>
+        <line x1="15" y1="27.8" x2="17" y2="27"/>
+        <line x1="14.2" y1="19.2" x2="16.4" y2="19.6"/>
+        <line x1="18.3" y1="11.4" x2="20" y2="12.8"/>
+        <line x1="26" y1="7.2" x2="26.5" y2="9.5"/>
+        <line x1="34.5" y1="8" x2="33.4" y2="10.2"/>
+        <line x1="41.2" y1="13.5" x2="39.2" y2="14.8"/>
+        <line x1="44" y1="22" x2="41.5" y2="22"/>
+      </g>
+      <line x1="29" y1="22" x2="35" y2="10" stroke="#fff" stroke-width="1"/>
+      <circle cx="29" cy="22" r="1.5" fill="#fff"/>
+
+      <text x="46" y="16" fill="#9cf" font-size="5" font-family="monospace">CALL FRM:88</text>
+      <text x="46" y="24" fill="#eee" font-size="8" font-family="monospace">REPEATER</text>
+
+      <g transform="translate(30,27) scale(0.65)">
+        <g fill="#fff">
+          <g transform="translate(0,0)"><rect x="7" y="1" width="2" height="6"/><rect x="7" y="8" width="2" height="6"/></g>
+          <g transform="translate(11,0)"><rect x="1" y="1" width="2" height="6"/><rect x="7" y="1" width="2" height="6"/><rect x="7" y="8" width="2" height="6"/><rect x="2" y="7" width="6" height="2"/></g>
+          <g transform="translate(22,0)"><rect x="2" y="0" width="6" height="2"/><rect x="1" y="1" width="2" height="6"/><rect x="2" y="7" width="6" height="2"/><rect x="7" y="8" width="2" height="6"/><rect x="2" y="14" width="6" height="2"/></g>
+          <circle cx="33" cy="14" r="1.3"/>
+          <g transform="translate(35,0)"><rect x="2" y="0" width="6" height="2"/><rect x="1" y="1" width="2" height="6"/><rect x="2" y="7" width="6" height="2"/><rect x="7" y="8" width="2" height="6"/><rect x="2" y="14" width="6" height="2"/></g>
+          <g transform="translate(46,0)"><rect x="2" y="0" width="6" height="2"/><rect x="1" y="1" width="2" height="6"/><rect x="2" y="7" width="6" height="2"/><rect x="7" y="8" width="2" height="6"/><rect x="2" y="14" width="6" height="2"/></g>
+          <g transform="translate(57,0)"><rect x="2" y="0" width="6" height="2"/><rect x="7" y="1" width="2" height="6"/><rect x="7" y="8" width="2" height="6"/><rect x="2" y="14" width="6" height="2"/><rect x="1" y="8" width="2" height="6"/><rect x="1" y="1" width="2" height="6"/></g>
+        </g>
+      </g>
+
+      <text x="6" y="46" fill="#ccc" font-size="5" font-family="monospace">L3  CT88.5  FM  SQL3</text>
+      <text x="96" y="46" fill="#fff" font-size="7" font-family="monospace" text-anchor="end">20</text>
+
+      <!--
+        Vertical mic VU — column of small squares on right inside card
+        x ≈ 104..110, blocks from bottom up; lit count = audio level
+        10 slots, 7 lit in this frame
+      -->
+      <g id="mic-vu" transform="translate(104,8)">
+        <!-- empty slots (ghost) -->
+        <g fill="#222" stroke="#333" stroke-width="0.3">
+          <rect x="0" y="0"  width="5" height="3" rx="0.3"/>
+          <rect x="0" y="4"  width="5" height="3" rx="0.3"/>
+          <rect x="0" y="8"  width="5" height="3" rx="0.3"/>
+        </g>
+        <!-- lit blocks from bottom -->
+        <g fill="#fff">
+          <rect x="0" y="12" width="5" height="3" rx="0.3"/>
+          <rect x="0" y="16" width="5" height="3" rx="0.3"/>
+          <rect x="0" y="20" width="5" height="3" rx="0.3"/>
+          <rect x="0" y="24" width="5" height="3" rx="0.3"/>
+          <rect x="0" y="28" width="5" height="3" rx="0.3"/>
+          <rect x="0" y="32" width="5" height="3" rx="0.3"/>
+          <rect x="0" y="36" width="5" height="3" rx="0.3"/>
+        </g>
+      </g>
+      <!-- TX marker near VU top -->
+      <text x="104" y="7" fill="#fff" font-size="4" font-family="monospace">TX</text>
+    </svg>
+  </div>
+</div>
+
+<div class="section">
+  <p class="label">行为</p>
+  <ul>
+    <li>发射：按麦电平点亮自下而上的小方块（约 8–10 格）</li>
+    <li>接收/待机：不显示或只留极淡空槽</li>
+    <li>实现可复用现有 mic bar / audio 采样逻辑，改成竖向方块</li>
+  </ul>
+</div>
+
+<p class="subtitle">刷新看 v20。竖条位置/格数还要调吗？</p>

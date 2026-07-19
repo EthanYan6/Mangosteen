@@ -40,6 +40,8 @@ target_sources(App INTERFACE
     settings.c
     ui/battery.c
     ui/helper.c
+    ui/home_card.c
+    ui/home_card_font.c
     ui/inputbox.c
     ui/main.c
     ui/menu.c
@@ -175,6 +177,41 @@ enable_feature(ENABLE_SCAN_RANGES)
 enable_feature(ENABLE_EXTRA_UART_CMD)
 
 # ---- F4HWN MODS ----
+
+if(ENABLE_FEAT_F4HWN)
+    target_include_directories(App INTERFACE
+        "${CMAKE_CURRENT_SOURCE_DIR}/../external/U8G2/csrc"
+        "${CMAKE_CURRENT_SOURCE_DIR}/ui"
+    )
+    target_compile_definitions(App INTERFACE
+        U8G2_NO_BALANCED_STR_WIDTH_CALCULATION
+        U8G2_WITHOUT_UNICODE
+        U8G2_WITHOUT_FONT_ROTATION
+        U8G2_WITHOUT_CLIP_WINDOW_SUPPORT
+        U8G2_WITHOUT_INTERSECTION
+        U8G2_WITHOUT_HVLINE_SPEED_OPTIMIZATION
+        U8X8_WITHOUT_SET_CONTRAST
+    )
+    target_sources(App INTERFACE
+        ../external/U8G2/csrc/u8g2_bitmap.c
+        ../external/U8G2/csrc/u8g2_box.c
+        ../external/U8G2/csrc/u8g2_buffer.c
+        ../external/U8G2/csrc/u8g2_d_memory_minimal.c
+        ../external/U8G2/csrc/u8g2_d_setup_minimal.c
+        ../external/U8G2/csrc/u8g2_font.c
+        ../external/U8G2/csrc/u8g2_hvline.c
+        ../external/U8G2/csrc/u8g2_ll_hvline.c
+        ../external/U8G2/csrc/u8g2_setup.c
+        ../external/U8G2/csrc/u8x8_8x8.c
+        ../external/U8G2/csrc/u8x8_byte.c
+        ../external/U8G2/csrc/u8x8_cad.c
+        ../external/U8G2/csrc/u8x8_display.c
+        ../external/U8G2/csrc/u8x8_gpio.c
+        ../external/U8G2/csrc/u8x8_setup.c
+        ../external/U8G2/csrc/u8x8_string.c
+        ../external/U8G2/csrc/u8x8_d_st7565.c
+    )
+endif()
 
 enable_feature(ENABLE_FEAT_F4HWN)
 enable_feature(ENABLE_FEAT_F4HWN_GAME 

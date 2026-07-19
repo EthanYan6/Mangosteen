@@ -1,0 +1,85 @@
+<h2>双守叠卡：哪种「第二张被压住」更合适？</h2>
+<p class="subtitle">屏为 128×64 单色。前景：3/4 圆 S 表 + 右下频率 + 右上信道名 + 底栏信息。切换 VFO A/B 时卡片对调（可带动画）。点选一种叠法。</p>
+
+<div class="cards">
+  <div class="card" data-choice="peek-bottom" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#1a1a1a;padding:16px;display:flex;justify-content:center;">
+      <svg width="256" height="128" viewBox="0 0 128 64" style="image-rendering:pixelated;border:2px solid #444;background:#0d0d0d;">
+        <rect x="4" y="44" width="120" height="18" rx="2" fill="none" stroke="#555" stroke-width="1" stroke-dasharray="2 2"/>
+        <text x="10" y="56" fill="#555" font-size="6" font-family="monospace">445.000  CH-B</text>
+        <rect x="2" y="2" width="124" height="50" rx="3" fill="#111" stroke="#c8c8c8" stroke-width="1.5"/>
+        <path d="M 8 36 A 22 22 0 1 1 30 48" fill="none" stroke="#ddd" stroke-width="1.5"/>
+        <g stroke="#aaa" stroke-width="0.8">
+          <line x1="8" y1="28" x2="12" y2="28"/>
+          <line x1="12" y1="14" x2="15" y2="16"/>
+          <line x1="30" y1="6" x2="30" y2="10"/>
+          <line x1="48" y1="14" x2="45" y2="16"/>
+        </g>
+        <line x1="30" y1="28" x2="14" y2="18" stroke="#fff" stroke-width="1.2"/>
+        <circle cx="30" cy="28" r="1.5" fill="#fff"/>
+        <text x="56" y="14" fill="#eee" font-size="7" font-family="monospace">REPEATER</text>
+        <text x="56" y="30" fill="#fff" font-size="10" font-family="monospace" font-weight="bold">145.550</text>
+        <text x="8" y="46" fill="#bbb" font-size="5.5" font-family="monospace">L3  CT88.5  FM  SQL3</text>
+      </svg>
+    </div>
+    <div class="card-body">
+      <h3>A · 底部露边</h3>
+      <p>前景占大半屏，背景只在底边露出一条（虚线/淡色）。切换 A/B 时上下对调。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="offset-stack" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#1a1a1a;padding:16px;display:flex;justify-content:center;">
+      <svg width="256" height="128" viewBox="0 0 128 64" style="image-rendering:pixelated;border:2px solid #444;background:#0d0d0d;">
+        <rect x="8" y="10" width="118" height="50" rx="3" fill="#0a0a0a" stroke="#666" stroke-width="1"/>
+        <path d="M 14 42 A 18 18 0 1 1 32 52" fill="none" stroke="#555" stroke-width="1"/>
+        <text x="56" y="28" fill="#555" font-size="7" font-family="monospace">445.000</text>
+        <text x="56" y="18" fill="#444" font-size="5" font-family="monospace">UHF-B</text>
+        <rect x="2" y="2" width="112" height="46" rx="3" fill="#111" stroke="#c8c8c8" stroke-width="1.5"/>
+        <path d="M 8 34 A 20 20 0 1 1 28 44" fill="none" stroke="#ddd" stroke-width="1.5"/>
+        <g stroke="#aaa" stroke-width="0.8">
+          <line x1="8" y1="26" x2="11" y2="26"/>
+          <line x1="14" y1="12" x2="16" y2="14"/>
+          <line x1="28" y1="6" x2="28" y2="9"/>
+          <line x1="42" y1="12" x2="40" y2="14"/>
+        </g>
+        <line x1="28" y1="26" x2="12" y2="16" stroke="#fff" stroke-width="1.2"/>
+        <circle cx="28" cy="26" r="1.5" fill="#fff"/>
+        <text x="52" y="14" fill="#eee" font-size="6" font-family="monospace">REPEATER</text>
+        <text x="52" y="28" fill="#fff" font-size="9" font-family="monospace" font-weight="bold">145.550</text>
+        <text x="8" y="42" fill="#bbb" font-size="5" font-family="monospace">L3  CT88.5  FM  SQL3</text>
+      </svg>
+    </div>
+    <div class="card-body">
+      <h3>B · 错位叠压</h3>
+      <p>背景整张淡化并向右下错开，更像「压着一张」。前景略小，层次更强，可用像素略紧。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="depth-strip" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#1a1a1a;padding:16px;display:flex;justify-content:center;">
+      <svg width="256" height="128" viewBox="0 0 128 64" style="image-rendering:pixelated;border:2px solid #444;background:#0d0d0d;">
+        <rect x="6" y="6" width="120" height="54" rx="2" fill="none" stroke="#444" stroke-width="1"/>
+        <rect x="8" y="8" width="116" height="50" rx="2" fill="none" stroke="#333" stroke-width="1"/>
+        <rect x="2" y="2" width="116" height="48" rx="3" fill="#111" stroke="#c8c8c8" stroke-width="1.5"/>
+        <path d="M 8 34 A 20 20 0 1 1 28 44" fill="none" stroke="#ddd" stroke-width="1.5"/>
+        <g stroke="#aaa" stroke-width="0.8">
+          <line x1="8" y1="26" x2="11" y2="26"/>
+          <line x1="14" y1="12" x2="16" y2="14"/>
+          <line x1="28" y1="6" x2="28" y2="9"/>
+          <line x1="42" y1="12" x2="40" y2="14"/>
+        </g>
+        <line x1="28" y1="26" x2="18" y2="12" stroke="#fff" stroke-width="1.2"/>
+        <circle cx="28" cy="26" r="1.5" fill="#fff"/>
+        <text x="52" y="14" fill="#eee" font-size="6" font-family="monospace">REPEATER</text>
+        <text x="52" y="28" fill="#fff" font-size="9" font-family="monospace" font-weight="bold">145.550</text>
+        <text x="8" y="42" fill="#bbb" font-size="5" font-family="monospace">L3  CT88.5  FM  SQL3</text>
+        <text x="108" y="58" fill="#444" font-size="5" font-family="monospace" transform="rotate(-90 108 58)">B</text>
+      </svg>
+    </div>
+    <div class="card-body">
+      <h3>C · 描边层次</h3>
+      <p>前景完整，右/下用双线淡框暗示背面卡片；背面不显示频率细节，最省像素、实现最稳。</p>
+    </div>
+  </div>
+</div>

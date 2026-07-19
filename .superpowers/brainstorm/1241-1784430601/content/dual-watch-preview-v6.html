@@ -1,0 +1,151 @@
+<h2>双守页线框预览 v6</h2>
+<p class="subtitle">频率改为更大的<strong>七段 LED（8 字管）</strong>风格，仍落在右下缺角内；仪表保持在卡片内。</p>
+
+<style>
+  /* local to this fragment — 7-seg digit blocks */
+  .lcd-wrap { display:flex; justify-content:center; padding:24px; background:#222; }
+</style>
+
+<div class="mockup">
+  <div class="mockup-header">Preview ×2</div>
+  <div class="mockup-body" style="display:flex;justify-content:center;padding:24px;background:#222;">
+    <svg width="512" height="256" viewBox="0 0 128 64" style="image-rendering:pixelated;border:3px solid #555;background:#000;box-shadow:0 8px 32px rgba(0,0,0,.5);">
+      <defs>
+        <!-- 7-segment digit: a b c d e f g ; on=#fff off=#222 -->
+        <symbol id="seg7" viewBox="0 0 10 16">
+          <!-- a top -->
+          <polygon class="sa" points="2,1 8,1 7,2 3,2"/>
+          <!-- b upper-right -->
+          <polygon class="sb" points="8.5,1.5 9.5,2.5 9.5,7 8.5,7.5 7.5,7 7.5,2.5"/>
+          <!-- c lower-right -->
+          <polygon class="sc" points="8.5,8.5 9.5,9 9.5,13.5 8.5,14.5 7.5,13.5 7.5,9"/>
+          <!-- d bottom -->
+          <polygon class="sd" points="2,15 8,15 7,14 3,14"/>
+          <!-- e lower-left -->
+          <polygon class="se" points="1.5,8.5 2.5,9 2.5,13.5 1.5,14.5 0.5,13.5 0.5,9"/>
+          <!-- f upper-left -->
+          <polygon class="sf" points="1.5,1.5 2.5,2.5 2.5,7 1.5,7.5 0.5,7 0.5,2.5"/>
+          <!-- g middle -->
+          <polygon class="sg" points="2.5,7.5 7.5,7.5 8,8 7.5,8.5 2.5,8.5 2,8"/>
+        </symbol>
+      </defs>
+
+      <!-- BACK CARD -->
+      <g opacity="0.35">
+        <rect x="8" y="10" width="116" height="50" rx="3" fill="none" stroke="#888" stroke-width="1" stroke-dasharray="1 1"/>
+        <path d="M 46 32 A 14 14 0 1 0 32 46" fill="none" stroke="#666" stroke-width="1" stroke-dasharray="2 2"/>
+      </g>
+
+      <!-- FRONT CARD -->
+      <rect x="2" y="2" width="112" height="48" rx="3" fill="#0a0a0a" stroke="#e8e8e8" stroke-width="1.5"/>
+
+      <!-- gauge r=16 center (30,22) — inside card -->
+      <path d="M 46 22 A 16 16 0 1 0 30 38"
+            fill="none" stroke="#f0f0f0" stroke-width="1.4"/>
+
+      <g stroke="#ccc" stroke-width="0.8">
+        <line x1="46" y1="22" x2="43" y2="22"/>
+        <line x1="41" y1="12" x2="39" y2="14"/>
+        <line x1="30" y1="6"  x2="30" y2="9"/>
+        <line x1="19" y1="12" x2="21" y2="14"/>
+        <line x1="14" y1="22" x2="17" y2="22"/>
+        <line x1="19" y1="32" x2="21" y2="30"/>
+        <line x1="30" y1="38" x2="30" y2="35"/>
+      </g>
+      <text x="43" y="20" fill="#888" font-size="3" font-family="monospace">9</text>
+      <text x="28" y="5"  fill="#888" font-size="3" font-family="monospace">5</text>
+      <text x="10" y="23" fill="#888" font-size="3" font-family="monospace">0</text>
+
+      <line x1="30" y1="22" x2="40" y2="12" stroke="#fff" stroke-width="1.2"/>
+      <circle cx="30" cy="22" r="1.8" fill="#fff"/>
+
+      <text x="52" y="11" fill="#ddd" font-size="6" font-family="monospace">REPEATER</text>
+
+      <!--
+        7-seg frequency 145.550 inside SE cutout
+        Digit map (a b c d e f g):
+        0: abcdef   1: bc   2: abdeg   3: abcdg   4: bcfg
+        5: acdfg    6: acdefg  7: abc   8: abcdefg  9: abcdfg
+        Layout: 6 digits + decimal after 3rd → 1 4 5 . 5 5 0
+        Each digit ~9×14, packed into cutout ~x28..58, y22..40
+      -->
+      <g id="freq-led" transform="translate(29,21) scale(0.95)">
+        <!-- helper: fill=#fff for ON segments, #1a1a1a for OFF (ghost 8) -->
+        <!-- digit 1 -->
+        <g transform="translate(0,0)">
+          <g fill="#1a1a1a"><use href="#seg7"/></g>
+          <g fill="#fff">
+            <polygon points="8.5,1.5 9.5,2.5 9.5,7 8.5,7.5 7.5,7 7.5,2.5"/>
+            <polygon points="8.5,8.5 9.5,9 9.5,13.5 8.5,14.5 7.5,13.5 7.5,9"/>
+          </g>
+        </g>
+        <!-- digit 4 -->
+        <g transform="translate(10,0)">
+          <g fill="#1a1a1a"><use href="#seg7"/></g>
+          <g fill="#fff">
+            <polygon points="8.5,1.5 9.5,2.5 9.5,7 8.5,7.5 7.5,7 7.5,2.5"/>
+            <polygon points="8.5,8.5 9.5,9 9.5,13.5 8.5,14.5 7.5,13.5 7.5,9"/>
+            <polygon points="1.5,1.5 2.5,2.5 2.5,7 1.5,7.5 0.5,7 0.5,2.5"/>
+            <polygon points="2.5,7.5 7.5,7.5 8,8 7.5,8.5 2.5,8.5 2,8"/>
+          </g>
+        </g>
+        <!-- digit 5 -->
+        <g transform="translate(20,0)">
+          <g fill="#1a1a1a"><use href="#seg7"/></g>
+          <g fill="#fff">
+            <polygon points="2,1 8,1 7,2 3,2"/>
+            <polygon points="8.5,8.5 9.5,9 9.5,13.5 8.5,14.5 7.5,13.5 7.5,9"/>
+            <polygon points="2,15 8,15 7,14 3,14"/>
+            <polygon points="1.5,1.5 2.5,2.5 2.5,7 1.5,7.5 0.5,7 0.5,2.5"/>
+            <polygon points="2.5,7.5 7.5,7.5 8,8 7.5,8.5 2.5,8.5 2,8"/>
+          </g>
+        </g>
+        <!-- decimal point -->
+        <circle cx="31" cy="14" r="1.2" fill="#fff"/>
+        <!-- digit 5 -->
+        <g transform="translate(33,0)">
+          <g fill="#1a1a1a"><use href="#seg7"/></g>
+          <g fill="#fff">
+            <polygon points="2,1 8,1 7,2 3,2"/>
+            <polygon points="8.5,8.5 9.5,9 9.5,13.5 8.5,14.5 7.5,13.5 7.5,9"/>
+            <polygon points="2,15 8,15 7,14 3,14"/>
+            <polygon points="1.5,1.5 2.5,2.5 2.5,7 1.5,7.5 0.5,7 0.5,2.5"/>
+            <polygon points="2.5,7.5 7.5,7.5 8,8 7.5,8.5 2.5,8.5 2,8"/>
+          </g>
+        </g>
+        <!-- digit 5 -->
+        <g transform="translate(43,0)">
+          <g fill="#1a1a1a"><use href="#seg7"/></g>
+          <g fill="#fff">
+            <polygon points="2,1 8,1 7,2 3,2"/>
+            <polygon points="8.5,8.5 9.5,9 9.5,13.5 8.5,14.5 7.5,13.5 7.5,9"/>
+            <polygon points="2,15 8,15 7,14 3,14"/>
+            <polygon points="1.5,1.5 2.5,2.5 2.5,7 1.5,7.5 0.5,7 0.5,2.5"/>
+            <polygon points="2.5,7.5 7.5,7.5 8,8 7.5,8.5 2.5,8.5 2,8"/>
+          </g>
+        </g>
+        <!-- digit 0 -->
+        <g transform="translate(53,0)">
+          <g fill="#1a1a1a"><use href="#seg7"/></g>
+          <g fill="#fff">
+            <polygon points="2,1 8,1 7,2 3,2"/>
+            <polygon points="8.5,1.5 9.5,2.5 9.5,7 8.5,7.5 7.5,7 7.5,2.5"/>
+            <polygon points="8.5,8.5 9.5,9 9.5,13.5 8.5,14.5 7.5,13.5 7.5,9"/>
+            <polygon points="2,15 8,15 7,14 3,14"/>
+            <polygon points="1.5,8.5 2.5,9 2.5,13.5 1.5,14.5 0.5,13.5 0.5,9"/>
+            <polygon points="1.5,1.5 2.5,2.5 2.5,7 1.5,7.5 0.5,7 0.5,2.5"/>
+          </g>
+        </g>
+      </g>
+
+      <text x="6" y="46" fill="#ccc" font-size="5" font-family="monospace">L3  CT88.5  FM  SQL3</text>
+    </svg>
+  </div>
+</div>
+
+<div class="section">
+  <p class="label">固件侧对应</p>
+  <p>真机可用现成大号频率字（或专用七段点阵）画在缺角矩形内；未点亮段可极淡或省略以省 CPU。</p>
+</div>
+
+<p class="subtitle">刷新看 v6。LED 字号/疏密还要再拧吗？</p>

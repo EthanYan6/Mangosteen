@@ -39,6 +39,7 @@
 #include "radio.h"
 #include "settings.h"
 #include "ui/helper.h"
+#include "ui/home_card.h"
 #include "ui/inputbox.h"
 #include "ui/main.h"
 #include "ui/ui.h"
@@ -47,6 +48,8 @@
 
 #ifdef ENABLE_FEAT_F4HWN
     #include "driver/system.h"
+    /* Card home UI replaces the classic dual-VFO main layout. */
+    #define UI_USE_HOME_CARD 1
 #endif
 
 center_line_t center_line = CENTER_LINE_NONE;
@@ -56,7 +59,6 @@ center_line_t center_line = CENTER_LINE_NONE;
     static int8_t RxBlinkLed = 0;
     static int8_t RxBlinkLedCounter;
     static int8_t RxLine;
-    static uint32_t RxOnVfofrequency;
 
     bool isMainOnlyInputDTMF = false;
 
@@ -66,31 +68,7 @@ center_line_t center_line = CENTER_LINE_NONE;
     }
 #endif
 
-#ifdef ENABLE_FEAT_F4HWN_SCAN_PROGRESS
-#define SCAN_PROGRESS_MR_CHANNEL_BYTES ((MR_CHANNELS_MAX + 7u) / 8u)
-
-static bool     gScanProgressSessionActive;
-static bool     gScanProgressSessionIsMemory;
-static uint8_t  gScanProgressSessionScanList;
-static uint32_t gScanProgressSessionRangeStart;
-static uint32_t gScanProgressSessionRangeStop;
-static uint32_t gScanProgressSessionStep;
-static uint16_t gScanProgressMemoryTotal;
-static uint8_t  gScanProgressMemoryMap[SCAN_PROGRESS_MR_CHANNEL_BYTES];
-static uint8_t  gScanProgressMemoryExcludeOrdinalMap[SCAN_PROGRESS_MR_CHANNEL_BYTES];
-static bool     gScanProgressPrevResetVfosFlag;
-static bool     gScanProgressForceRebuild;
-static uint16_t gScanProgressLastMemoryIndex;
-static uint8_t  gScanProgressPriorityState;
-#define SCAN_PROGRESS_PRIORITY_LABEL_MASK 0x03u
-#define SCAN_PROGRESS_PRIORITY_SEEN_SHIFT 2
-#define SCAN_PROGRESS_PRIORITY_SEEN_MASK  0x1cu
-#define SCAN_PROGRESS_PRIORITY_HOLD_SHIFT 5
-#define SCAN_PROGRESS_PRIORITY_HOLD_MASK  0xe0u
-#define SCAN_PROGRESS_PRIORITY_HOLD_FRAMES 6
-#endif
-
-#ifdef ENABLE_FEAT_F4HWN_BEAM
+#if defined(ENABLE_FEAT_F4HWN_BEAM) && !defined(UI_USE_HOME_CARD)
 static void UI_MAIN_DrawBeamLine(void)
 {
     const char *text;
@@ -128,7 +106,7 @@ static void UI_MAIN_DrawBeamLine(void)
     memset(gFrameBuffer[line], 0, LCD_WIDTH);
     UI_PrintStringSmallBold(text, 2, 127, line);
 }
-#endif
+#endif /* ENABLE_FEAT_F4HWN_BEAM && !UI_USE_HOME_CARD */
 
 const char *VfoStateStr[] = {
        [VFO_STATE_NORMAL]="",
@@ -140,7 +118,7 @@ const char *VfoStateStr[] = {
        [VFO_STATE_VOLTAGE_HIGH]="VOLT HIGH"
 };
 
-#if defined(ENABLE_FEAT_F4HWN_SCAN_FASTER) && defined(ENABLE_FEAT_F4HWN_SCAN_RSSI)
+#if defined(ENABLE_FEAT_F4HWN_SCAN_FASTER) && defined(ENABLE_FEAT_F4HWN_SCAN_RSSI) && !defined(UI_USE_HOME_CARD)
 static uint8_t UI_MAIN_GetScanRssiSparklineMask(uint8_t previousLevel, uint8_t level)
 {
     uint8_t mask = 0;
@@ -203,9 +181,37 @@ static void UI_MAIN_DrawScanRssiSparkline(uint8_t line)
         p_line[x0 + i] = (p_line[x0 + i] & 0x80) | mask;
     }
 }
-#endif
+#endif /* SCAN_FASTER && SCAN_RSSI && !UI_USE_HOME_CARD */
 
 #ifdef ENABLE_FEAT_F4HWN_SCAN_PROGRESS
+#ifdef UI_USE_HOME_CARD
+void UI_MAIN_NotifyScanProgressDataChanged(void)
+{
+    gUpdateDisplay = true;
+}
+#else
+#define SCAN_PROGRESS_MR_CHANNEL_BYTES ((MR_CHANNELS_MAX + 7u) / 8u)
+
+static bool     gScanProgressSessionActive;
+static bool     gScanProgressSessionIsMemory;
+static uint8_t  gScanProgressSessionScanList;
+static uint32_t gScanProgressSessionRangeStart;
+static uint32_t gScanProgressSessionRangeStop;
+static uint32_t gScanProgressSessionStep;
+static uint16_t gScanProgressMemoryTotal;
+static uint8_t  gScanProgressMemoryMap[SCAN_PROGRESS_MR_CHANNEL_BYTES];
+static uint8_t  gScanProgressMemoryExcludeOrdinalMap[SCAN_PROGRESS_MR_CHANNEL_BYTES];
+static bool     gScanProgressPrevResetVfosFlag;
+static bool     gScanProgressForceRebuild;
+static uint16_t gScanProgressLastMemoryIndex;
+static uint8_t  gScanProgressPriorityState;
+#define SCAN_PROGRESS_PRIORITY_LABEL_MASK 0x03u
+#define SCAN_PROGRESS_PRIORITY_SEEN_SHIFT 2
+#define SCAN_PROGRESS_PRIORITY_SEEN_MASK  0x1cu
+#define SCAN_PROGRESS_PRIORITY_HOLD_SHIFT 5
+#define SCAN_PROGRESS_PRIORITY_HOLD_MASK  0xe0u
+#define SCAN_PROGRESS_PRIORITY_HOLD_FRAMES 6
+
 static void ScanProgress_ResetSession(void)
 {
     gScanProgressSessionActive = false;
@@ -614,10 +620,12 @@ static bool UI_DrawScanProgress(void)
 
     return true;
 }
-#endif
+#endif /* !UI_USE_HOME_CARD */
+#endif /* ENABLE_FEAT_F4HWN_SCAN_PROGRESS */
 
 // ----------------------------------------
 
+#ifndef ENABLE_RSSI_BAR
 static void DrawSmallPowerBars(uint8_t *p, unsigned int level)
 {
     if(level>6)
@@ -632,6 +640,8 @@ static void DrawSmallPowerBars(uint8_t *p, unsigned int level)
         memset(p + 2 + i*3, bar, 2);
     }
 }
+#endif
+
 #if defined ENABLE_AUDIO_BAR || defined ENABLE_RSSI_BAR
 
 static void DrawLevelBar(uint8_t xpos, uint8_t line, uint8_t level, uint8_t bars)
@@ -704,7 +714,8 @@ static void DrawLevelBar(uint8_t xpos, uint8_t line, uint8_t level, uint8_t bars
 #endif
 
 #ifdef ENABLE_AUDIO_BAR
-// Approximation of a logarithmic scale using integer arithmetic
+#if !defined(ENABLE_FEAT_F4HWN)
+/* Approximation of a logarithmic scale using integer arithmetic */
 static uint8_t log2_approx(unsigned int value) {
     uint8_t log = 0;
     while (value >>= 1) {
@@ -714,68 +725,51 @@ static uint8_t log2_approx(unsigned int value) {
 }
 #endif
 
-#ifdef ENABLE_AUDIO_BAR
-
 void UI_DisplayAudioBar(void)
 {
-    if (gSetting_mic_bar)
-    {
-        if(gLowBattery && !gLowBatteryConfirmed)
-            return;
-
-#ifdef ENABLE_FEAT_F4HWN
-        RxBlinkLed = 0;
-        RxBlinkLedCounter = 0;
-        BK4819_ToggleGpioOut(BK4819_GPIO6_PIN2_GREEN, false);
-        unsigned int line;
-        if (isMainOnly())
-        {
-            line = 5;
-        }
-        else
-        {
-            line = 3;
-        }
+#if defined(ENABLE_FEAT_F4HWN)
+    /* Home card + Fusion: bottom strip is the audio scope, not the level bar. */
+    return;
 #else
-        const unsigned int line = 3;
-#endif
+    if (!gSetting_mic_bar)
+        return;
 
-        if (gCurrentFunction != FUNCTION_TRANSMIT ||
-            gScreenToDisplay != DISPLAY_MAIN
+    if (gLowBattery && !gLowBatteryConfirmed)
+        return;
+
+    if (gCurrentFunction != FUNCTION_TRANSMIT ||
+        gScreenToDisplay != DISPLAY_MAIN
 #ifdef ENABLE_DTMF_CALLING
-            || gDTMF_CallState != DTMF_CALL_STATE_NONE
+        || gDTMF_CallState != DTMF_CALL_STATE_NONE
 #endif
-            )
-        {
-            return;  // screen is in use
-        }
+        )
+    {
+        return;  // screen is in use
+    }
 
 #if defined(ENABLE_ALARM) || defined(ENABLE_TX1750)
-        if (gAlarmState != ALARM_STATE_OFF)
-            return;
+    if (gAlarmState != ALARM_STATE_OFF)
+        return;
 #endif
-        static uint8_t barsOld = 0;
-        const uint8_t thresold = 18; // arbitrary thresold
-        //const uint8_t barsList[] = {0, 0, 0, 1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 25};
-        const uint8_t barsList[] = {0, 0, 0, 1, 2, 3, 5, 7, 9, 12, 15, 18, 21, 25, 25, 25};
-        uint8_t logLevel;
-        uint8_t bars;
 
-        unsigned int voiceLevel  = BK4819_GetVoiceAmplitudeOut();  // 15:0
+    const unsigned int line = 3;
 
-        voiceLevel = (voiceLevel >= thresold) ? (voiceLevel - thresold) : 0;
-        logLevel = log2_approx(MIN(voiceLevel * 16, 32768u) + 1);
-        bars = barsList[logLevel];
-        barsOld = (barsOld - bars > 1) ? (barsOld - 1) : bars;
+    static uint8_t barsOld = 0;
+    const uint8_t thresold = 18;
+    const uint8_t barsList[] = {0, 0, 0, 1, 2, 3, 5, 7, 9, 12, 15, 18, 21, 25, 25, 25};
 
-        uint8_t *p_line = gFrameBuffer[line];
-        memset(p_line, 0, LCD_WIDTH);
+    unsigned int voiceLevel = BK4819_GetVoiceAmplitudeOut();
+    voiceLevel = (voiceLevel >= thresold) ? (voiceLevel - thresold) : 0;
+    const uint8_t logLevel = log2_approx(MIN(voiceLevel * 16, 32768u) + 1);
+    uint8_t bars = barsList[logLevel];
+    barsOld = (barsOld > bars + 1) ? (uint8_t)(barsOld - 1) : bars;
 
-        DrawLevelBar(2, line, barsOld, 25);
+    memset(gFrameBuffer[line], 0, LCD_WIDTH);
+    DrawLevelBar(2, line, barsOld, 25);
 
-        if (gCurrentFunction == FUNCTION_TRANSMIT)
-            ST7565_BlitFullScreen();
-    }
+    if (gCurrentFunction == FUNCTION_TRANSMIT)
+        ST7565_BlitFullScreen();
+#endif
 }
 #endif
 
@@ -860,7 +854,8 @@ void UI_DisplayAudioScope(void)
     RxBlinkLed = 0;
     RxBlinkLedCounter = 0;
     BK4819_ToggleGpioOut(BK4819_GPIO6_PIN2_GREEN, false);
-    const unsigned int line = isMainOnly() ? 5 : 3;
+    /* Home card: scope on screen-bottom row only (not classic center line). */
+    const unsigned int line = FRAME_LINES - 1u;
 #else
     const unsigned int line = 3;
 #endif
@@ -1173,7 +1168,10 @@ void UI_MAIN_TimeSlice500ms(void)
 #endif
 
         if(FUNCTION_IsRx()) {
+#ifndef UI_USE_HOME_CARD
+            /* Classic RSSI bar uses center line 3/5; home card owns that area. */
             DisplayRSSIBar(true);
+#endif
         }
 #ifdef ENABLE_FEAT_F4HWN // Blink Green Led for white...
         else if(gSetting_set_eot > 0 && RxBlinkLed == 2)
@@ -1229,6 +1227,7 @@ void UI_MAIN_TimeSlice500ms(void)
 
 // ----------------------------------------
 
+#ifndef UI_USE_HOME_CARD
 static void UI_FormatFrequency(uint32_t freq, char *buffer) {
     sprintf(buffer, "%3u.%05u", freq / 100000, freq % 100000);
 }
@@ -1252,9 +1251,14 @@ static void UI_PrintScanRangeCss(char *String, uint8_t LabelX, uint8_t ValueX, u
     UI_PrintStringSmallNormal(String, ValueX, 0, Line);
 }
 #endif
+#endif /* !UI_USE_HOME_CARD */
 
 void UI_DisplayMain(void)
 {
+#ifdef ENABLE_FEAT_F4HWN
+    UI_DisplayHomeCard();
+    return;
+#else
     char               String[22];
 
     center_line = CENTER_LINE_NONE;
@@ -2373,4 +2377,5 @@ void UI_DisplayMain(void)
 #endif
 
     ST7565_BlitFullScreen();
+#endif /* !ENABLE_FEAT_F4HWN */
 }
