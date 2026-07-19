@@ -887,6 +887,10 @@ void RADIO_SetupRegisters(bool switchToForeground)
 
         BK4819_DisableVox();
         BK4819_SetCompander(0);
+        // Mute BK4819 AF before opening the shared amp. Without this, a mid-RX
+        // switch from NFM (e.g. 144.400) leaves the old demod unmuted → dual
+        // audio, then a loud noise burst when that carrier drops.
+        BK4819_SetAF(BK4819_AF_MUTE);
         BK4819_PickRXFilterPathBasedOnFrequency(10320000); // VHF LNA path for BK1080
         BK1080_Init(fmFreq, band);
 

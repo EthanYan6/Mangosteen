@@ -317,6 +317,12 @@ bool APP_IsScreenSaverDisplayed(void)
 
 static void CheckForIncoming(void)
 {
+#ifdef ENABLE_BK1080
+    // WFM uses BK1080; ignore stale BK4819 squelch state from a prior NFM RX.
+    if (gRxVfo && gRxVfo->Modulation == MODULATION_WFM)
+        return;
+#endif
+
     if (!g_SquelchLost)
         return;          // squelch is closed
 
@@ -1006,16 +1012,26 @@ static void CheckRadioInterrupts(void)
 #endif
 
         if (interrupts.sqlLost) {
-            g_SquelchLost = true;
-            BK4819_ToggleGpioOut(BK4819_GPIO6_PIN2_GREEN, true);
-            #ifdef ENABLE_FEAT_F4HWN_RX_TX_TIMER
-                gRxTimerCountdown_500ms = 7200;
-            #endif
+#ifdef ENABLE_BK1080
+            if (!(gRxVfo && gRxVfo->Modulation == MODULATION_WFM))
+#endif
+            {
+                g_SquelchLost = true;
+                BK4819_ToggleGpioOut(BK4819_GPIO6_PIN2_GREEN, true);
+                #ifdef ENABLE_FEAT_F4HWN_RX_TX_TIMER
+                    gRxTimerCountdown_500ms = 7200;
+                #endif
+            }
         }
 
         if (interrupts.sqlFound) {
-            g_SquelchLost = false;
-            BK4819_ToggleGpioOut(BK4819_GPIO6_PIN2_GREEN, false);
+#ifdef ENABLE_BK1080
+            if (!(gRxVfo && gRxVfo->Modulation == MODULATION_WFM))
+#endif
+            {
+                g_SquelchLost = false;
+                BK4819_ToggleGpioOut(BK4819_GPIO6_PIN2_GREEN, false);
+            }
         }
 
 #ifdef ENABLE_AIRCOPY
@@ -1101,6 +1117,10 @@ static void HandleVox(void)
 
 #ifdef ENABLE_FMRADIO
     if (gFmRadioMode)
+        return;
+#endif
+#ifdef ENABLE_BK1080
+    if (gRxVfo && gRxVfo->Modulation == MODULATION_WFM)
         return;
 #endif
 
