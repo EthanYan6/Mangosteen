@@ -49,6 +49,9 @@
 #ifdef ENABLE_FEAT_F4HWN_RXTX_LOG
     #include "app/rxtx_log.h"
 #endif
+#ifdef ENABLE_MESSENGER
+    #include "app/messenger.h"
+#endif
 
 #if defined(ENABLE_FMRADIO)
 static void ACTION_Scan_FM(bool bRestart);
@@ -61,6 +64,34 @@ inline static void ACTION_1750() { ACTION_AlarmOr1750(true); };
 #endif
 
 inline static void ACTION_ScanRestart() { ACTION_Scan(true); };
+
+#ifdef ENABLE_MESSENGER
+static void ACTION_OpenMessenger(void)
+{
+    if (gSurvivalMode) {
+        gBeepToPlay = BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL;
+        return;
+    }
+    if (gScreenToDisplay == DISPLAY_MESSENGER && MSG_IsHomeOpen()) {
+        gRequestDisplayScreen = DISPLAY_MAIN;
+        return;
+    }
+    MSG_Open();
+}
+
+static void ACTION_OpenHeard(void)
+{
+    if (gSurvivalMode) {
+        gBeepToPlay = BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL;
+        return;
+    }
+    if (gScreenToDisplay == DISPLAY_MESSENGER && MSG_RangeIsOpen()) {
+        gRequestDisplayScreen = DISPLAY_MAIN;
+        return;
+    }
+    MSG_RangeOpen();
+}
+#endif
 
 void (*action_opt_table[])(void) = {
     [ACTION_OPT_NONE] = &FUNCTION_NOP,
@@ -137,6 +168,10 @@ void (*action_opt_table[])(void) = {
 #endif
 #ifdef ENABLE_FEAT_F4HWN_RXTX_LOG
     [ACTION_OPT_RXTX_LOG] = &ACTION_RxTxLog,
+#endif
+#ifdef ENABLE_MESSENGER
+    [ACTION_OPT_MESSENGER] = &ACTION_OpenMessenger,
+    [ACTION_OPT_HEARD] = &ACTION_OpenHeard,
 #endif
 };
 
