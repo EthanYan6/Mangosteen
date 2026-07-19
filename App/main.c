@@ -61,6 +61,13 @@
 #include "helper/battery.h"
 #include "helper/boot.h"
 
+#ifdef ENABLE_MESSENGER
+#include "app/messenger.h"
+#if defined(ENABLE_FEAT_F4HWN_DEBUG)
+#include "app/messenger_packet.h"
+#endif
+#endif
+
 #include "ui/lock.h"
 #include "ui/welcome.h"
 #include "ui/menu.h"
@@ -101,6 +108,13 @@ void Main(void)
     BOARD_ADC_GetBatteryInfo(&gBatteryCurrentVoltage, &gBatteryCurrent);
 
     SETTINGS_InitEEPROM();
+
+#ifdef ENABLE_MESSENGER
+    MSG_Init();
+#if defined(ENABLE_FEAT_F4HWN_DEBUG)
+    (void)MSG_PACKET_SelfTest();
+#endif
+#endif
 
 #ifdef ENABLE_FEAT_F4HWN_RXTX_LOG
     RXTX_LOG_Init();

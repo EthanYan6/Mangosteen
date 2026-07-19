@@ -18,6 +18,9 @@
 
 #include "app/app.h"
 #include "app/chFrScanner.h"
+#ifdef ENABLE_MESSENGER
+#include "app/messenger.h"
+#endif
 #ifdef ENABLE_FEAT_F4HWN_RXTX_LOG
 #include "app/rxtx_log.h"
 #endif
@@ -52,6 +55,12 @@ static void convertTime(uint8_t *line, uint8_t type)
     UI_PrintStringSmallBufferNormal(str, line);
 }
 #endif
+#endif
+
+#ifdef ENABLE_MESSENGER
+static const uint8_t BITMAP_MSG_ENVELOPE[10] = {
+    0x7E, 0x42, 0x46, 0x4A, 0x52, 0x52, 0x4A, 0x46, 0x42, 0x7E
+};
 #endif
 
 void UI_DisplayStatus()
@@ -258,6 +267,12 @@ void UI_DisplayStatus()
 #endif
 
 #ifdef ENABLE_FEAT_F4HWN
+#ifdef ENABLE_MESSENGER
+    if (!gAirCopyBootMode && MSG_HasUnread()) {
+        memcpy(line + x, BITMAP_MSG_ENVELOPE, sizeof(BITMAP_MSG_ENVELOPE));
+        x1 = x + sizeof(BITMAP_MSG_ENVELOPE);
+    }
+#else
     // PTT indicator
     if(!gAirCopyBootMode) {
         if (gSetting_set_ptt_session) {
@@ -267,9 +282,10 @@ void UI_DisplayStatus()
         else
         {
             memcpy(line + x, gFontPttClassic, sizeof(gFontPttClassic));
-            x1 = x + sizeof(gFontPttClassic) + 1;       
+            x1 = x + sizeof(gFontPttClassic) + 1;
         }
     }
+#endif
     x += sizeof(gFontPttClassic) + 3;
 #endif
 
