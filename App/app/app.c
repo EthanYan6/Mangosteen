@@ -1833,6 +1833,10 @@ void APP_TimeSlice500ms(void)
         if (--gKeypadLocked == 0)
             gUpdateDisplay = true;
 
+    if (gMessageBoxCountdown > 0)
+        if (--gMessageBoxCountdown == 0)
+            gUpdateDisplay = true;
+
 #ifdef ENABLE_FEAT_F4HWN_RXTX_LOG
     RXTX_LOG_Tick500ms();
 #endif
@@ -2355,7 +2359,7 @@ static void ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
             if (!bKeyHeld) { // keypad is locked, tell the user
                 AUDIO_PlayBeep(BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL);
                 gKeypadLocked  = 4;      // 2 seconds
-                gUpdateDisplay = true;
+                UI_ShowMessageBox("Key Locked");
                 return;
             }
         }
@@ -2371,7 +2375,7 @@ static void ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
             // keypad is locked, tell the user
             AUDIO_PlayBeep(BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL);
             gKeypadLocked  = 4;          // 2 seconds
-            gUpdateDisplay = true;
+            UI_ShowMessageBox("Key Locked");
             return;
         }
     }

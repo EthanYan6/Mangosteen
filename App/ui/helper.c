@@ -343,20 +343,8 @@ static void sort(int16_t *a, int16_t *b)
     }
 
     void UI_DisplayUnlockKeyboard(uint8_t shift) {
-        if (gEeprom.KEY_LOCK && gKeypadLocked > 0)
-        {   // tell user how to unlock the keyboard
-            
-            //memcpy(gFrameBuffer[shift] + 2, gFontKeyLock, sizeof(gFontKeyLock));
-            UI_PrintStringSmallBold("UNLOCK KEYBOARD", 12, 0, shift);
-            //memcpy(gFrameBuffer[shift] + 120, gFontKeyLock, sizeof(gFontKeyLock));
-
-            /*
-            for (uint8_t i = 12; i < 116; i++)
-            {
-                gFrameBuffer[shift][i] ^= 0xFF;
-            }
-            */
-        }
+        (void)shift;
+        // Superseded by UI_ShowMessageBox("Key Locked")
     }
 
     bool IsEmptyName(const char *name, uint8_t len) {
@@ -419,6 +407,37 @@ void UI_DisplayPopup(const char *string)
     // DrawRectangle(9,9, 118,38, true);
     UI_PrintString(string, 9, 118, 2, 8);
     UI_PrintStringSmallNormal("Press EXIT", 9, 118, 6);
+}
+
+void UI_ShowMessageBox(const char *text)
+{
+    gMessageBoxText = text;
+    gMessageBoxCountdown = 4; // ~2 seconds at 500 ms ticks
+    gUpdateDisplay = true;
+}
+
+void UI_DrawMessageBox(void)
+{
+    if (gMessageBoxCountdown == 0 || gMessageBoxText == NULL)
+        return;
+
+    const int16_t box_w = 90;
+    const int16_t box_h = 20;
+    const int16_t x1 = (LCD_WIDTH - box_w) / 2;
+    const int16_t y1 = ((FRAME_LINES * 8) - box_h) / 2;
+    const int16_t x2 = x1 + box_w - 1;
+    const int16_t y2 = y1 + box_h - 1;
+
+    for (int16_t y = y1; y <= y2 + 1; y++) {
+        for (int16_t x = x1; x <= x2 + 1; x++)
+            UI_DrawPixelBuffer(gFrameBuffer, (uint8_t)x, (uint8_t)y, false);
+    }
+
+    UI_DrawRectangleBuffer(gFrameBuffer, x1, y1, x2, y2, true);
+    UI_DrawLineBuffer(gFrameBuffer, x2 + 1, y1 + 1, x2 + 1, y2 + 1, true);
+    UI_DrawLineBuffer(gFrameBuffer, x1 + 1, y2 + 1, x2 + 1, y2 + 1, true);
+
+    UI_PrintStringSmallNormal(gMessageBoxText, (uint8_t)(x1 + 2), (uint8_t)(x2 - 1), 3);
 }
 
 void UI_DisplayClear()

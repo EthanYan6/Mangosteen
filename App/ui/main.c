@@ -1277,15 +1277,7 @@ void UI_DisplayMain(void)
         return;
     }
 
-#ifndef ENABLE_FEAT_F4HWN
-    if (gEeprom.KEY_LOCK && gKeypadLocked > 0)
-    {   // tell user how to unlock the keyboard
-        UI_PrintString("Long press #", 0, LCD_WIDTH, 1, 8);
-        UI_PrintString("to unlock",    0, LCD_WIDTH, 3, 8);
-        ST7565_BlitFullScreen();
-        return;
-    }
-#else
+#ifdef ENABLE_FEAT_F4HWN
     UI_DisplayUnlockKeyboard(isMainOnly() ? 5 : 3);
 #endif
 

@@ -40,6 +40,7 @@
 #include "misc.h"
 #include "radio.h"
 #include "settings.h"
+#include "ui/helper.h"
 #include "ui/menu.h"
 
 VFO_Info_t    *gTxVfo;
@@ -1278,6 +1279,9 @@ void RADIO_SetVfoState(VfoState_t State)
 
     gVFOStateResumeCountdown_500ms = (State == VFO_STATE_NORMAL) ? 0 : vfo_state_resume_countdown_500ms;
     gUpdateDisplay = true;
+
+    if (State == VFO_STATE_TX_DISABLE)
+        UI_ShowMessageBox("TX Disabled!");
 }
 
 

@@ -252,6 +252,8 @@ bool              gPttWasReleased;
 bool              gPttWasPressed;
 bool              gHasVfoBackup;
 uint8_t           gKeypadLocked;
+uint8_t           gMessageBoxCountdown;
+const char       *gMessageBoxText;
 bool              gFlagReconfigureVfos;
 uint8_t           gVfoConfigureMode;
 bool              gFlagResetVfos;

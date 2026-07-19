@@ -33,6 +33,8 @@
 #ifdef ENABLE_FEAT_F4HWN_RXTX_LOG
     #include "app/rxtx_log.h"
 #endif
+#include "driver/st7565.h"
+#include "ui/helper.h"
 #include "ui/inputbox.h"
 #include "ui/main.h"
 #include "ui/menu.h"
@@ -72,6 +74,11 @@ void GUI_DisplayScreen(void)
 {
     if (gScreenToDisplay != DISPLAY_INVALID) {
         UI_DisplayFunctions[gScreenToDisplay]();
+    }
+
+    if (gMessageBoxCountdown > 0) {
+        UI_DrawMessageBox();
+        ST7565_BlitFullScreen();
     }
 }
 
