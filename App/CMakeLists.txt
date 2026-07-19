@@ -88,7 +88,7 @@ if(NOT SQL_TONE)
 endif()
 target_compile_definitions(App INTERFACE SQL_TONE=${SQL_TONE})
 
-if(ENABLE_AIRCOPY OR ENABLE_UART OR ENABLE_USB)
+if(ENABLE_AIRCOPY OR ENABLE_MESSENGER OR ENABLE_UART OR ENABLE_USB)
     target_sources(App INTERFACE 
         driver/crc.c
         driver/eeprom_compat.c
@@ -149,6 +149,22 @@ enable_feature(ENABLE_DTMF_CALLING)
 enable_feature(ENABLE_FLASHLIGHT
     app/flashlight.c
 )
+
+enable_feature(ENABLE_MESSENGER
+    app/messenger.c
+    app/messenger_store.c
+    app/messenger_packet.c
+    app/messenger_t9.c
+    app/messenger_ui.c
+    app/messenger_rf.c
+)
+
+# Messenger reuses aircopy.c FSK buffer helpers without AirCopy UI.
+if(ENABLE_MESSENGER AND NOT ENABLE_AIRCOPY)
+    target_sources(App INTERFACE
+        app/aircopy.c
+    )
+endif()
 
 # ---- CUSTOM MODS ----
 
