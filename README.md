@@ -47,6 +47,7 @@ Special thanks to Jean-Cyrille F6IWW (3 times), Fabrice 14RC123, David F4BPP, Ol
 ## Table of Contents
 
 * [My Features](#main-features)
+* [Messenger](#messenger)
 * [Main Features from Egzumer](#main-features-from-egzumer)
 * [Manual](#manual)
 * [Compiling and Building from Docker](#compiling-and-Building-from-docker)
@@ -181,6 +182,15 @@ Special thanks to Jean-Cyrille F6IWW (3 times), Fabrice 14RC123, David F4BPP, Ol
 * code refactoring and many memory optimization,
 * stream the live screen of the Quansheng K5 to K5Viewer and capture screenshots over a USB-to-Serial cable,
 * and more...
+
+## Messenger
+
+Mangosteen includes GOGUFW-compatible FSK Messenger (Inbox / Compose / Sent / Drafts / ACK), HEARD (F+7), and Range Check.
+
+* **Interop:** same GGM2 packets as [GOGUFW-UV-K1-Messenger](https://github.com/Gogu-Qs/GOGUFW-UV-K1-Messenger)
+* **Shortcuts:** F+MENU Messenger, F+7 HEARD
+* **Storage:** private flash sector `0x012000`
+* **Disabled in favor of Messenger FSK:** AirCopy UI, BEAM, Breakout game
 
 ## Main features from Egzumer:
 * many of OneOfEleven mods:
