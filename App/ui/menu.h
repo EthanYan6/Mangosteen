@@ -165,7 +165,18 @@ enum
     MENU_MLONG,
     MENU_BATTYP,
 #if defined(ENABLE_FEAT_F4HWN) && defined(ENABLE_FEAT_F4HWN_LOGO_SAV)
-    MENU_SET_SAV
+    MENU_SET_SAV,
+#endif
+#ifdef ENABLE_MESSENGER
+    MENU_MSG_RX,
+    MENU_MSG_CSG,
+    MENU_MSG_CALLTX,  // callsign_tx toggle (not call-tone)
+    MENU_MSG_ACK,
+    MENU_MSG_BEEP,
+    MENU_MSG_LED,
+    MENU_MSG_HOP,
+    MENU_RNG_RSP,
+    MENU_MSG_DEBUG
 #endif
 };
 

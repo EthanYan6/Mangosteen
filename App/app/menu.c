@@ -23,6 +23,9 @@
 #include "app/generic.h"
 #include "app/menu.h"
 #include "app/scanner.h"
+#ifdef ENABLE_MESSENGER
+    #include "app/messenger_store.h"
+#endif
 #include "audio.h"
 #include "board.h"
 #include "driver/backlight.h"
@@ -463,12 +466,32 @@ int MENU_GetLimits(uint8_t menu_id, int32_t *pMin, int32_t *pMax)
                 *pMax = 63;
                 break;
         #endif
-        #ifdef ENABLE_FEAT_F4HWN_RESCUE_OPS
+#ifdef ENABLE_FEAT_F4HWN_RESCUE_OPS
             case MENU_SET_KEY:
                 //*pMin = 0;
                 *pMax = 4;
                 break;
-        #endif
+#endif
+#endif
+
+#ifdef ENABLE_MESSENGER
+        case MENU_MSG_CSG:
+            *pMax = 0;
+            break;
+        case MENU_MSG_RX:
+        case MENU_MSG_CALLTX:
+        case MENU_MSG_ACK:
+        case MENU_MSG_BEEP:
+        case MENU_RNG_RSP:
+        case MENU_MSG_DEBUG:
+            *pMax = 1;
+            break;
+        case MENU_MSG_HOP:
+            *pMax = 5;
+            break;
+        case MENU_MSG_LED:
+            *pMax = 2;
+            break;
 #endif
 
         case MENU_VOL: {
@@ -517,6 +540,43 @@ void MENU_AcceptSetting(void)
     {
         default:
             return;
+
+#ifdef ENABLE_MESSENGER
+        case MENU_MSG_RX:
+            gMessengerConfig.msg_rx = gSubMenuSelection; MSG_STORE_SaveConfig(); break;
+        case MENU_MSG_CSG:
+            if (edit_index >= 0)
+            {
+                char callsign[MSG_CALLSIGN_EDIT_LEN + 1];
+                memcpy(callsign, edit, MSG_CALLSIGN_EDIT_LEN);
+                callsign[MSG_CALLSIGN_EDIT_LEN] = 0;
+                for (int i = MSG_CALLSIGN_EDIT_LEN - 1; i >= 0; --i)
+                {
+                    if (callsign[i] == ' ' || callsign[i] == 0) callsign[i] = 0;
+                    else break;
+                }
+                if (callsign[0] == 0)
+                    strncpy(callsign, "UVK1", sizeof(callsign));
+                strncpy(gMessengerConfig.callsign, callsign, MSG_CALLSIGN_EDIT_LEN);
+                gMessengerConfig.callsign[MSG_CALLSIGN_EDIT_LEN] = 0;
+                MSG_STORE_SaveConfig();
+            }
+            break;
+        case MENU_MSG_CALLTX:
+            gMessengerConfig.callsign_tx = gSubMenuSelection; MSG_STORE_SaveConfig(); break;
+        case MENU_MSG_ACK:
+            gMessengerConfig.msg_ack = gSubMenuSelection; MSG_STORE_SaveConfig(); break;
+        case MENU_MSG_HOP:
+            gMessengerConfig.msg_hop = gSubMenuSelection; MSG_STORE_SaveConfig(); break;
+        case MENU_MSG_BEEP:
+            gMessengerConfig.msg_beep = gSubMenuSelection; MSG_STORE_SaveConfig(); break;
+        case MENU_MSG_LED:
+            gMessengerConfig.msg_led = gSubMenuSelection; MSG_STORE_SaveConfig(); break;
+        case MENU_RNG_RSP:
+            gMessengerConfig.rng_rsp = gSubMenuSelection; MSG_STORE_SaveConfig(); break;
+        case MENU_MSG_DEBUG:
+            gMessengerConfig.msg_debug = gSubMenuSelection; MSG_STORE_SaveConfig(); break;
+#endif
 
         case MENU_SQL:
             gEeprom.SQUELCH_LEVEL = gSubMenuSelection;
@@ -1084,6 +1144,27 @@ void MENU_ShowCurrentSetting(void)
 {
     switch (UI_MENU_GetCurrentMenuId())
     {
+#ifdef ENABLE_MESSENGER
+        case MENU_MSG_RX:
+            MSG_STORE_Init(); gSubMenuSelection = gMessengerConfig.msg_rx; break;
+        case MENU_MSG_CSG:
+            MSG_STORE_Init(); gSubMenuSelection = 0; break;
+        case MENU_MSG_CALLTX:
+            MSG_STORE_Init(); gSubMenuSelection = gMessengerConfig.callsign_tx; break;
+        case MENU_MSG_ACK:
+            MSG_STORE_Init(); gSubMenuSelection = gMessengerConfig.msg_ack; break;
+        case MENU_MSG_HOP:
+            MSG_STORE_Init(); gSubMenuSelection = gMessengerConfig.msg_hop; break;
+        case MENU_MSG_BEEP:
+            MSG_STORE_Init(); gSubMenuSelection = gMessengerConfig.msg_beep; break;
+        case MENU_MSG_LED:
+            MSG_STORE_Init(); gSubMenuSelection = gMessengerConfig.msg_led; break;
+        case MENU_RNG_RSP:
+            MSG_STORE_Init(); gSubMenuSelection = gMessengerConfig.rng_rsp; break;
+        case MENU_MSG_DEBUG:
+            MSG_STORE_Init(); gSubMenuSelection = gMessengerConfig.msg_debug; break;
+#endif
+
         case MENU_SQL:
             gSubMenuSelection = gEeprom.SQUELCH_LEVEL;
             break;
@@ -1553,9 +1634,29 @@ static const char* const char_map[10] = {
     "wxyz9"                         // KEY_9
 };
 
+static bool MENU_IsTextEditMenuItemId(const int m)
+{
+    if (m == MENU_MEM_NAME)
+        return true;
+#ifdef ENABLE_MESSENGER
+    if (m == MENU_MSG_CSG)
+        return true;
+#endif
+    return false;
+}
+
+static uint8_t MENU_TextEditMaxLen(void)
+{
+#ifdef ENABLE_MESSENGER
+    if (UI_MENU_GetCurrentMenuId() == MENU_MSG_CSG)
+        return MSG_CALLSIGN_EDIT_LEN;
+#endif
+    return 10;
+}
+
 static bool MENU_IsEditingName() {
     return !gCssBackgroundScan
-        && UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME
+        && MENU_IsTextEditMenuItemId(UI_MENU_GetCurrentMenuId())
         && gIsInSubMenu
         && edit_index >= 0;
 }
@@ -1572,9 +1673,10 @@ static void MENU_Key_0_to_9(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 
     gBeepToPlay = BEEP_1KHZ_60MS_OPTIONAL;
 
-    if (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME && edit_index >= 0)
-    {   // currently editing the channel name
-        if (edit_index >= 10)
+    if (MENU_IsTextEditMenuItemId(UI_MENU_GetCurrentMenuId()) && edit_index >= 0)
+    {   // currently editing channel name / callsign
+        const uint8_t edit_max_len = MENU_TextEditMaxLen();
+        if (edit_index >= edit_max_len)
             return;
 
         uint8_t key_idx = Key - KEY_0;
@@ -1900,21 +2002,34 @@ static void MENU_Key_MENU(const bool bKeyPressed, const bool bKeyHeld)
         return;
     }
 
-    if (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME)
+    if (MENU_IsTextEditMenuItemId(UI_MENU_GetCurrentMenuId()))
     {
+        const uint8_t edit_max_len = MENU_TextEditMaxLen();
+
         if (edit_index < 0)
-        {   // enter channel name edit mode
-            if (!RADIO_CheckValidChannel(gSubMenuSelection, false, 0))
-                return;
-
-            SETTINGS_FetchChannelName(edit, gSubMenuSelection);
-
-            // pad the channel name out with ' '
-            size_t len = strlen(edit);
-            if (len < 10)
+        {   // enter text edit mode
+            if (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME)
             {
-                memset(edit + len, ' ', 10 - len);
-                edit[10] = '\0';
+                if (!RADIO_CheckValidChannel(gSubMenuSelection, false, 0))
+                    return;
+
+                SETTINGS_FetchChannelName(edit, gSubMenuSelection);
+            }
+#ifdef ENABLE_MESSENGER
+            else if (UI_MENU_GetCurrentMenuId() == MENU_MSG_CSG)
+            {
+                MSG_STORE_Init();
+                memset(edit, 0, sizeof(edit));
+                strncpy(edit, gMessengerConfig.callsign, MSG_CALLSIGN_EDIT_LEN);
+            }
+#endif
+
+            // pad the editable text out with ' '
+            size_t len = strlen(edit);
+            if (len < edit_max_len)
+            {
+                memset(edit + len, ' ', edit_max_len - len);
+                edit[edit_max_len] = '\0';
             }
 
             edit_index = 0;  // 'edit_index' is going to be used as the cursor position
@@ -1928,14 +2043,14 @@ static void MENU_Key_MENU(const bool bKeyPressed, const bool bKeyHeld)
             return;
         }
         else
-        if (edit_index >= 0 && edit_index < 10)
-        {   // editing the channel name characters
+        if (edit_index >= 0 && edit_index < edit_max_len)
+        {   // editing text characters
             edit_last_key = 255;
 
             if (bKeyHeld) {
-                edit_index = 10;
+                edit_index = edit_max_len;
             }
-            else if (++edit_index < 10) {
+            else if (++edit_index < edit_max_len) {
                 return;
             }
 
@@ -2018,10 +2133,10 @@ static void MENU_Key_STAR(const bool bKeyPressed, const bool bKeyHeld)
 
     gBeepToPlay = BEEP_1KHZ_60MS_OPTIONAL;
 
-    if (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME && edit_index >= 0)
-    {   // currently editing the channel name
+    if (MENU_IsTextEditMenuItemId(UI_MENU_GetCurrentMenuId()) && edit_index >= 0)
+    {   // currently editing channel name / callsign
 
-        if (edit_index < 10)
+        if (edit_index < MENU_TextEditMaxLen())
         {
             edit[edit_index] = !bKeyHeld ? '-' : '*';
             edit_last_key = 255;
@@ -2077,9 +2192,9 @@ static void MENU_Key_UP_DOWN(bool bKeyPressed, bool bKeyHeld, int8_t Direction)
         Direction = -Direction;
     }
 
-    if (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME && gIsInSubMenu && edit_index >= 0)
+    if (MENU_IsTextEditMenuItemId(UI_MENU_GetCurrentMenuId()) && gIsInSubMenu && edit_index >= 0)
     {   // change the character
-        if (edit_index < 10 && Direction != 0)
+        if (edit_index < MENU_TextEditMaxLen() && Direction != 0)
         {
             const char   unwanted[] = "$%&!\"':;?^`|{}_";
             char         c          = edit[edit_index] + Direction;
@@ -2228,14 +2343,14 @@ void MENU_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
             MENU_Key_STAR(bKeyPressed, bKeyHeld);
             break;
         case KEY_F:
-            if (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME && edit_index >= 0)
-            {   // currently editing the channel name
+            if (MENU_IsTextEditMenuItemId(UI_MENU_GetCurrentMenuId()) && edit_index >= 0)
+            {   // currently editing channel name / callsign
                 if (!bKeyPressed)
                     break;
 
                 gBeepToPlay = BEEP_1KHZ_60MS_OPTIONAL;
 
-                if (edit_index < 10)
+                if (edit_index < MENU_TextEditMaxLen())
                 {
                     if (bKeyHeld)
                         edit[edit_index] = '#';

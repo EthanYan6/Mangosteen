@@ -32,6 +32,9 @@
 #include "../helper/battery.h"
 #include "../misc.h"
 #include "../settings.h"
+#ifdef ENABLE_MESSENGER
+    #include "app/messenger_store.h"
+#endif
 
 #ifdef ENABLE_FEAT_F4HWN
     #include "../version.h"
@@ -175,8 +178,20 @@ const t_menu_item MenuList[] =
     {"SetSav",      MENU_SET_SAV       },
 #endif
 #endif
+#ifdef ENABLE_MESSENGER
+    {"MsgRx",       MENU_MSG_RX        },
+    {"MsgCsg",      MENU_MSG_CSG       },
+    {"MsgAck",      MENU_MSG_ACK       },
+    {"MsgBep",      MENU_MSG_BEEP      },
+    {"MsgLed",      MENU_MSG_LED       },
+    {"RngRsp",      MENU_RNG_RSP       },
+#endif
     // hidden menu items from here on
     // enabled if pressing both the PTT and upper side button at power-on
+#ifdef ENABLE_MESSENGER
+    {"MsgDbg",      MENU_MSG_DEBUG     },
+    {"MsgHop",      MENU_MSG_HOP       },
+#endif
     {"F Lock",      MENU_F_LOCK        },
 #ifndef ENABLE_FEAT_F4HWN
     {"Tx 200",      MENU_200TX         }, // was "200TX"
@@ -198,7 +213,11 @@ const t_menu_item MenuList[] =
     {"",                              0xff               }  // end of list - DO NOT delete or move this this
 };
 
+#ifdef ENABLE_MESSENGER
+const uint8_t FIRST_HIDDEN_MENU_ITEM = MENU_MSG_DEBUG;
+#else
 const uint8_t FIRST_HIDDEN_MENU_ITEM = MENU_F_LOCK;
+#endif
 
 const char* const gSubMenu_TXP[] =
 {
@@ -525,6 +544,10 @@ const t_sidefunction gSubMenu_SIDEFUNCTIONS[] =
     #ifdef ENABLE_FEAT_F4HWN_RXTX_LOG
         {"RF LOG",          ACTION_OPT_RXTX_LOG},
     #endif
+#endif
+#ifdef ENABLE_MESSENGER
+    {"MESSENGER",       ACTION_OPT_MESSENGER},
+    {"HEARD",           ACTION_OPT_HEARD},
 #endif
 };
 
@@ -929,12 +952,96 @@ void UI_DisplayMenu(void)
         case MENU_SET_TMR:
         case MENU_S_PRI:
 #endif
-            strcpy(String, gSubMenu_OFF_ON[gSubMenuSelection]);
+#ifdef ENABLE_MESSENGER
+        case MENU_MSG_RX:
+        case MENU_MSG_CALLTX:
+        case MENU_MSG_ACK:
+        case MENU_MSG_BEEP:
+        case MENU_RNG_RSP:
+        case MENU_MSG_DEBUG:
+#endif
+        {
+            uint8_t value = (uint8_t)gSubMenuSelection;
+#ifdef ENABLE_MESSENGER
+            /* Avoid first-render stale value when entering the
+             * hidden Messenger menu before MENU_ShowCurrentSetting() refreshes. */
+            if (!gIsInSubMenu) {
+                MSG_STORE_Init();
+                if (m == MENU_MSG_RX) value = gMessengerConfig.msg_rx;
+                else if (m == MENU_MSG_CALLTX) value = gMessengerConfig.callsign_tx;
+                else if (m == MENU_MSG_ACK) value = gMessengerConfig.msg_ack;
+                else if (m == MENU_MSG_BEEP) value = gMessengerConfig.msg_beep;
+                else if (m == MENU_RNG_RSP) value = gMessengerConfig.rng_rsp;
+                else if (m == MENU_MSG_DEBUG) value = gMessengerConfig.msg_debug;
+            }
+#endif
+            if (value > 1u) value = 1u;
+            strcpy(String, gSubMenu_OFF_ON[value]);
             break;
+        }
 
 #if defined(ENABLE_FEAT_F4HWN) && defined(ENABLE_FEAT_F4HWN_LOGO_SAV)
         case MENU_SET_SAV:
             strcpy(String, gSubMenu_SET_SAV[gSubMenuSelection]);
+            break;
+#endif
+
+#ifdef ENABLE_MESSENGER
+        case MENU_MSG_CSG:
+            MSG_STORE_Init();
+            if (!gIsInSubMenu)
+                edit_index = -1;
+            if (edit_index < 0)
+            {
+                strncpy(String, gMessengerConfig.callsign, MSG_CALLSIGN_EDIT_LEN + 1);
+                String[MSG_CALLSIGN_EDIT_LEN] = 0;
+                UI_PrintString(String[0] ? String : "--", menu_item_x1, menu_item_x2, 2, 8);
+            }
+            else
+            {
+                UI_PrintString(edit, menu_item_x1, menu_item_x2, 2, 8);
+                if (edit_index < MSG_CALLSIGN_EDIT_LEN)
+                {
+                    const uint8_t edit_len = MSG_CALLSIGN_EDIT_LEN;
+                    uint8_t x = menu_item_x1;
+                    if (menu_item_x2 > menu_item_x1)
+                    {
+                        x = menu_item_x1 + (uint8_t)((((menu_item_x2 - menu_item_x1) - (edit_len * 8)) + 1) / 2);
+                    }
+                    if (x > 0) x--;
+
+                    for (uint8_t i = 0; i < edit_len; i++)
+                    {
+                        if (i != edit_index)
+                        {
+                            if (edit[i] != 'g' && edit[i] != 'j')
+                                UI_DrawLineBuffer(gFrameBuffer, x, 29, x + 6, 29, 1);
+                        }
+                        else
+                        {
+                            UI_DrawLineBuffer(gFrameBuffer, x + 2, 30, x + 4, 30, 1);
+                            UI_DrawPixelBuffer(gFrameBuffer, x + 3, 29, 1);
+                        }
+                        x += 8;
+                    }
+                    UI_PrintStringSmallNormal(edit_is_uppercase ? "ABC" : "abc", 77, 0, 4);
+                }
+            }
+            already_printed = true;
+            break;
+
+        case MENU_MSG_HOP:
+        {
+            uint8_t value = (uint8_t)gSubMenuSelection;
+            if (!gIsInSubMenu) { MSG_STORE_Init(); value = gMessengerConfig.msg_hop; }
+            if (value == 0) strcpy(String, "OFF");
+            else sprintf(String, "%u", value);
+            break;
+        }
+        case MENU_MSG_LED:
+            if (gSubMenuSelection == 0) strcpy(String, "OFF");
+            else if (gSubMenuSelection == 1) strcpy(String, "GREEN");
+            else strcpy(String, "YELLOW");
             break;
 #endif
 
