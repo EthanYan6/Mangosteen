@@ -202,26 +202,7 @@ let isBackupCfg = false, isRestoreCfg = false;
 let isWritefreqBusy = false;
 
 // ========== UI ==========
-const __MISSING_EL = {
-  addEventListener: function () {},
-  removeEventListener: function () {},
-  classList: { add: function () {}, remove: function () {}, toggle: function () {}, contains: function () { return false; } },
-  style: {},
-  setAttribute: function () {},
-  getAttribute: function () { return null; },
-  appendChild: function () {},
-  querySelector: function () { return null; },
-  querySelectorAll: function () { return []; },
-  focus: function () {},
-  click: function () {},
-  disabled: false,
-  textContent: '',
-  innerHTML: '',
-  value: '',
-  checked: false,
-  hidden: true
-};
-const $ = id => document.getElementById(id) || __MISSING_EL;
+const $ = id => document.getElementById(id);
 function on(id, eventName, handler) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -431,7 +412,8 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     tab.classList.add('active');
     tab.setAttribute('aria-selected','true');
-    $(tab.dataset.tab + '-content').classList.add('active');
+    const tabContentEl = $(tab.dataset.tab + '-content');
+    if (tabContentEl) tabContentEl.classList.add('active');
     syncWritefreqFullLayoutClass();
     syncLogDockPlacement();
     window.requestAnimationFrame(() => {
@@ -449,7 +431,7 @@ document.querySelectorAll('.tab').forEach(tab => {
   });
 });
 syncWritefreqFullLayoutClass();
-syncLogDockPlacement();
+try { syncLogDockPlacement(); } catch (e) { console.warn('syncLogDockPlacement', e); }
 initFlashDeviceWarningModal();
 initBusuanziSync();
 window.requestAnimationFrame(() => {
@@ -562,7 +544,7 @@ function log(msg, type='') {
   console.log(msg);
 }
 
-$('logToggle').addEventListener('click', () => {
+on('logToggle', 'click', () => {
   const logDiv = $('log');
   logDiv.classList.toggle('visible');
   const isVisible = logDiv.classList.contains('visible');
@@ -795,7 +777,7 @@ async function requestDeviceInfoForCalib(purpose) {
 }
 
 // ========== FIRMWARE FLASH ==========
-$('firmwareFile').addEventListener('change', e => {
+on('firmwareFile', 'change', e => {
   const file = e.target.files?.[0];
   if (!file) return;
   const fr = new FileReader();
@@ -811,10 +793,10 @@ $('firmwareFile').addEventListener('change', e => {
   fr.readAsArrayBuffer(file);
 });
 
-$('flashBtn').addEventListener('click', async () => {
+on('flashBtn', 'click', async () => {
   if (!firmwareData || isFlashing) return;
   isFlashing = true;
-  $('flashBtn').disabled = true;
+  if ($('flashBtn')) $('flashBtn').disabled = true;
   $('progressContainer').style.display = 'block';
   updateProgress(0);
   try {
@@ -958,7 +940,7 @@ async function firmwareFetchArrayBufferWithFallback() {
 }
 
 // ========== FETCH LATEST FIRMWARE ==========
-$('fetchLatestBtn').addEventListener('click', async () => {
+on('fetchLatestBtn', 'click', async () => {
   const btn = $('fetchLatestBtn');
   btn.disabled = true;
   btn.textContent = window.t ? window.t('loadingFile') : '正在加载...';
@@ -990,7 +972,7 @@ $('fetchLatestBtn').addEventListener('click', async () => {
 });
 
 // ========== FONT FLASH ==========
-$('fontFile').addEventListener('change', e => {
+on('fontFile', 'change', e => {
   const file = e.target.files?.[0];
   if (!file) return;
   const fr = new FileReader();
@@ -1007,7 +989,7 @@ $('fontFile').addEventListener('change', e => {
   fr.readAsArrayBuffer(file);
 });
 
-$('fetchFontBtn').addEventListener('click', async () => {
+on('fetchFontBtn', 'click', async () => {
   const btn = $('fetchFontBtn');
   btn.disabled = true;
   btn.textContent = window.t ? window.t('loadingFile') : '正在加载...';
@@ -1030,10 +1012,10 @@ $('fetchFontBtn').addEventListener('click', async () => {
   }
 });
 
-$('fontFlashBtn').addEventListener('click', async () => {
+on('fontFlashBtn', 'click', async () => {
   if (!fontData || isFontFlashing) return;
   isFontFlashing = true;
-  if ($('fontFlashBtn')) $('fontFlashBtn').disabled = true;
+  if ($('fontFlashBtn')) if ($('fontFlashBtn')) $('fontFlashBtn').disabled = true;
   $('progressContainer').style.display = 'block';
   updateProgress(0);
   try {
@@ -1161,10 +1143,10 @@ $('fontFlashBtn').addEventListener('click', async () => {
 });
 
 // ========== DUMP CALIBRATION ==========
-$('dumpBtn').addEventListener('click', async () => {
+on('dumpBtn', 'click', async () => {
   if (isDumping) return;
   isDumping = true;
-  $('dumpBtn').disabled = true;
+  if ($('dumpBtn')) $('dumpBtn').disabled = true;
   $('progressContainer').style.display = 'block';
   updateProgress(0);
   $('dumpDownload').style.display = 'none';
@@ -1217,7 +1199,7 @@ $('dumpBtn').addEventListener('click', async () => {
 });
 
 // ========== RESTORE CALIBRATION ==========
-$('calibFile').addEventListener('change', e => {
+on('calibFile', 'change', e => {
   const file = e.target.files?.[0];
   if (!file) return;
   const fr = new FileReader();
@@ -1234,10 +1216,10 @@ $('calibFile').addEventListener('change', e => {
   fr.readAsArrayBuffer(file);
 });
 
-$('restoreBtn').addEventListener('click', async () => {
+on('restoreBtn', 'click', async () => {
   if (!calibData || isRestoring) return;
   isRestoring = true;
-  $('restoreBtn').disabled = true;
+  if ($('restoreBtn')) $('restoreBtn').disabled = true;
   $('progressContainer').style.display = 'block';
   updateProgress(0);
   try {
@@ -1473,7 +1455,7 @@ $('restoreBtn').addEventListener('click', async () => {
   }
 
   // 读取设备校准（两个地址都读）
-  $('calibReadDeviceBtn').addEventListener('click', async function() {
+  on('calibReadDeviceBtn', 'click', async function() {
     if (isRestoring || isDumping) return;
     this.disabled = true;
     $('progressContainer').style.display = 'block';
@@ -1501,7 +1483,7 @@ $('restoreBtn').addEventListener('click', async () => {
   });
 
   // 加载备份校准文件
-  $('calibLoadBackupBtn').addEventListener('click', function() {
+  on('calibLoadBackupBtn', 'click', function() {
     var input = document.createElement('input');
     input.type = 'file';
     input.accept = '.dat';
@@ -1523,7 +1505,7 @@ $('restoreBtn').addEventListener('click', async () => {
   });
 
   // 导出备份校准
-  $('calibExportBackupBtn').addEventListener('click', function() {
+  on('calibExportBackupBtn', 'click', function() {
     if (!calibBackupData) {
       log(window.t ? window.t('logNoBackupCalibrationExport') : '没有备份校准数据可导出', 'error');
       return;
@@ -1587,7 +1569,7 @@ $('restoreBtn').addEventListener('click', async () => {
   }
 
   // 写入官方地址
-  $('calibWriteOfficialBtn').addEventListener('click', async function() {
+  on('calibWriteOfficialBtn', 'click', async function() {
     if (isRestoring || isDumping) return;
     if (!calibBackupData && !$('calibCheckBody').querySelector('input[data-offset]')) {
       log(window.t ? window.t('logNoBackupCalibrationWrite') : '没有备份校准数据可写入', 'error');
@@ -1614,7 +1596,7 @@ $('restoreBtn').addEventListener('click', async () => {
   });
 
   // 写入第三方地址
-  $('calibWriteThirdPartyBtn').addEventListener('click', async function() {
+  on('calibWriteThirdPartyBtn', 'click', async function() {
     if (isRestoring || isDumping) return;
     if (!calibBackupData && !$('calibCheckBody').querySelector('input[data-offset]')) {
       log(window.t ? window.t('logNoBackupCalibrationWrite') : '没有备份校准数据可写入', 'error');
@@ -1641,22 +1623,23 @@ $('restoreBtn').addEventListener('click', async () => {
   });
 
   // 弹窗事件绑定
-  $('checkCalibBtn').addEventListener('click', openCalibCheckModal);
-  $('calibCheckModal').querySelectorAll('[data-calib-check-dismiss]').forEach(function(el) {
+  on('checkCalibBtn', 'click', openCalibCheckModal);
+  var __calibModal = $('calibCheckModal');
+  if (__calibModal) __calibModal.querySelectorAll('[data-calib-check-dismiss]').forEach(function(el) {
     el.addEventListener('click', closeCalibCheckModal);
   });
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && !$('calibCheckModal').hidden) {
+    if (e.key === 'Escape' && $('calibCheckModal') && !$('calibCheckModal').hidden) {
       closeCalibCheckModal();
     }
   });
 })();
 
 // ========== BACKUP CONFIG ==========
-$('backupCfgBtn').addEventListener('click', async () => {
+on('backupCfgBtn', 'click', async () => {
   if (isBackupCfg) return;
   isBackupCfg = true;
-  if ($('backupCfgBtn')) $('backupCfgBtn').disabled = true;
+  if ($('backupCfgBtn')) if ($('backupCfgBtn')) $('backupCfgBtn').disabled = true;
   $('progressContainer').style.display = 'block';
   updateProgress(0);
   $('backupCfgDownload').style.display = 'none';
@@ -1690,7 +1673,7 @@ $('backupCfgBtn').addEventListener('click', async () => {
 });
 
 // ========== RESTORE CONFIG ==========
-$('cfgBackupFile').addEventListener('change', e => {
+on('cfgBackupFile', 'change', e => {
   const file = e.target.files?.[0];
   if (!file) return;
   const fr = new FileReader();
@@ -1707,10 +1690,10 @@ $('cfgBackupFile').addEventListener('change', e => {
   fr.readAsArrayBuffer(file);
 });
 
-$('restoreCfgBtn').addEventListener('click', async () => {
+on('restoreCfgBtn', 'click', async () => {
   if (!cfgBackupData || isRestoreCfg) return;
   isRestoreCfg = true;
-  if ($('restoreCfgBtn')) $('restoreCfgBtn').disabled = true;
+  if ($('restoreCfgBtn')) if ($('restoreCfgBtn')) $('restoreCfgBtn').disabled = true;
   $('progressContainer').style.display = 'block';
   updateProgress(0);
   try {
@@ -1744,12 +1727,12 @@ $('restoreCfgBtn').addEventListener('click', async () => {
 // ========== CAPABILITY CHECK ==========
 if (!('serial' in navigator)) {
   log(window.t ? window.t('logWebSerialUnsupported') : '浏览器不支持 Web Serial API，请使用 Chrome/Edge/Opera', 'error');
-  $('flashBtn').disabled = true;
-  if ($('fontFlashBtn')) $('fontFlashBtn').disabled = true;
-  $('dumpBtn').disabled = true;
-  $('restoreBtn').disabled = true;
-  if ($('backupCfgBtn')) $('backupCfgBtn').disabled = true;
-  if ($('restoreCfgBtn')) $('restoreCfgBtn').disabled = true;
+  if ($('flashBtn')) $('flashBtn').disabled = true;
+  if ($('fontFlashBtn')) if ($('fontFlashBtn')) $('fontFlashBtn').disabled = true;
+  if ($('dumpBtn')) $('dumpBtn').disabled = true;
+  if ($('restoreBtn')) $('restoreBtn').disabled = true;
+  if ($('backupCfgBtn')) if ($('backupCfgBtn')) $('backupCfgBtn').disabled = true;
+  if ($('restoreCfgBtn')) if ($('restoreCfgBtn')) $('restoreCfgBtn').disabled = true;
   const wfRead = $('writefreqReadBtn');
   const wfWrite = $('writefreqWriteBtn');
   if (wfRead) wfRead.disabled = true;
