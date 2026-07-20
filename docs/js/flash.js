@@ -134,19 +134,17 @@ const MSG_NOTIFY_BL_VER    = 0x0530;
 const MSG_REBOOT           = 0x05DD;
 
 function initBusuanziSync() {
-  const pageUvEl = $('busuanzi_page_uv');
-  const todayUvEl = $('busuanzi_today_uv');
-  const marqueeText = $('marqueeText');
-  const marqueeInner = $('marqueeInner');
-  if (!pageUvEl || !todayUvEl || !marqueeText || !marqueeInner) return;
-  
+  const pageUvEl = document.getElementById('busuanzi_page_uv');
+  const marqueeText = document.getElementById('marqueeText');
+  const marqueeInner = document.getElementById('marqueeInner');
+  if (!pageUvEl || !marqueeText || !marqueeInner) return;
+
   let cloneCreated = false;
-  
+
   const observer = new MutationObserver(function() {
     if (cloneCreated) return;
     const pageText = pageUvEl.textContent;
-    const todayText = todayUvEl.textContent;
-    if (pageText && todayText && !pageText.includes('spinner') && !todayText.includes('spinner')) {
+    if (pageText && pageText.indexOf('spinner') === -1 && /\d/.test(pageText)) {
       const clone = marqueeText.cloneNode(true);
       clone.removeAttribute('id');
       marqueeInner.appendChild(clone);
@@ -154,10 +152,9 @@ function initBusuanziSync() {
       observer.disconnect();
     }
   });
-  
+
   observer.observe(pageUvEl, { childList: true, characterData: true, subtree: true });
-  observer.observe(todayUvEl, { childList: true, characterData: true, subtree: true });
-  
+
   setTimeout(function() {
     if (!cloneCreated) {
       const clone = marqueeText.cloneNode(true);
