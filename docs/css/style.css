@@ -2540,3 +2540,27 @@ html.theme-light .calib-check-modal__backdrop {
 .donation-board__scroll--auto:hover {
   animation-play-state: paused;
 }
+
+/* Boot logo tab */
+.logo-desc { font-size: 0.9em; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5; }
+.logo-warning { font-size: 0.9em; color: var(--accent); margin-bottom: 12px; line-height: 1.5; }
+.logo-controls-row { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.logo-controls-row label { display: block; margin-bottom: 4px; color: var(--text-muted); font-size: 0.9em; }
+.logo-controls-row input[type="range"] { width: 160px; vertical-align: middle; }
+#logoThresholdValue { margin-left: 8px; color: var(--text-primary); }
+.logo-invert-label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin-top: 4px; }
+.logo-preview-frame {
+  background: #1a1220;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  padding: 10px;
+  display: inline-block;
+}
+#logoPreviewCanvas {
+  width: 256px;
+  height: 128px;
+  image-rendering: pixelated;
+  display: block;
+}
+.logo-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+

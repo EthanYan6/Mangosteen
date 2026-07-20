@@ -77,7 +77,7 @@
                 "ENABLE_FEAT_F4HWN_RXTX_LOG": false,
                 "ENABLE_FEAT_F4HWN_RXTX_LOG_WRAP": false,
                 "ENABLE_FEAT_F4HWN_RXTX_LOG_K5VIEWER": false,
-                "ENABLE_FEAT_F4HWN_LOGO": false,
+                "ENABLE_FEAT_F4HWN_LOGO": true,
                 "ENABLE_FEAT_F4HWN_LOGO_SAV": false,
                 "ENABLE_AGC_SHOW_DATA": false,
                 "ENABLE_UART_RW_BK_REGS": false,
