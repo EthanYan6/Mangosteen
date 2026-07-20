@@ -1849,7 +1849,7 @@ let writefreqPageIndex = 0;
 let writefreqRowsData = null;
 /** SortableJS 实例（写频表格行拖拽） */
 let writefreqSortableInstance = null;
-/** 与固件 CHANNEL_NAME_MAX_BYTES 一致：约 5 个汉字（UTF-8） */
+/** 与 Mangosteen SETTINGS_Fetch/SaveChannelName 一致：最多 10 字节 ASCII（32–127） */
 const WRITE_FREQ_CHANNEL_NAME_MAX_BYTES = 10;
 const WRITE_FREQ_SPI_MAX_CHUNK = 120;
 /** waitForMsg 循环次数，×10ms 为大约最长等待（例 120 ≈ 1.2s） */
@@ -2547,9 +2547,9 @@ function writefreqApplyAllChannelNameTruncations() {
       fields.channelNameText = nameResult.text;
       const nameMsg =
         rowLabel +
-        '：信道名超过 15 字节（原 ' +
+        '：信道名超过 10 个英文字符（原 ' +
         nameResult.originalByteLength +
-        ' 字节，UTF-8），已截断，末尾为 ...';
+        ' 字符），已截断';
       truncationWarnings.push(nameMsg);
     }
   }
@@ -2563,7 +2563,7 @@ function writefreqValidateChannelName(text) {
   const byteCount = encoded.length;
   if (byteCount > WRITE_FREQ_CHANNEL_NAME_MAX_BYTES) {
     const problemText =
-      '信道名 UTF-8 最长 15 字节（当前 ' + byteCount + ' 字节）';
+      '信道名仅英文，最长 10 字符（当前 ' + byteCount + ' 字符）';
     problems.push(problemText);
   }
   return problems;
@@ -2880,9 +2880,11 @@ function writefreqApplyChannelNameBlur(channelNameInput) {
     if (asciiOnly !== raw) {
       channelNameInput.value = asciiOnly;
       if (typeof showAppToast === 'function') {
-        showAppToast('信道名仅支持 ASCII，最多 ' + WRITE_FREQ_CHANNEL_NAME_MAX_BYTES + ' 字节', 'warn');
+        showAppToast('信道名仅英文，最长 ' + WRITE_FREQ_CHANNEL_NAME_MAX_BYTES + ' 字符，不支持中文', 'warn');
       }
     }
+    writefreqFlushDomToModel();
+    return; // Mangosteen：不支持汉字，不再做字库缺字检测
   }
 
   if (!channelNameInput) {
@@ -2903,14 +2905,14 @@ function writefreqApplyChannelNameBlur(channelNameInput) {
     if (labelNonEmpty) {
       truncateMsg =
         channelLabelForMsg +
-        '：信道名超过 15 字节（原 ' +
+        '：信道名超过 10 个英文字符（原 ' +
         originalBytes +
-        ' 字节，UTF-8），已截断，末尾为 ...';
+        ' 字符），已截断';
     } else {
       truncateMsg =
-        '信道名超过 15 字节（原 ' +
+        '信道名超过 10 个英文字符（原 ' +
         originalBytes +
-        ' 字节，UTF-8），已截断，末尾为 ...';
+        ' 字符），已截断';
     }
     log(truncateMsg, 'warning');
     const logPanel = $('log');
@@ -3508,7 +3510,7 @@ function writefreqRebuildRows() {
   tbody.innerHTML = '';
   const tFunc = window.t || ((key) => {
     const fallback = {
-      'freqNamePlaceholder': 'ASCII only, ≤10 bytes',
+      'freqNamePlaceholder': '仅英文，最长 10 字符',
       'freqRxPlaceholder': '例 438.500000',
       'freqOffsetPlaceholder': '例 5.000000',
       'freqSelectPower': '请选择功率',
@@ -3824,7 +3826,7 @@ async function writefreqWriteToDevice() {
   if (nameTruncationWarnings.length > 0) {
     writefreqShowCurrentPage();
     const warnJoined = nameTruncationWarnings.join('\n');
-    log(window.t ? window.t('logChannelNameTruncate', {warn: warnJoined}) : '信道名截断提示（≤15 字节 UTF-8，超长末尾为 ...）：\n' + warnJoined, 'warning');
+    log(window.t ? window.t('logChannelNameTruncate', {warn: warnJoined}) : '信道名截断提示（仅英文，最长 10 字符）：\n' + warnJoined, 'warning');
   }
   const messages = [];
   const startCh = writefreqGetBaseChannel();
