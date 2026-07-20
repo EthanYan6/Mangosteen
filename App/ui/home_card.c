@@ -45,10 +45,17 @@
 #define BACK_OX         6
 #define BACK_OY         8
 
-#define GAUGE_CX        28
+/* Ellipse: +5px wider to the left (left rim 10→5), height unchanged.
+ * Wider RX corrects the tall-looking circle on the ST7565 aspect. */
+#define GAUGE_CX        25
 #define GAUGE_CY        24
-#define GAUGE_R         18
+#define GAUGE_RX        20
+#define GAUGE_RY        18
 #define GAUGE_THICK     2
+
+/* Displayed needle; rises instantly, falls 1 S-unit per 500ms tick. */
+static uint8_t hc_needle;
+static uint8_t hc_needle_target;
 
 static void HC_Pixel(uint8_t x, uint8_t y, bool on)
 {
@@ -155,81 +162,114 @@ static void HC_Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 	}
 }
 
-/* Midpoint circle points; skip SE quadrant (freq cutout). */
-static void HC_GaugePlot8(uint8_t cx, uint8_t cy, int16_t x, int16_t y)
+/* Midpoint ellipse points; skip SE quadrant (freq cutout). */
+static void HC_GaugePlot4(uint8_t cx, uint8_t cy, int16_t x, int16_t y)
 {
-	const int16_t pts[8][2] = {
-		{  x,  y }, {  y,  x }, { -y,  x }, { -x,  y },
-		{ -x, -y }, { -y, -x }, {  y, -x }, {  x, -y },
+	const int16_t pts[4][2] = {
+		{  x,  y }, { -x,  y }, { -x, -y }, {  x, -y },
 	};
-	for (uint8_t i = 0; i < 8; i++) {
+	for (uint8_t i = 0; i < 4; i++) {
 		if (pts[i][0] > 0 && pts[i][1] > 0)
 			continue;
 		HC_Pixel((uint8_t)(cx + pts[i][0]), (uint8_t)(cy + pts[i][1]), true);
 	}
 }
 
-static void HC_DrawCircleMid(uint8_t cx, uint8_t cy, uint8_t r)
+static void HC_DrawEllipseMid(uint8_t cx, uint8_t cy, uint8_t rx, uint8_t ry)
 {
-	int16_t x = (int16_t)r;
-	int16_t y = 0;
-	int16_t err = 1 - x;
+	if (rx == 0 || ry == 0)
+		return;
 
-	while (x >= y) {
-		HC_GaugePlot8(cx, cy, x, y);
-		y++;
-		if (err < 0)
-			err += 2 * y + 1;
+	int32_t x = 0;
+	int32_t y = (int32_t)ry;
+	const int32_t rx2 = (int32_t)rx * (int32_t)rx;
+	const int32_t ry2 = (int32_t)ry * (int32_t)ry;
+	int32_t px = 0;
+	int32_t py = 2 * rx2 * y;
+	int32_t p = ry2 - (rx2 * (int32_t)ry) + (rx2 / 4);
+
+	while (px < py) {
+		HC_GaugePlot4(cx, cy, (int16_t)x, (int16_t)y);
+		x++;
+		px += 2 * ry2;
+		if (p < 0)
+			p += ry2 + px;
 		else {
-			x--;
-			err += 2 * (y - x) + 1;
+			y--;
+			py -= 2 * rx2;
+			p += ry2 + px - py;
+		}
+	}
+
+	p = ry2 * (x + 1) * (x + 1) + rx2 * (y - 1) * (y - 1) - rx2 * ry2;
+	while (y >= 0) {
+		HC_GaugePlot4(cx, cy, (int16_t)x, (int16_t)y);
+		y--;
+		py -= 2 * rx2;
+		if (p > 0)
+			p += rx2 - py;
+		else {
+			x++;
+			px += 2 * ry2;
+			p += rx2 - py + px;
 		}
 	}
 }
 
-/* Smooth 3/4 gauge: midpoint outlines at r and r-1, plus light fill in the ring. */
-static void HC_DrawGaugeArc(uint8_t cx, uint8_t cy, uint8_t r)
+/* Smooth 3/4 gauge: elliptical outlines + light fill in the ring. */
+static void HC_DrawGaugeArc(uint8_t cx, uint8_t cy, uint8_t rx, uint8_t ry)
 {
-	const int16_t r_out = (int16_t)r;
-	const int16_t r_in  = (int16_t)r - (int16_t)GAUGE_THICK;
-	const int16_t r2_out = r_out * r_out;
-	const int16_t r2_mid = (r_out - 1) * (r_out - 1);
-	const int16_t r2_in  = (r_in > 0) ? (r_in * r_in) : 0;
+	const int32_t rx_out = (int32_t)rx;
+	const int32_t ry_out = (int32_t)ry;
+	const int32_t rx_in  = (int32_t)rx - (int32_t)GAUGE_THICK;
+	const int32_t ry_in  = (int32_t)ry - (int32_t)GAUGE_THICK;
+	const int32_t rx2_out = rx_out * rx_out;
+	const int32_t ry2_out = ry_out * ry_out;
+	const int32_t rx2_mid = (rx_out - 1) * (rx_out - 1);
+	const int32_t ry2_mid = (ry_out - 1) * (ry_out - 1);
+	const int32_t rx2_in  = (rx_in > 0) ? (rx_in * rx_in) : 0;
+	const int32_t ry2_in  = (ry_in > 0) ? (ry_in * ry_in) : 0;
 
-	/* Crisp outer/inner strokes */
-	HC_DrawCircleMid(cx, cy, r);
-	if (r > 1)
-		HC_DrawCircleMid(cx, cy, (uint8_t)(r - 1));
+	HC_DrawEllipseMid(cx, cy, rx, ry);
+	if (rx > 1 && ry > 1)
+		HC_DrawEllipseMid(cx, cy, (uint8_t)(rx - 1), (uint8_t)(ry - 1));
 
-	/* Soft-fill only the mid band so the rim looks even, not blocky */
-	for (int16_t dy = -r_out; dy <= r_out; dy++) {
-		for (int16_t dx = -r_out; dx <= r_out; dx++) {
+	/* Soft-fill mid band: dx²/rx² + dy²/ry² in [in, out] */
+	for (int16_t dy = (int16_t)(-ry_out); dy <= (int16_t)ry_out; dy++) {
+		for (int16_t dx = (int16_t)(-rx_out); dx <= (int16_t)rx_out; dx++) {
 			if (dx > 0 && dy > 0)
 				continue;
-			const int16_t d2 = (int16_t)(dx * dx + dy * dy);
-			if (d2 > r2_out || d2 < r2_in)
+			const int32_t dx2 = (int32_t)dx * (int32_t)dx;
+			const int32_t dy2 = (int32_t)dy * (int32_t)dy;
+			/* Outside outer ellipse? */
+			if (dx2 * ry2_out + dy2 * rx2_out > rx2_out * ry2_out)
 				continue;
-			/* Prefer near-mid radius pixels to thicken without staircase blobs */
-			if (d2 < r2_mid && d2 > r2_in)
+			/* Inside inner ellipse? */
+			if (rx2_in > 0 && ry2_in > 0 &&
+			    dx2 * ry2_in + dy2 * rx2_in < rx2_in * ry2_in)
+				continue;
+			/* Prefer mid-band pixels */
+			if (dx2 * ry2_mid + dy2 * rx2_mid < rx2_mid * ry2_mid &&
+			    (rx2_in == 0 || dx2 * ry2_in + dy2 * rx2_in > rx2_in * ry2_in))
 				HC_Pixel((uint8_t)(cx + dx), (uint8_t)(cy + dy), true);
 		}
 	}
 
 	/* Finished cut ends at south & east rim */
-	HC_Pixel((uint8_t)(cx + r), cy, true);
-	HC_Pixel((uint8_t)(cx + r - 1), cy, true);
-	HC_Pixel(cx, (uint8_t)(cy + r), true);
-	HC_Pixel(cx, (uint8_t)(cy + r - 1), true);
+	HC_Pixel((uint8_t)(cx + rx), cy, true);
+	HC_Pixel((uint8_t)(cx + rx - 1), cy, true);
+	HC_Pixel(cx, (uint8_t)(cy + ry), true);
+	HC_Pixel(cx, (uint8_t)(cy + ry - 1), true);
 }
 
 /*
- * Tick tips for GAUGE_R=18: angles 90°..360° step 33.75°.
- * Outer r=14, inner r=11 — both strictly inside inner rim (r-thick=16).
+ * Tick tips for GAUGE_RX=20, GAUGE_RY=18: angles 90°..360° step 33.75°.
+ * Outer ≈14/18 of rim, inner ≈11/18 — both inside inner rim.
  */
-static const int8_t hc_tick_ox[9] = {  0, -8,-13,-13,-10, -3,  5, 11, 14};
-static const int8_t hc_tick_oy[9] = { 14, 11,  5, -3, -9,-13,-13, -8,  0};
-static const int8_t hc_tick_ix[9] = {  0, -6,-10,-10, -8, -2,  4,  9, 11};
-static const int8_t hc_tick_iy[9] = { 11,  9,  4, -2, -7,-10,-10, -6,  0};
+static const int8_t hc_tick_ox[9] = {  0, -9,-14,-15,-11, -3,  6, 13, 16};
+static const int8_t hc_tick_oy[9] = { 14, 12,  5, -3,-10,-14,-13, -8,  0};
+static const int8_t hc_tick_ix[9] = {  0, -7,-11,-12, -9, -2,  5, 10, 12};
+static const int8_t hc_tick_iy[9] = { 11,  9,  4, -2, -8,-11,-10, -6,  0};
 
 static void HC_DrawTicks(uint8_t cx, uint8_t cy)
 {
@@ -544,6 +584,11 @@ static void HC_DrawFront(uint8_t vfo_num)
 		);
 	const uint8_t s_level = show_s ? HC_GetSLevel() : 0;
 
+	/* Instant rise, slow fall (1 unit / 500ms via UI_HomeCard_TimeSlice500ms). */
+	hc_needle_target = s_level;
+	if (hc_needle_target >= hc_needle)
+		hc_needle = hc_needle_target;
+
 	/* Cover anything from the back card that falls under the front. */
 	HC_ClearRect(FRONT_X0, FRONT_Y0, FRONT_X1, FRONT_Y1);
 	HC_HLine(FRONT_X0, FRONT_X1, FRONT_Y0, true);
@@ -551,8 +596,8 @@ static void HC_DrawFront(uint8_t vfo_num)
 	HC_VLine(FRONT_X0, FRONT_Y0, FRONT_Y1, true);
 	HC_VLine(FRONT_X1, FRONT_Y0, FRONT_Y1, true);
 
-	/* S-meter text */
-	sprintf(str, "S%u", s_level);
+	/* S-meter text follows the displayed needle */
+	sprintf(str, "S%u", hc_needle);
 	HC_Small(str, 5, 3);
 
 	/* VFO letter + channel # + battery + %/V */
@@ -579,9 +624,9 @@ static void HC_DrawFront(uint8_t vfo_num)
 		HC_Small(str, 94, 3);
 
 	/* gauge */
-	HC_DrawGaugeArc(GAUGE_CX, GAUGE_CY, GAUGE_R);
+	HC_DrawGaugeArc(GAUGE_CX, GAUGE_CY, GAUGE_RX, GAUGE_RY);
 	HC_DrawTicks(GAUGE_CX, GAUGE_CY);
-	HC_DrawNeedle(GAUGE_CX, GAUGE_CY, s_level);
+	HC_DrawNeedle(GAUGE_CX, GAUGE_CY, hc_needle);
 
 	/* DTMF (parsed/live) — tiny u8g2 small font; scroll if past card edge */
 	HC_FillDtmf(str, sizeof(str));
@@ -658,6 +703,35 @@ void UI_DisplayHomeCard(void)
 	if (gCurrentFunction == FUNCTION_TRANSMIT && gSetting_mic_bar)
 		UI_DisplayAudioScope();
 #endif
+}
+
+bool UI_HomeCard_TimeSlice500ms(void)
+{
+	uint8_t target = 0;
+
+	if (gCurrentFunction != FUNCTION_TRANSMIT) {
+		if (FUNCTION_IsRx()
+#ifdef ENABLE_BK1080
+		    || (gRxVfo && gRxVfo->Modulation == MODULATION_WFM)
+#endif
+		   )
+			target = HC_GetSLevel();
+	}
+
+	hc_needle_target = target;
+
+	/* Instant rise when signal increases. */
+	if (target >= hc_needle) {
+		if (hc_needle != target) {
+			hc_needle = target;
+			return true;
+		}
+		return false;
+	}
+
+	/* Slow fall: 1 S-unit per 500ms — no snap to 0. */
+	hc_needle--;
+	return true;
 }
 
 #endif /* ENABLE_FEAT_F4HWN */

@@ -1222,6 +1222,11 @@ void UI_MAIN_TimeSlice500ms(void)
             }
         }
 #endif
+#ifdef UI_USE_HOME_CARD
+        /* Live S-meter + slow needle fall to 0 (no instant snap). */
+        if (UI_HomeCard_TimeSlice500ms())
+            gUpdateDisplay = true;
+#endif
     }
 }
 

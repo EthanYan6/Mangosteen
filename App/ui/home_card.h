@@ -7,5 +7,7 @@
 #include <stdbool.h>
 
 void UI_DisplayHomeCard(void);
+/* 500ms tick: refresh while RX / WFM, decay needle toward 0. true → redraw. */
+bool UI_HomeCard_TimeSlice500ms(void);
 
 #endif
