@@ -242,8 +242,11 @@ void Main(void)
                     break;
                 }
             }
-            RADIO_SetupRegisters(true);
         }
+
+        // Always re-arm after welcome (BK1080 needs a post-boot tune; SOUND/NONE
+        // used to skip this and stay silent until the user changed frequency).
+        RADIO_SetupRegisters(true);
 
 #ifdef ENABLE_PWRON_PASSWORD
         if (gEeprom.POWER_ON_PASSWORD < 1000000)

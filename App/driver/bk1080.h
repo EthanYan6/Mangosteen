@@ -33,6 +33,7 @@ uint16_t BK1080_GetFreqLoLimit(uint8_t band);
 uint16_t BK1080_GetFreqHiLimit(uint8_t band);
 void BK1080_SetFrequency(uint16_t frequency, uint8_t band/*, uint8_t space*/);
 void BK1080_GetFrequencyDeviation(uint16_t Frequency);
+uint8_t BK1080_GetRSSI(void);
 
 #endif
 

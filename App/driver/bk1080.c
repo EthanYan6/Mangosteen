@@ -37,6 +37,8 @@ uint16_t BK1080_FrequencyDeviation;
 void BK1080_Init0(void)
 {
     BK1080_Init(0,0/*,0*/);
+    /* Power-down clears chip state; next Init must rewrite the full table. */
+    gIsInitBK1080 = false;
 }
 
 void BK1080_Init(uint16_t freq, uint8_t band/*, uint8_t space*/)
@@ -138,5 +140,11 @@ uint16_t BK1080_GetFreqHiLimit(uint8_t band)
 {
     static const uint16_t lim[] = {1080, 1080, 900, 760};
     return lim[band % 4];
+}
+
+uint8_t BK1080_GetRSSI(void)
+{
+    /* REG10 RSSI[7:0]: dBμV, ~1 dB steps, capped near 75 dBμV */
+    return (uint8_t)BK1080_REG_10_GET_RSSI(BK1080_ReadRegister(BK1080_REG_10));
 }
 

@@ -498,6 +498,11 @@ void RADIO_ConfigureChannel(const unsigned int VFO, const unsigned int configure
     }
     #endif
 
+#ifdef ENABLE_BK1080
+    /* Boot/reload skips the step handler — sync WFM from frequency (prev=0 ⇒ enter). */
+    RADIO_ApplyWfmAutoMode(pVfo, 0, pVfo->freq_config_RX.Frequency, pVfo->Modulation);
+#endif
+
     RADIO_ConfigureSquelchAndOutputPower(pVfo);
 }
 
@@ -771,8 +776,8 @@ void RADIO_ApplyWfmAutoMode(VFO_Info_t *pVfo, uint32_t prevFreq, uint32_t newFre
         // Manual VFO switch via long-press 2 still works.
         gDualWatchActive   = false;
         gScheduleDualWatch = false;
-    } else if (newIn && prevIn && prevMod == MODULATION_WFM) {
-        // Band reload at 108 MHz (BAND1→BAND2) can wipe WFM — restore it.
+    } else if (newIn && (prevMod == MODULATION_WFM || pVfo->Modulation != MODULATION_WFM)) {
+        // Band reload can wipe WFM; boot/reload may leave FM on a broadcast freq.
         pVfo->Modulation = MODULATION_WFM;
     } else if (prevIn && !newIn && pVfo->Modulation == MODULATION_WFM) {
         pVfo->Modulation = MODULATION_FM;
@@ -892,6 +897,9 @@ void RADIO_SetupRegisters(bool switchToForeground)
         // audio, then a loud noise burst when that carrier drops.
         BK4819_SetAF(BK4819_AF_MUTE);
         BK4819_PickRXFilterPathBasedOnFrequency(10320000); // VHF LNA path for BK1080
+        // Shared antenna RX switch — WFM early-return used to skip this, so cold
+        // boot into broadcast heard only BK1080 hiss with no RF / dead S-meter.
+        BK4819_ToggleGpioOut(BK4819_GPIO0_PIN28_RX_ENABLE, true);
         BK1080_Init(fmFreq, band);
 
         gDualWatchActive   = false;

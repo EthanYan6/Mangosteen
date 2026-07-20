@@ -13,6 +13,9 @@
 #include "bitmaps.h"
 #include "dcs.h"
 #include "driver/bk4819.h"
+#ifdef ENABLE_BK1080
+#include "driver/bk1080.h"
+#endif
 #include "driver/st7565.h"
 #include "external/printf/printf.h"
 #include "functions.h"
@@ -353,6 +356,20 @@ static void HC_DrawMiniBattery(uint8_t x, uint8_t y)
 
 static uint8_t HC_GetSLevel(void)
 {
+#ifdef ENABLE_BK1080
+	/*
+	 * WFM uses BK1080 REG10 RSSI (dBμV). Datasheet ceiling is ~75, but on a
+	 * stock HT antenna clear locals are typically ~15–30 and stereo blend
+	 * starts near 31 — so map a practical full-scale to S9, not 75.
+	 */
+	if (gRxVfo && gRxVfo->Modulation == MODULATION_WFM) {
+		const uint8_t rssi = BK1080_GetRSSI();
+		enum { WFM_RSSI_S9 = 28 }; /* dBμV → S9 */
+		if (rssi >= WFM_RSSI_S9)
+			return 9;
+		return (uint8_t)((rssi * 9u) / WFM_RSSI_S9);
+	}
+#endif
 	int16_t rssi_dBm =
 		BK4819_GetRSSI_dBm()
 #ifdef ENABLE_AM_FIX
@@ -487,7 +504,15 @@ static void HC_DrawFront(uint8_t vfo_num)
 	const VFO_Info_t *vfo = &gEeprom.VfoInfo[vfo_num];
 	const bool is_tx = (gCurrentFunction == FUNCTION_TRANSMIT);
 	const uint32_t freq = is_tx ? vfo->pTX->Frequency : vfo->pRX->Frequency;
-	const uint8_t s_level = (!is_tx && FUNCTION_IsRx()) ? HC_GetSLevel() : 0;
+	/* WFM never enters FUNCTION_RECEIVE (BK4819 squelch ignored), so always meter. */
+	const bool show_s =
+		!is_tx &&
+		(FUNCTION_IsRx()
+#ifdef ENABLE_BK1080
+		 || (gRxVfo && gRxVfo->Modulation == MODULATION_WFM)
+#endif
+		);
+	const uint8_t s_level = show_s ? HC_GetSLevel() : 0;
 
 	/* Cover anything from the back card that falls under the front. */
 	HC_ClearRect(FRONT_X0, FRONT_Y0, FRONT_X1, FRONT_Y1);
