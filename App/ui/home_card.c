@@ -448,14 +448,34 @@ static void HC_GetChannelLabel(uint8_t vfo_num, char *out, uint8_t out_len)
 	(void)out_len;
 }
 
+/* DTMF line left edge; text must stay inside FRONT_X1. */
+#define HC_DTMF_X  50
+
+/* Drop leading chars until the string fits left of the front-card right border. */
+static void HC_SmallFit(const char *s, uint8_t x, uint8_t y)
+{
+	if (s == NULL || s[0] == 0)
+		return;
+
+	const uint8_t max_w = (FRONT_X1 > x) ? (uint8_t)(FRONT_X1 - x) : 0;
+	const char *p = s;
+
+	while (p[0] != 0 && HomeCardFont_GetSmallTextWidth(p) > max_w)
+		p++;
+
+	if (p[0])
+		HC_Small(p, x, y);
+}
+
 static void HC_FillDtmf(char *out, uint8_t out_len)
 {
 	out[0] = 0;
-	(void)out_len;
+	if (out_len == 0)
+		return;
 #ifdef ENABLE_DTMF_CALLING
 	char Contact[16];
 	if (gDTMF_InputMode) {
-		sprintf(out, ">%s", gDTMF_InputBox);
+		snprintf(out, out_len, ">%s", gDTMF_InputBox);
 		return;
 	}
 	if (gDTMF_CallState == DTMF_CALL_STATE_CALL_OUT) {
@@ -463,7 +483,7 @@ static void HC_FillDtmf(char *out, uint8_t out_len)
 		return;
 	}
 	if (gDTMF_CallState == DTMF_CALL_STATE_RECEIVED || gDTMF_CallState == DTMF_CALL_STATE_RECEIVED_STAY) {
-		sprintf(out, "CALL FRM:%s",
+		snprintf(out, out_len, "CALL FRM:%s",
 			DTMF_FindContact(gDTMF_Caller, Contact) ? Contact : gDTMF_Caller);
 		return;
 	}
@@ -472,8 +492,18 @@ static void HC_FillDtmf(char *out, uint8_t out_len)
 		return;
 	}
 #endif
-	if (gDTMF_RX_live[0] != 0 && gDTMF_RX_live_timeout > 0)
-		strcpy(out, gDTMF_RX_live);
+	if (gDTMF_RX_live[0] != 0 && gDTMF_RX_live_timeout > 0) {
+		/* Keep "DTMF:" fixed; scroll decoded digits from the left when too wide. */
+		const uint8_t max_w = (FRONT_X1 > HC_DTMF_X) ? (uint8_t)(FRONT_X1 - HC_DTMF_X) : 0;
+		const char *live = gDTMF_RX_live;
+
+		for (;;) {
+			snprintf(out, out_len, "DTMF:%s", live);
+			if (HomeCardFont_GetSmallTextWidth(out) <= max_w || live[0] == 0)
+				break;
+			live++;
+		}
+	}
 }
 
 static void HC_DrawBackPeek(uint8_t vfo_num)
@@ -553,10 +583,10 @@ static void HC_DrawFront(uint8_t vfo_num)
 	HC_DrawTicks(GAUGE_CX, GAUGE_CY);
 	HC_DrawNeedle(GAUGE_CX, GAUGE_CY, s_level);
 
-	/* DTMF (parsed/live) — tiny u8g2 small font */
+	/* DTMF (parsed/live) — tiny u8g2 small font; scroll if past card edge */
 	HC_FillDtmf(str, sizeof(str));
 	if (str[0])
-		HC_Small(str, 50, 10);
+		HC_SmallFit(str, HC_DTMF_X, 10);
 
 	/* channel name / VFO — half of big font (gFontSmall) */
 	HC_GetName(vfo_num, str, sizeof(str));
