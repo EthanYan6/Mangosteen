@@ -5,6 +5,9 @@
 #include "settings.h"
 #include "ui/inputbox.h"
 #include "ui/ui.h"
+#ifdef ENABLE_FEAT_F4HWN
+#include "ui/home_card.h"
+#endif
 
 void COMMON_KeypadLockToggle() 
 {
@@ -25,6 +28,15 @@ void COMMON_KeypadLockToggle()
 
 void COMMON_SwitchVFOs()
 {
+    /* MAIN ONLY: no A/B card to reveal — refuse with a short beep. */
+    if (gEeprom.DUAL_WATCH == DUAL_WATCH_OFF &&
+        gEeprom.CROSS_BAND_RX_TX == CROSS_BAND_OFF) {
+        gBeepToPlay = BEEP_1KHZ_60MS_OPTIONAL;
+        return;
+    }
+
+    const uint8_t outgoing = gEeprom.TX_VFO & 1u;
+
 #ifdef ENABLE_SCAN_RANGES    
     gScanRangeStart = 0;
 #endif
@@ -45,6 +57,10 @@ void COMMON_SwitchVFOs()
     gScheduleDualWatch = true;
 
     gRequestDisplayScreen = DISPLAY_MAIN;
+
+#ifdef ENABLE_FEAT_F4HWN
+    UI_HomeCard_StartVfoSwapAnim(outgoing);
+#endif
 }
 
 void COMMON_SwitchVFOMode()

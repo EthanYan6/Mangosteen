@@ -152,7 +152,12 @@ void HomeCardFont_DrawSmallTextStatus(const char *text, uint8_t x_left, uint8_t 
 			return;
 
 		const uint8_t x_right = (uint8_t)(x_left + width - 1u);
-		const uint8_t y_bottom = (uint8_t)(y_top + 5u);
+		/* gStatusLine is one LCD page (y 0..7); never write y>=8 (spills into gFrameBuffer). */
+		uint8_t y_bottom = (uint8_t)(y_top + 5u);
+		if (y_top > 7u)
+			return;
+		if (y_bottom > 7u)
+			y_bottom = 7u;
 		apply_text_rect(&gStatusLine, x_left, y_top, x_right, y_bottom, set_black);
 	}
 }

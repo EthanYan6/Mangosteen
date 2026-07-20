@@ -86,6 +86,9 @@
 #include "ui/status.h"
 #include "ui/ui.h"
 #include "ui/welcome.h"
+#ifdef ENABLE_FEAT_F4HWN
+#include "ui/home_card.h"
+#endif
 
 #ifdef ENABLE_FEAT_F4HWN_K5VIEWER
     #include "k5viewer.h"
@@ -1658,6 +1661,11 @@ void APP_TimeSlice10ms(void)
     if (gReducedService)
         return;
 
+#ifdef ENABLE_FEAT_F4HWN
+    if (UI_HomeCard_TimeSlice10ms())
+        gUpdateDisplay = true;
+#endif
+
     if (gCurrentFunction != FUNCTION_POWER_SAVE || !gRxIdleMode)
         CheckRadioInterrupts();
 
@@ -2285,6 +2293,12 @@ static void ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 
     if (gCurrentFunction == FUNCTION_POWER_SAVE)
         FUNCTION_Select(FUNCTION_FOREGROUND);
+
+#ifdef ENABLE_FEAT_F4HWN
+    /* New key press (not hold repeat / release): snap A/B swap anim to end. */
+    if (bKeyPressed && !bKeyHeld && UI_HomeCard_CancelVfoSwapAnim())
+        gUpdateDisplay = true;
+#endif
 
     gBatterySaveCountdown_10ms = battery_save_count_10ms;
 

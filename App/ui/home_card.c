@@ -57,14 +57,36 @@
 static uint8_t hc_needle;
 static uint8_t hc_needle_target;
 
-static void HC_Pixel(uint8_t x, uint8_t y, bool on)
+/* Draw offset for A/B swap animation (applied in HC_Pixel / HC_Small). */
+static int8_t hc_ox;
+static int8_t hc_oy;
+
+/* Manual A/B swap: whole front card slides up; layout under it is final home.
+ * Needle frozen until the slide finishes. */
+#define HC_ANIM_STEPS           9u
+#define HC_ANIM_TICKS_PER_STEP  5u  /* 50ms × 9 ≈ 450ms */
+static bool    hc_anim_active;
+static bool    hc_needle_frozen;
+static uint8_t hc_anim_step;
+static uint8_t hc_anim_tick;
+static uint8_t hc_anim_out; /* VFO leaving (slides up) */
+static uint8_t hc_anim_in;  /* VFO arriving (stays as new front) */
+
+static void HC_PixelXY(int16_t x, int16_t y, bool on)
 {
-	if (x >= HC_W || y >= HC_H)
+	x += hc_ox;
+	y += hc_oy;
+	if (x < 0 || y < 0 || x >= HC_W || y >= HC_H)
 		return;
 	if (y < 8)
-		PutPixelStatus(x, y, on);
+		PutPixelStatus((uint8_t)x, (uint8_t)y, on);
 	else
-		PutPixel(x, y - 8, on);
+		PutPixel((uint8_t)x, (uint8_t)(y - 8), on);
+}
+
+static void HC_Pixel(uint8_t x, uint8_t y, bool on)
+{
+	HC_PixelXY((int16_t)x, (int16_t)y, on);
 }
 
 static void HC_HLine(uint8_t x0, uint8_t x1, uint8_t y, bool on)
@@ -138,10 +160,17 @@ static void HC_DrawBackPeekFrame(void)
 /* Dondji dual-VFO small font (u8g2_font_5_tr) at absolute screen y (glyph top). */
 static void HC_Small(const char *s, uint8_t x, uint8_t y)
 {
-	if (y < 8)
-		HomeCardFont_DrawSmallTextStatus(s, x, y, true);
+	const int16_t px = (int16_t)x + hc_ox;
+	const int16_t py = (int16_t)y + hc_oy;
+
+	if (px < 0 || py < 0 || px >= HC_W || py >= HC_H)
+		return;
+
+	/* Keep card-relative layout: same (x,y) → screen (x+ox, y+oy). */
+	if (py < 8)
+		HomeCardFont_DrawSmallTextStatus(s, (uint8_t)px, (uint8_t)py, true);
 	else
-		HomeCardFont_DrawSmallText(s, x, (uint8_t)(y - 8), true);
+		HomeCardFont_DrawSmallText(s, (uint8_t)px, (uint8_t)(py - 8), true);
 }
 
 static void HC_Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
@@ -152,8 +181,7 @@ static void HC_Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 	int16_t sy = (y0 < y1) ? 1 : -1;
 	int16_t err = dx + dy;
 	for (;;) {
-		if (x0 >= 0 && y0 >= 0 && x0 < HC_W && y0 < HC_H)
-			HC_Pixel((uint8_t)x0, (uint8_t)y0, true);
+		HC_PixelXY(x0, y0, true);
 		if (x0 == x1 && y0 == y1)
 			break;
 		const int16_t e2 = err * 2;
@@ -233,6 +261,10 @@ static void HC_DrawGaugeArc(uint8_t cx, uint8_t cy, uint8_t rx, uint8_t ry)
 	HC_DrawEllipseMid(cx, cy, rx, ry);
 	if (rx > 1 && ry > 1)
 		HC_DrawEllipseMid(cx, cy, (uint8_t)(rx - 1), (uint8_t)(ry - 1));
+
+	/* Skip soft-fill while a card is offset-sliding (CPU); outline+ticks still match layout. */
+	if (hc_ox != 0 || hc_oy != 0)
+		return;
 
 	/* Soft-fill mid band: dx²/rx² + dy²/ry² in [in, out] */
 	for (int16_t dy = (int16_t)(-ry_out); dy <= (int16_t)ry_out; dy++) {
@@ -551,7 +583,7 @@ static void HC_DrawBackPeek(uint8_t vfo_num)
 	char name[12];
 	char line[28];
 	const VFO_Info_t *vfo = &gEeprom.VfoInfo[vfo_num];
-	const uint32_t freq = vfo->pRX->Frequency;
+	const uint32_t freq = vfo->freq_config_RX.Frequency;
 
 	HC_DrawBackPeekFrame();
 
@@ -572,10 +604,14 @@ static void HC_DrawFront(uint8_t vfo_num)
 	char tx_tone[10];
 	char pwr[4];
 	const VFO_Info_t *vfo = &gEeprom.VfoInfo[vfo_num];
-	const bool is_tx = (gCurrentFunction == FUNCTION_TRANSMIT);
-	const uint32_t freq = is_tx ? vfo->pTX->Frequency : vfo->pRX->Frequency;
+	const bool is_tx = (gCurrentFunction == FUNCTION_TRANSMIT)
+		&& ((gEeprom.TX_VFO & 1u) == vfo_num);
+	const uint32_t freq = is_tx ? vfo->freq_config_TX.Frequency : vfo->freq_config_RX.Frequency;
+	const bool meter_vfo = ((gEeprom.RX_VFO & 1u) == vfo_num);
 	/* WFM never enters FUNCTION_RECEIVE (BK4819 squelch ignored), so always meter. */
 	const bool show_s =
+		!hc_needle_frozen &&
+		meter_vfo &&
 		!is_tx &&
 		(FUNCTION_IsRx()
 #ifdef ENABLE_BK1080
@@ -584,10 +620,12 @@ static void HC_DrawFront(uint8_t vfo_num)
 		);
 	const uint8_t s_level = show_s ? HC_GetSLevel() : 0;
 
-	/* Instant rise, slow fall (1 unit / 500ms via UI_HomeCard_TimeSlice500ms). */
-	hc_needle_target = s_level;
-	if (hc_needle_target >= hc_needle)
-		hc_needle = hc_needle_target;
+	/* Instant rise, slow fall — frozen during A/B card slide. */
+	if (!hc_needle_frozen && meter_vfo) {
+		hc_needle_target = s_level;
+		if (hc_needle_target >= hc_needle)
+			hc_needle = hc_needle_target;
+	}
 
 	/* Cover anything from the back card that falls under the front. */
 	HC_ClearRect(FRONT_X0, FRONT_Y0, FRONT_X1, FRONT_Y1);
@@ -633,14 +671,18 @@ static void HC_DrawFront(uint8_t vfo_num)
 	if (str[0])
 		HC_SmallFit(str, HC_DTMF_X, 10);
 
-	/* channel name / VFO — half of big font (gFontSmall) */
+	/* channel name / VFO — half of big font (gFontSmall); offset path uses small font */
 	HC_GetName(vfo_num, str, sizeof(str));
 	str[10] = 0;
+	if (hc_ox != 0 || hc_oy != 0) {
+		HC_Small(str, 48, 16);
+	} else {
 #ifdef ENABLE_SMALL_BOLD
-	UI_PrintStringSmallBold(str, 48, 0, 1);
+		UI_PrintStringSmallBold(str, 48, 0, 1);
 #else
-	UI_PrintStringSmallNormal(str, 48, 0, 1);
+		UI_PrintStringSmallNormal(str, 48, 0, 1);
 #endif
+	}
 
 	/* frequency LED below name: full XXX.XXXXX, bold 7-seg */
 	HC_DrawFreqLed(34, 28, freq);
@@ -685,15 +727,41 @@ void UI_DisplayHomeCard(void)
 		return;
 	}
 
+	if (gScreenToDisplay != DISPLAY_MAIN && hc_anim_active)
+		hc_anim_active = false;
+
 	const uint8_t front = gEeprom.TX_VFO & 1u;
 	const uint8_t back  = front ^ 1u;
 	const bool dual = (gEeprom.DUAL_WATCH != DUAL_WATCH_OFF)
 		|| (gEeprom.CROSS_BAND_RX_TX != CROSS_BAND_OFF);
 
-	if (dual)
-		HC_DrawBackPeek(back);
+	if (hc_anim_active && dual) {
+		/* Top card slides up from its current slot (offset 0 → off the top). */
+		const int16_t card_h = (int16_t)(FRONT_Y1 - FRONT_Y0 + 1);
+		const int8_t out_dy =
+			(int8_t)(-(card_h * (int16_t)hc_anim_step) / (int16_t)HC_ANIM_STEPS);
 
-	HC_DrawFront(front);
+		hc_ox = 0;
+		hc_oy = 0;
+		HC_DrawFront(hc_anim_in);   /* new card underneath */
+
+		hc_oy = out_dy;             /* 0 on first frame = current position */
+		HC_DrawFront(hc_anim_out);  /* current top card moving up */
+		hc_oy = 0;
+	} else {
+		hc_anim_active   = false;
+		hc_needle_frozen = false;
+		hc_anim_step     = 0;
+		hc_anim_tick     = 0;
+		hc_ox = 0;
+		hc_oy = 0;
+
+		/* Normal home: front card + back peek (name / freq / modulation). */
+		if (dual)
+			HC_DrawBackPeek(back);
+
+		HC_DrawFront(front);
+	}
 
 	ST7565_BlitStatusLine();
 	ST7565_BlitFullScreen();
@@ -705,9 +773,73 @@ void UI_DisplayHomeCard(void)
 #endif
 }
 
+void UI_HomeCard_StartVfoSwapAnim(uint8_t outgoing_vfo)
+{
+	hc_anim_out      = outgoing_vfo & 1u;
+	hc_anim_in       = hc_anim_out ^ 1u;
+	hc_anim_step     = 0;
+	hc_anim_tick     = 0;
+	hc_needle_frozen = true;
+	hc_anim_active   = true;
+	gUpdateDisplay   = true;
+}
+
+bool UI_HomeCard_CancelVfoSwapAnim(void)
+{
+	if (!hc_anim_active)
+		return false;
+	hc_anim_active   = false;
+	hc_needle_frozen = false;
+	hc_anim_step     = 0;
+	hc_anim_tick     = 0;
+	hc_ox = 0;
+	hc_oy = 0;
+	return true;
+}
+
+bool UI_HomeCard_IsVfoSwapAnimActive(void)
+{
+	return hc_anim_active;
+}
+
+bool UI_HomeCard_TimeSlice10ms(void)
+{
+	if (!hc_anim_active)
+		return false;
+
+	if (gScreenToDisplay != DISPLAY_MAIN) {
+		hc_anim_active   = false;
+		hc_needle_frozen = false;
+		hc_anim_step     = 0;
+		hc_anim_tick     = 0;
+		return false;
+	}
+
+	if (++hc_anim_tick < HC_ANIM_TICKS_PER_STEP)
+		return false;
+	hc_anim_tick = 0;
+
+	if (hc_anim_step < HC_ANIM_STEPS)
+		hc_anim_step++;
+
+	if (hc_anim_step >= HC_ANIM_STEPS) {
+		/* Snap to normal home; needle may update again on following draws. */
+		hc_anim_active   = false;
+		hc_needle_frozen = false;
+		hc_anim_step     = 0;
+		hc_anim_tick     = 0;
+		hc_ox = 0;
+		hc_oy = 0;
+	}
+	return true;
+}
+
 bool UI_HomeCard_TimeSlice500ms(void)
 {
 	uint8_t target = 0;
+
+	if (hc_needle_frozen)
+		return false;
 
 	if (gCurrentFunction != FUNCTION_TRANSMIT) {
 		if (FUNCTION_IsRx()
