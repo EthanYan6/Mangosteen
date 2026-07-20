@@ -1368,6 +1368,8 @@ void APP_Update(void)
             || gScanStateDir != SCAN_OFF
             || gCssBackgroundScan
             || gScreenToDisplay != DISPLAY_MAIN
+            // WFM/BK1080 shares BK4819 RX path; power-save sleep chops broadcast audio.
+            || RADIO_IsBroadcastRadioActive()
 #ifdef ENABLE_FMRADIO
             || gFmRadioMode
 #endif
