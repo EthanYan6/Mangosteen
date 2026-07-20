@@ -2431,28 +2431,33 @@ html.theme-light .calib-check-modal__backdrop {
 }
 
 .donation-board__table th:nth-child(1) {
-  width: 22%;
+  width: 34%;
 }
 
 .donation-board__table th:nth-child(2) {
-  width: 16%;
+  width: 14%;
 }
 
 .donation-board__table th:nth-child(3) {
-  width: 12%;
+  width: 10%;
 }
 
 .donation-board__table th:nth-child(4) {
-  width: 35%;
+  width: 28%;
 }
 
 .donation-board__table th:nth-child(5) {
-  width: 15%;
+  width: 14%;
 }
 
 .donation-board__table td {
   padding: 4px 3px;
   color: var(--text-muted);
+}
+
+.donation-board__table td:nth-child(1) {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .donation-board__table td:nth-child(4) {
