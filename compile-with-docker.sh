@@ -59,6 +59,29 @@ build_preset() {
 }
 
 # ---------------------------------------------
+# 将默认/Custom 产物同步到 docs/firmware（供刷机站同源加载）
+# ---------------------------------------------
+copy_firmware_to_docs() {
+  local preset="$1"
+  local build_dir="build/${preset}"
+  local src=""
+  if [[ -d "$build_dir" ]]; then
+    # Prefer mangosteen_*.bin; fall back to any .bin in the preset build dir
+    src=$(ls -1 "$build_dir"/mangosteen_*.bin 2>/dev/null | head -n 1 || true)
+    if [[ -z "$src" ]]; then
+      src=$(ls -1 "$build_dir"/*.bin 2>/dev/null | head -n 1 || true)
+    fi
+  fi
+  if [[ -n "$src" && -f "$src" ]]; then
+    mkdir -p docs/firmware
+    cp -f "$src" docs/firmware/mangosteen.bin
+    echo "📁 已复制固件到 docs/firmware/mangosteen.bin（来源: $src）"
+  else
+    echo "⚠️ 未找到 ${preset} 固件产物，跳过复制到 docs/firmware"
+  fi
+}
+
+# ---------------------------------------------
 # Handle 'All' preset
 # ---------------------------------------------
 if [[ "$PRESET" == "All" ]]; then
@@ -66,8 +89,15 @@ if [[ "$PRESET" == "All" ]]; then
   for p in "${PRESETS[@]}"; do
     build_preset "$p"
   done
+  # All 构建后用 Custom 产物作站点镜像（若无 Custom 则用 Fusion）
+  if [[ -d build/Custom ]]; then
+    copy_firmware_to_docs Custom
+  else
+    copy_firmware_to_docs Fusion
+  fi
   echo ""
   echo "🎉 All presets built successfully!"
 else
   build_preset "$PRESET"
+  copy_firmware_to_docs "$PRESET"
 fi

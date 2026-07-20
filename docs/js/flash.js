@@ -922,26 +922,43 @@ function firmwareCollectLocalMirrorCandidateUrls() {
   return orderedUrls;
 }
 
-async function firmwareFetchArrayBufferWithFallback() {
-  try {
-    return await firmwareFetchLatestFromGitHubReleases();
-  } catch (releaseErr) {
-    const candidateUrls = firmwareCollectLocalMirrorCandidateUrls();
-    for (let i = 0; i < candidateUrls.length; i++) {
-      try {
-        const response = await fetch(candidateUrls[i]);
-        if (!response.ok) continue;
-        const arrayBuffer = await response.arrayBuffer();
-        return {
-          name: 'mangosteen.bin',
-          tag: 'local-mirror',
-          publishedAt: '',
-          bytes: new Uint8Array(arrayBuffer)
-        };
-      } catch (e) {}
+async function firmwareFetchLocalMirrorOnly() {
+  const candidateUrls = firmwareCollectLocalMirrorCandidateUrls();
+  let lastErr = null;
+  for (let i = 0; i < candidateUrls.length; i++) {
+    try {
+      const response = await fetch(candidateUrls[i]);
+      if (!response.ok) {
+        lastErr = new Error('HTTP ' + response.status + ' for ' + candidateUrls[i]);
+        continue;
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      return {
+        name: 'mangosteen.bin',
+        tag: 'local-mirror',
+        publishedAt: '',
+        bytes: new Uint8Array(arrayBuffer)
+      };
+    } catch (e) {
+      lastErr = e;
     }
-    const msg = releaseErr && releaseErr.message ? releaseErr.message : String(releaseErr);
-    throw new Error(msg + ' (local mirror also failed)');
+  }
+  const msg = lastErr && lastErr.message ? lastErr.message : 'local mirror missing';
+  throw new Error(msg);
+}
+
+async function firmwareFetchArrayBufferWithFallback() {
+  // Prefer docs/firmware/mangosteen.bin (packaged with each build); GitHub Releases as fallback.
+  try {
+    return await firmwareFetchLocalMirrorOnly();
+  } catch (localErr) {
+    try {
+      return await firmwareFetchLatestFromGitHubReleases();
+    } catch (releaseErr) {
+      const localMsg = localErr && localErr.message ? localErr.message : String(localErr);
+      const releaseMsg = releaseErr && releaseErr.message ? releaseErr.message : String(releaseErr);
+      throw new Error(localMsg + '; Releases: ' + releaseMsg);
+    }
   }
 }
 
@@ -951,7 +968,7 @@ on('fetchLatestBtn', 'click', async () => {
   btn.disabled = true;
   btn.textContent = window.t ? window.t('loadingFile') : '正在加载...';
   try {
-    log(window.t ? window.t('logLoadingFile') + ' GitHub Releases' : '正在加载... GitHub Releases', 'info');
+    log(window.t ? window.t('logLoadingFile') + ' docs/firmware' : '正在加载... docs/firmware', 'info');
     const loaded = await firmwareFetchArrayBufferWithFallback();
     firmwareData = loaded.bytes;
     const byteLength = firmwareData.length;
@@ -3764,21 +3781,13 @@ async function writefreqReadFromDevice() {
       }
       validReadCount++;
       const enAddr = WRITE_FREQ_ADDR_EN_BASE + chIndex0 * 16;
-      const cnAddr = WRITE_FREQ_ADDR_CN_BASE + chIndex0 * 16;
       const enRaw = await spiFlashReadChunk(sessionTs, enAddr, 16);
       if (!enRaw) {
         const enHex = enAddr.toString(16);
-        throw new Error('读取统一信道名区失败 @ CH ' + (chIndex0 + 1) + '（SPI 0x' + enHex + '）');
+        throw new Error('读取信道名区失败 @ CH ' + (chIndex0 + 1) + '（SPI 0x' + enHex + '）');
       }
-      await sleep(25);
-      const cnRaw = await spiFlashReadChunk(sessionTs, cnAddr, 16);
-      if (!cnRaw) {
-        const cnHex = cnAddr.toString(16);
-        throw new Error('读取旧中文名区失败 @ CH ' + (chIndex0 + 1) + '（SPI 0x' + cnHex + '）');
-      }
-      const unifiedNameText = writefreqDecodeCnNameUtf8(enRaw);
-      const legacyCnNameText = writefreqDecodeCnNameUtf8(cnRaw);
-      const mergedNameText = writefreqMergeReadChannelName(unifiedNameText, legacyCnNameText);
+      // Mangosteen：仅 0x004000 ASCII 名；不读 0x020000（与叮咚鸡中文名区/字库相邻，固件未使用）
+      const mergedNameText = writefreqDecodeCnNameUtf8(enRaw);
       const rowFields = wfBlock16ToRowFields(block);
       rowFields.channelNameText = mergedNameText;
       const attrView = new DataView(attrRaw.buffer, attrRaw.byteOffset, 2);
@@ -3869,8 +3878,8 @@ async function writefreqWriteToDevice() {
       messages.push(rowPrefix + '频差方向无效');
     }
     const modCheck = Number.parseInt(fields.modVal, 10);
-    if (!Number.isFinite(modCheck) || modCheck < 0 || modCheck > 2) {
-      messages.push(rowPrefix + '调制模式须为 FM / AM / USB');
+    if (!Number.isFinite(modCheck) || modCheck < 0 || modCheck >= WF_MOD_LABELS.length) {
+      messages.push(rowPrefix + '调制模式须为 FM / AM / USB / WFM');
     }
     try {
       wfParseToneSide(fields.rxCtcss, fields.rxDcs, rowPrefix + '接收侧');
@@ -3950,7 +3959,7 @@ async function writefreqWriteToDevice() {
       if (!Number.isFinite(offsetDir) || offsetDir < 0 || offsetDir > 2) {
         throw new Error(chLabel + ' 频差方向无效');
       }
-      if (!Number.isFinite(modNum) || modNum < 0 || modNum > 2) {
+      if (!Number.isFinite(modNum) || modNum < 0 || modNum >= WF_MOD_LABELS.length) {
         throw new Error(chLabel + ' 调制模式无效');
       }
       if (!Number.isFinite(pow7) || pow7 < 1 || pow7 > 7) {
