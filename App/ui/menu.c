@@ -652,22 +652,50 @@ static char s_menu_fill_buf[64];
 #define MENU_SMALL_CHAR_PITCH   (ARRAY_SIZE(gFontSmall[0]) + 1u)
 #define MENU_FB_H               (FRAME_LINES * 8)
 
-static void UI_MENU_CompactValue(const char *in, char *out, unsigned out_sz)
+static void UI_MENU_CompactValue(const char *in, char *out, unsigned out_sz, unsigned prefer_line)
 {
     unsigned j = 0;
+    unsigned line = 0;
+    unsigned i = 0;
 
     if (out_sz == 0)
         return;
 
-    /* List row: first line only, keep it short. */
-    for (unsigned i = 0; in[i] != '\0' && in[i] != '\n' && j + 1u < out_sz; i++) {
+    out[0] = '\0';
+    if (in == NULL || in[0] == '\0')
+        return;
+
+    /* Skip to the preferred line (0 = first). */
+    while (in[i] != '\0' && line < prefer_line) {
+        while (in[i] >= 32)
+            i++;
+        while (in[i] != '\0' && in[i] < 32)
+            i++;
+        line++;
+    }
+
+    for (; in[i] != '\0' && in[i] != '\n' && j + 1u < out_sz; i++) {
         if (in[i] >= 32)
             out[j++] = in[i];
     }
     out[j] = '\0';
 
+    /* Missing preferred line → fall back to the first printable line. */
+    if (out[0] == '\0' && prefer_line != 0u) {
+        UI_MENU_CompactValue(in, out, out_sz, 0u);
+        return;
+    }
+
     if (j > MENU_LIST_VALUE_MAX)
         out[MENU_LIST_VALUE_MAX] = '\0';
+}
+
+static unsigned UI_MENU_ListPreferLine(int menu_id)
+{
+    /* ChName value is "CH\nNAME\nFREQ" — list should show the name. */
+    if (menu_id == MENU_MEM_NAME)
+        return 1u;
+    return 0u;
 }
 
 static unsigned UI_MENU_ValueLineCount(const char *in)
@@ -762,7 +790,7 @@ static void UI_MENU_InvertPixelsY(uint8_t y0, uint8_t y1)
     }
 }
 
-static void UI_MENU_DrawEditCard(const char *title, const char *value)
+static void UI_MENU_DrawEditCard(const char *title, const char *value, bool text_edit, uint8_t edit_len)
 {
     char          buf[64];
     unsigned      vlines;
@@ -778,23 +806,38 @@ static void UI_MENU_DrawEditCard(const char *title, const char *value)
     const uint8_t title_h   = 8;
     const uint8_t gap_h     = 3;
 
-    if (value == NULL || value[0] == '\0')
-        strcpy(buf, "--");
-    else {
-        strncpy(buf, value, sizeof(buf) - 1u);
+    if (text_edit && edit_len > 0) {
+        /* Live edit buffer only — pad visually with spaces already in edit[]. */
+        strncpy(buf, value != NULL ? value : "", sizeof(buf) - 1u);
         buf[sizeof(buf) - 1u] = '\0';
-    }
-
-    vlines = UI_MENU_ValueLineCount(buf);
-    if (vlines == 0) {
+        if (buf[0] == '\0')
+            strcpy(buf, "--");
+        /* Name (8) + underline/caret pad (2) + case hint (8). */
+        vlines = 1u;
+        body_lines = 0; /* unused; height set via edit_body_h below */
+    } else if (value == NULL || value[0] == '\0') {
         strcpy(buf, "--");
         vlines = 1;
+        body_lines = (uint8_t)(vlines + (confirm ? 1u : 0u));
+    } else {
+        strncpy(buf, value, sizeof(buf) - 1u);
+        buf[sizeof(buf) - 1u] = '\0';
+        vlines = UI_MENU_ValueLineCount(buf);
+        if (vlines == 0) {
+            strcpy(buf, "--");
+            vlines = 1;
+        }
+        if (vlines > 4u)
+            vlines = 4u;
+        body_lines = (uint8_t)(vlines + (confirm ? 1u : 0u));
     }
-    if (vlines > 4u)
-        vlines = 4u;
 
-    body_lines = (uint8_t)(vlines + (confirm ? 1u : 0u));
-    content_h  = (uint8_t)(top_bar_h + title_h + gap_h + body_lines * 8u);
+    if (text_edit && edit_len > 0) {
+        const uint8_t edit_body_h = 18; /* name + caret pad + ABC */
+        content_h = (uint8_t)(top_bar_h + title_h + gap_h + edit_body_h + (confirm ? 8u : 0u));
+    } else {
+        content_h = (uint8_t)(top_bar_h + title_h + gap_h + body_lines * 8u);
+    }
 
     x1 = 6;
     x2 = 121;
@@ -836,27 +879,78 @@ static void UI_MENU_DrawEditCard(const char *title, const char *value)
     /* 3px gap under the title, then value lines. */
     val_y = (uint8_t)(y1 + top_bar_h + title_h + gap_h);
 
-    shown = 0;
-    i     = 0;
-    while (buf[i] != '\0' && shown < vlines) {
-        const unsigned start = i;
-        char           line[22];
-        unsigned       len   = 0;
+    if (text_edit && edit_len > 0 && edit_index >= 0 && (unsigned)edit_index < edit_len) {
+        const unsigned pitch  = MENU_SMALL_CHAR_PITCH;
+        const unsigned text_w = (unsigned)edit_len * pitch;
+        const uint8_t  area_x1 = (uint8_t)(x1 + 2);
+        const uint8_t  area_x2 = (uint8_t)(x2 - 1);
+        uint8_t        tx      = area_x1;
+        char           name_line[17];
+        unsigned       nlen;
 
-        while (buf[i] >= 32)
-            i++;
-        len = i - start;
-        if (len >= sizeof(line))
-            len = sizeof(line) - 1u;
-        memcpy(line, buf + start, len);
-        line[len] = '\0';
+        nlen = strlen(buf);
+        if (nlen > edit_len)
+            nlen = edit_len;
+        if (nlen > sizeof(name_line) - 1u)
+            nlen = sizeof(name_line) - 1u;
+        memcpy(name_line, buf, nlen);
+        name_line[nlen] = '\0';
 
-        while (buf[i] != '\0' && buf[i] < 32)
-            i++;
+        if (area_x2 > area_x1 && text_w + 1u < (unsigned)(area_x2 - area_x1 + 1u))
+            tx = (uint8_t)(area_x1 + ((area_x2 - area_x1 + 1u) - text_w) / 2u);
 
-        UI_MENU_PrintSmallAtY(line, (uint8_t)(x1 + 2), (uint8_t)(x2 - 1),
-                              (uint8_t)(val_y + shown * 8u), 8);
-        shown++;
+        /* Left-align glyphs to the underline slots (not centered on trimmed text). */
+        UI_MENU_PrintSmallAtY(name_line, tx, 0, val_y, 8);
+
+        for (uint8_t ci = 0; ci < edit_len; ci++) {
+            const uint8_t cx = (uint8_t)(tx + ci * pitch);
+            const uint8_t glyph_w = (uint8_t)(ARRAY_SIZE(gFontSmall[0]));
+
+            if (ci != (uint8_t)edit_index) {
+                if (edit[ci] != 'g' && edit[ci] != 'j')
+                    UI_DrawLineBuffer(gFrameBuffer, cx, (int16_t)(val_y + 7),
+                                      (int16_t)(cx + glyph_w - 1), (int16_t)(val_y + 7), true);
+            } else {
+                /* Caret under the active character. */
+                UI_DrawLineBuffer(gFrameBuffer, (int16_t)(cx + 1), (int16_t)(val_y + 8),
+                                  (int16_t)(cx + 3), (int16_t)(val_y + 8), true);
+                UI_DrawPixelBuffer(gFrameBuffer, (uint8_t)(cx + 2), (uint8_t)(val_y + 7), true);
+            }
+        }
+
+        UI_MENU_PrintSmallAtY(edit_is_uppercase ? "ABC" : "abc",
+                              (uint8_t)(x1 + 2), (uint8_t)(x2 - 1),
+                              (uint8_t)(val_y + 10u), 8);
+        shown = 0; /* confirm uses absolute offset below */
+        if (confirm) {
+            const char *msg = (gAskForConfirmation == 1) ? "SURE?" : "WAIT!";
+            UI_MENU_PrintSmallAtY(msg, (uint8_t)(x1 + 2), (uint8_t)(x2 - 1),
+                                  (uint8_t)(val_y + 18u), 8);
+        }
+        return;
+    } else {
+        shown = 0;
+        i     = 0;
+        while (buf[i] != '\0' && shown < vlines) {
+            const unsigned start = i;
+            char           line[22];
+            unsigned       len   = 0;
+
+            while (buf[i] >= 32)
+                i++;
+            len = i - start;
+            if (len >= sizeof(line))
+                len = sizeof(line) - 1u;
+            memcpy(line, buf + start, len);
+            line[len] = '\0';
+
+            while (buf[i] != '\0' && buf[i] < 32)
+                i++;
+
+            UI_MENU_PrintSmallAtY(line, (uint8_t)(x1 + 2), (uint8_t)(x2 - 1),
+                                  (uint8_t)(val_y + shown * 8u), 8);
+            shown++;
+        }
     }
 
     if (confirm) {
@@ -900,7 +994,8 @@ static void UI_MENU_DrawListStyle(const char *current_value)
             break;
 
         if (idx == sel) {
-            UI_MENU_CompactValue(current_value, vals[row], sizeof(vals[row]));
+            UI_MENU_CompactValue(current_value, vals[row], sizeof(vals[row]),
+                                 UI_MENU_ListPreferLine(MenuList[idx].menu_id));
             continue;
         }
 
@@ -910,7 +1005,8 @@ static void UI_MENU_DrawListStyle(const char *current_value)
         s_menu_fill_only = true;
         UI_DisplayMenu();
         s_menu_fill_only = false;
-        UI_MENU_CompactValue(s_menu_fill_buf, vals[row], sizeof(vals[row]));
+        UI_MENU_CompactValue(s_menu_fill_buf, vals[row], sizeof(vals[row]),
+                             UI_MENU_ListPreferLine(MenuList[idx].menu_id));
     }
 
     gMenuCursor       = save_cur;
@@ -993,12 +1089,23 @@ static void UI_MENU_DrawListStyle(const char *current_value)
     }
 
     if (save_sub) {
+        bool    text_edit = false;
+        uint8_t edit_len  = 0;
+
+        if (edit_index >= 0 && cur_id == MENU_MEM_NAME) {
+            card_value = edit;
+            text_edit  = true;
+            edit_len   = 10;
+        }
 #ifdef ENABLE_MESSENGER
         /* MSG_CSG edit path does not always refresh String with the live buffer. */
-        if (edit_index >= 0 && cur_id == MENU_MSG_CSG)
+        else if (edit_index >= 0 && cur_id == MENU_MSG_CSG) {
             card_value = edit;
+            text_edit  = true;
+            edit_len   = MSG_CALLSIGN_EDIT_LEN;
+        }
 #endif
-        UI_MENU_DrawEditCard(MenuList[save_cur].name, card_value);
+        UI_MENU_DrawEditCard(MenuList[save_cur].name, card_value, text_edit, edit_len);
     }
 
     ST7565_BlitStatusLine();
