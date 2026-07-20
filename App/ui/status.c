@@ -76,6 +76,12 @@ void UI_DisplayStatus()
         return;
 #endif
 
+#ifdef ENABLE_CUSTOM_MENU_LAYOUT
+    /* Settings list owns the top strip (big "menu" title). Do not clear it. */
+    if (gScreenToDisplay == DISPLAY_MENU)
+        return;
+#endif
+
     UI_StatusClear();
 
     uint8_t     *line = gStatusLine;

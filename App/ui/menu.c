@@ -578,6 +578,7 @@ char    edit[17];
 int     edit_index;
 bool    edit_is_uppercase = false;
 
+#ifndef ENABLE_CUSTOM_MENU_LAYOUT
 static void UI_MENU_DrawTopRightRoundedBadge(const char *text, const uint8_t line, const bool center_in_area, const uint8_t area_x1, const uint8_t area_x2)
 {
     const size_t length = strlen(text);
@@ -634,14 +635,386 @@ static void UI_MENU_DrawTopRightRoundedBadge(const char *text, const uint8_t lin
 
     UI_PrintStringSmallNormalInverse(text, text_x, 0, line);
 }
+#endif /* !ENABLE_CUSTOM_MENU_LAYOUT */
+
+#ifdef ENABLE_CUSTOM_MENU_LAYOUT
+/* When set, UI_DisplayMenu only fills s_menu_fill_buf and returns (no blit). */
+static bool s_menu_fill_only;
+static char s_menu_fill_buf[64];
+
+#define MENU_LIST_ROWS          5
+#define MENU_LIST_ITEM_H        8
+#define MENU_LIST_GAP           1   /* was 3; reduced by 2px */
+#define MENU_LIST_PITCH         (MENU_LIST_ITEM_H + MENU_LIST_GAP)
+#define MENU_LIST_FIRST_Y       9   /* 1px gap below separator at y=7 */
+#define MENU_LIST_TEXT_H        7   /* gFontSmall uses bits 0..6 */
+#define MENU_LIST_VALUE_MAX     10
+#define MENU_SMALL_CHAR_PITCH   (ARRAY_SIZE(gFontSmall[0]) + 1u)
+#define MENU_FB_H               (FRAME_LINES * 8)
+
+static void UI_MENU_CompactValue(const char *in, char *out, unsigned out_sz)
+{
+    unsigned j = 0;
+
+    if (out_sz == 0)
+        return;
+
+    /* List row: first line only, keep it short. */
+    for (unsigned i = 0; in[i] != '\0' && in[i] != '\n' && j + 1u < out_sz; i++) {
+        if (in[i] >= 32)
+            out[j++] = in[i];
+    }
+    out[j] = '\0';
+
+    if (j > MENU_LIST_VALUE_MAX)
+        out[MENU_LIST_VALUE_MAX] = '\0';
+}
+
+static unsigned UI_MENU_ValueLineCount(const char *in)
+{
+    unsigned lines = 0;
+    unsigned i     = 0;
+
+    if (in == NULL || in[0] == '\0')
+        return 0;
+
+    while (in[i] != '\0') {
+        lines++;
+        while (in[i] >= 32)
+            i++;
+        while (in[i] != '\0' && in[i] < 32)
+            i++;
+    }
+    return lines;
+}
+
+static void UI_MENU_PrintTitleBig(const char *text, uint8_t start)
+{
+    const size_t length = strlen(text);
+    const uint8_t width = 8;
+
+    for (size_t i = 0; i < length; i++) {
+        const unsigned int ofs = (unsigned int)start + (i * width);
+
+        if (text[i] > ' ' && text[i] < 127 && ofs + 7u < LCD_WIDTH) {
+            const unsigned int index = (unsigned int)(text[i] - ' ' - 1);
+            memcpy(gStatusLine + ofs, &gFontBig[index][0], 7);
+            memcpy(gFrameBuffer[0] + ofs, &gFontBig[index][7], 7);
+        }
+    }
+}
+
+static void UI_MENU_PrintSmallAtY(const char *text, uint8_t x0, uint8_t x1, uint8_t y, uint8_t max_rows)
+{
+    const size_t   len = strlen(text);
+    const unsigned pitch = MENU_SMALL_CHAR_PITCH;
+    const unsigned text_w = len * pitch;
+    uint8_t        x = x0;
+
+    if (max_rows == 0 || max_rows > 8)
+        max_rows = 8;
+
+    if (x1 > x0 && text_w + 1u < (unsigned)(x1 - x0 + 1u))
+        x = (uint8_t)(x0 + ((x1 - x0 + 1u) - text_w) / 2u);
+
+    for (size_t i = 0; i < len; i++) {
+        if (text[i] <= ' ' || text[i] >= 127)
+            continue;
+
+        const unsigned index = (unsigned)(text[i] - ' ' - 1);
+
+        for (uint8_t col = 0; col < ARRAY_SIZE(gFontSmall[0]); col++) {
+            const uint8_t bits = gFontSmall[index][col];
+            const uint8_t px   = (uint8_t)(x + i * pitch + col);
+
+            if (px >= LCD_WIDTH)
+                break;
+
+            for (uint8_t row = 0; row < max_rows; row++) {
+                if (bits & (1u << row)) {
+                    const uint8_t py = (uint8_t)(y + row);
+                    if (py < FRAME_LINES * 8)
+                        UI_DrawPixelBuffer(gFrameBuffer, px, py, true);
+                }
+            }
+        }
+    }
+}
+
+static void UI_MENU_PrintSmallRightAtY(const char *text, uint8_t y, uint8_t max_rows)
+{
+    const unsigned len = strlen(text);
+    const unsigned width = len * MENU_SMALL_CHAR_PITCH;
+    uint8_t x = 2;
+
+    if (width + 2u < LCD_WIDTH)
+        x = (uint8_t)(LCD_WIDTH - 2u - width);
+
+    UI_MENU_PrintSmallAtY(text, x, 0, y, max_rows);
+}
+
+static void UI_MENU_InvertPixelsY(uint8_t y0, uint8_t y1)
+{
+    for (uint8_t y = y0; y <= y1 && y < FRAME_LINES * 8; y++) {
+        const uint8_t bit = (uint8_t)(1u << (y % 8));
+        for (uint8_t x = 0; x < LCD_WIDTH; x++)
+            gFrameBuffer[y / 8][x] ^= bit;
+    }
+}
+
+static void UI_MENU_DrawEditCard(const char *title, const char *value)
+{
+    char          buf[64];
+    unsigned      vlines;
+    unsigned      shown;
+    unsigned      i;
+    uint8_t       body_lines;
+    uint8_t       content_h;
+    uint8_t       title_y;
+    uint8_t       val_y;
+    int16_t       x1, y1, x2, y2;
+    const bool    confirm = (gAskForConfirmation != 0);
+    const uint8_t top_bar_h = 1; /* solid black row above title text */
+    const uint8_t title_h   = 8;
+    const uint8_t gap_h     = 3;
+
+    if (value == NULL || value[0] == '\0')
+        strcpy(buf, "--");
+    else {
+        strncpy(buf, value, sizeof(buf) - 1u);
+        buf[sizeof(buf) - 1u] = '\0';
+    }
+
+    vlines = UI_MENU_ValueLineCount(buf);
+    if (vlines == 0) {
+        strcpy(buf, "--");
+        vlines = 1;
+    }
+    if (vlines > 4u)
+        vlines = 4u;
+
+    body_lines = (uint8_t)(vlines + (confirm ? 1u : 0u));
+    content_h  = (uint8_t)(top_bar_h + title_h + gap_h + body_lines * 8u);
+
+    x1 = 6;
+    x2 = 121;
+
+    y1 = 16; /* prefer starting near fb line 2 */
+    if ((unsigned)y1 + content_h > (unsigned)(FRAME_LINES * 8u)) {
+        if (content_h >= FRAME_LINES * 8u)
+            y1 = 0;
+        else
+            y1 = (int16_t)(FRAME_LINES * 8u - content_h);
+    }
+
+    y2 = (int16_t)(y1 + content_h);
+    if (y2 > (int16_t)(FRAME_LINES * 8 - 1))
+        y2 = (int16_t)(FRAME_LINES * 8 - 1);
+
+    for (int16_t y = y1; y <= y2; y++) {
+        for (int16_t x = x1; x <= x2; x++)
+            UI_DrawPixelBuffer(gFrameBuffer, (uint8_t)x, (uint8_t)y, false);
+    }
+
+    /* Sides + bottom; top is a solid black bar. */
+    UI_DrawLineBuffer(gFrameBuffer, x1, y1, x1, y2, true);
+    UI_DrawLineBuffer(gFrameBuffer, x2, y1, x2, y2, true);
+    UI_DrawLineBuffer(gFrameBuffer, x1, y2, x2, y2, true);
+    UI_DrawLineBuffer(gFrameBuffer, x1, y1, x2, y1, true);
+    UI_DrawLineBuffer(gFrameBuffer, x2 + 1, y1 + 1, x2 + 1, y2 + 1, true);
+    UI_DrawLineBuffer(gFrameBuffer, x1 + 1, y2 + 1, x2 + 1, y2 + 1, true);
+
+    title_y = (uint8_t)(y1 + top_bar_h);
+    UI_MENU_PrintSmallAtY(title, (uint8_t)(x1 + 2), (uint8_t)(x2 - 1), title_y, 8);
+    /* Invert title text band (below the top black bar). */
+    for (uint8_t y = title_y; y < title_y + title_h; y++) {
+        const uint8_t bit = (uint8_t)(1u << (y % 8));
+        for (int16_t x = x1 + 1; x < x2; x++)
+            gFrameBuffer[y / 8][x] ^= bit;
+    }
+
+    /* 3px gap under the title, then value lines. */
+    val_y = (uint8_t)(y1 + top_bar_h + title_h + gap_h);
+
+    shown = 0;
+    i     = 0;
+    while (buf[i] != '\0' && shown < vlines) {
+        const unsigned start = i;
+        char           line[22];
+        unsigned       len   = 0;
+
+        while (buf[i] >= 32)
+            i++;
+        len = i - start;
+        if (len >= sizeof(line))
+            len = sizeof(line) - 1u;
+        memcpy(line, buf + start, len);
+        line[len] = '\0';
+
+        while (buf[i] != '\0' && buf[i] < 32)
+            i++;
+
+        UI_MENU_PrintSmallAtY(line, (uint8_t)(x1 + 2), (uint8_t)(x2 - 1),
+                              (uint8_t)(val_y + shown * 8u), 8);
+        shown++;
+    }
+
+    if (confirm) {
+        const char *msg = (gAskForConfirmation == 1) ? "SURE?" : "WAIT!";
+        UI_MENU_PrintSmallAtY(msg, (uint8_t)(x1 + 2), (uint8_t)(x2 - 1),
+                              (uint8_t)(val_y + shown * 8u), 8);
+    }
+}
+
+static void UI_MENU_DrawListStyle(const char *current_value)
+{
+    char          vals[MENU_LIST_ROWS][MENU_LIST_VALUE_MAX + 1];
+    const int     count = (int)gMenuListCount;
+    const int     sel   = (int)gMenuCursor;
+    int           first;
+    uint8_t       row;
+    const uint8_t save_cur = gMenuCursor;
+    const int32_t save_sel = gSubMenuSelection;
+    const bool    save_sub = gIsInSubMenu;
+    const char   *card_value = current_value;
+    const int     cur_id     = MenuList[save_cur].menu_id;
+
+    if (count <= 0)
+        return;
+
+    first = sel - (MENU_LIST_ROWS / 2);
+    if (first < 0)
+        first = 0;
+    if (first + MENU_LIST_ROWS > count)
+        first = count - MENU_LIST_ROWS;
+    if (first < 0)
+        first = 0;
+
+    memset(vals, 0, sizeof(vals));
+
+    /* Fill-only nested calls may scribble the FB; we clear before painting. */
+    for (row = 0; row < MENU_LIST_ROWS; row++) {
+        const int idx = first + (int)row;
+
+        if (idx >= count)
+            break;
+
+        if (idx == sel) {
+            UI_MENU_CompactValue(current_value, vals[row], sizeof(vals[row]));
+            continue;
+        }
+
+        gMenuCursor  = (uint8_t)idx;
+        gIsInSubMenu = false;
+        MENU_ShowCurrentSetting();
+        s_menu_fill_only = true;
+        UI_DisplayMenu();
+        s_menu_fill_only = false;
+        UI_MENU_CompactValue(s_menu_fill_buf, vals[row], sizeof(vals[row]));
+    }
+
+    gMenuCursor       = save_cur;
+    gSubMenuSelection = save_sel;
+    gIsInSubMenu      = save_sub;
+
+    UI_DisplayClear();
+    UI_StatusClear();
+
+    /* Title uses former status strip + fb line 0 (16px big font). */
+    UI_MENU_PrintTitleBig("menu", 2);
+    {
+        char     idx_str[12];
+        unsigned len;
+        unsigned width;
+        uint8_t  x;
+
+        sprintf(idx_str, "%u/%u", 1u + (unsigned)sel, (unsigned)count);
+        len   = strlen(idx_str);
+        width = len * 8u; /* same pitch as UI_MENU_PrintTitleBig */
+        x     = 2;
+        if (width + 2u < LCD_WIDTH)
+            x = (uint8_t)(LCD_WIDTH - 2u - width);
+        /* Same row / baseline as "menu", right-aligned. */
+        UI_MENU_PrintTitleBig(idx_str, x);
+    }
+
+    /*
+     * Title in status + fb line 0 (y0..7). Separator on y=7.
+     * y=8 left blank; items from y=9: 8px row + 1px gap → five rows fit.
+     */
+    UI_DrawLineBuffer(gFrameBuffer, 0, 7, LCD_WIDTH - 1, 7, true);
+
+    for (row = 0; row < MENU_LIST_ROWS; row++) {
+        const int     idx   = first + (int)row;
+        const uint8_t y0    = (uint8_t)(MENU_LIST_FIRST_Y + row * MENU_LIST_PITCH);
+        uint8_t       avail;
+        uint8_t       item_h;
+
+        if (idx >= count || y0 >= MENU_FB_H)
+            break;
+
+        avail  = (uint8_t)(MENU_FB_H - y0);
+        item_h = (avail < MENU_LIST_ITEM_H) ? avail : (uint8_t)MENU_LIST_ITEM_H;
+
+        if (idx == sel) {
+            /*
+             * Selected: 1px black top + full glyph + 1px black bottom.
+             * Bottom pad uses the inter-row gap so text is not clipped
+             * (gFontSmall needs 7 rows; 8-2 would leave only 6).
+             */
+            const uint8_t sel_need = (uint8_t)(1u + MENU_LIST_TEXT_H + 1u);
+            const uint8_t sel_h    = (avail < sel_need) ? avail : sel_need;
+
+            UI_DrawLineBuffer(gFrameBuffer, 0, (int16_t)y0, LCD_WIDTH - 1, (int16_t)y0, true);
+            if (sel_h > 2u) {
+                const uint8_t text_y    = (uint8_t)(y0 + 1u);
+                const uint8_t text_rows = (uint8_t)(sel_h - 2u);
+                const uint8_t y_bot     = (uint8_t)(y0 + sel_h - 1u);
+
+                UI_MENU_PrintSmallAtY(MenuList[idx].name, 2, 0, text_y, text_rows);
+                if (vals[row][0] != '\0')
+                    UI_MENU_PrintSmallRightAtY(vals[row], text_y, text_rows);
+                /* Invert only the glyph band; top/bottom bars stay solid black. */
+                UI_MENU_InvertPixelsY(text_y, (uint8_t)(y_bot - 1u));
+                UI_DrawLineBuffer(gFrameBuffer, 0, (int16_t)y_bot, LCD_WIDTH - 1, (int16_t)y_bot, true);
+            } else if (sel_h > 1u) {
+                /* Heavily clipped: keep top bar + whatever text fits. */
+                const uint8_t text_y = (uint8_t)(y0 + 1u);
+                UI_MENU_PrintSmallAtY(MenuList[idx].name, 2, 0, text_y, (uint8_t)(sel_h - 1u));
+                if (vals[row][0] != '\0')
+                    UI_MENU_PrintSmallRightAtY(vals[row], text_y, (uint8_t)(sel_h - 1u));
+                UI_MENU_InvertPixelsY(text_y, (uint8_t)(y0 + sel_h - 1u));
+            }
+        } else {
+            UI_MENU_PrintSmallAtY(MenuList[idx].name, 2, 0, y0, item_h);
+            if (vals[row][0] != '\0')
+                UI_MENU_PrintSmallRightAtY(vals[row], y0, item_h);
+        }
+    }
+
+    if (save_sub) {
+#ifdef ENABLE_MESSENGER
+        /* MSG_CSG edit path does not always refresh String with the live buffer. */
+        if (edit_index >= 0 && cur_id == MENU_MSG_CSG)
+            card_value = edit;
+#endif
+        UI_MENU_DrawEditCard(MenuList[save_cur].name, card_value);
+    }
+
+    ST7565_BlitStatusLine();
+}
+#endif
 
 void UI_DisplayMenu(void)
 {
     const unsigned int menu_list_width = 6; // max no. of characters on the menu list (left side)
     const unsigned int menu_item_x1    = (8 * menu_list_width) + 2;
     const unsigned int menu_item_x2    = LCD_WIDTH - 1;
+#ifndef ENABLE_CUSTOM_MENU_LAYOUT
     unsigned int       i;
-    char               String[64];  // bigger cuz we can now do multi-line in one string (use '\n' char)
+#endif
+    char               StringBuf[64];  // bigger cuz we can now do multi-line in one string (use '\n' char)
+    char              *String = StringBuf;
     char               top_right_badge[16];
 
     const int m = UI_MENU_GetCurrentMenuId();
@@ -650,11 +1023,16 @@ void UI_DisplayMenu(void)
     char               Contact[16];
 #endif
 
-    UI_DisplayClear();
+#ifdef ENABLE_CUSTOM_MENU_LAYOUT
+    if (s_menu_fill_only)
+        String = s_menu_fill_buf;
+    else
+#endif
+        UI_DisplayClear();
 
+#ifndef ENABLE_CUSTOM_MENU_LAYOUT
 #ifdef ENABLE_FEAT_F4HWN
     UI_DrawLineBuffer(gFrameBuffer, 48, 0, 48, 55, 1); // Be ware, status zone = 8 lines, the rest = 56 ->total 64
-    //UI_DrawLineDottedBuffer(gFrameBuffer, 0, 46, 50, 46, 1);
 
     for (uint8_t i = 0; i < 48; i += 2)
     {
@@ -662,7 +1040,6 @@ void UI_DisplayMenu(void)
     }
 #endif
 
-#ifndef ENABLE_CUSTOM_MENU_LAYOUT
         // original menu layout
     for (i = 0; i < 3; i++)
         if (gMenuCursor > 0 || i > 0)
@@ -688,54 +1065,6 @@ void UI_DisplayMenu(void)
     sprintf(String, "%2u.%u", 1 + gMenuCursor, gMenuListCount);
 
     UI_PrintStringSmallNormal(String, 2, 0, 6);
-
-#else
-    {   // new menu layout .. experimental & unfinished
-        const int menu_index = gMenuCursor;  // current selected menu item
-        const int menu_count = (int)gMenuListCount;
-
-        if (menu_index >= 0 && menu_index < menu_count) 
-        {
-            if (!gIsInSubMenu) 
-            {
-                // leading menu items - small text
-                int prev_index = menu_index - 1;
-                if (prev_index < 0) {
-                    prev_index = menu_count - 1;
-                }
-                UI_PrintStringSmallNormal(MenuList[prev_index].name, 0, 0, 1);
-
-                // current menu item - keep big n fat
-                UI_PrintString(MenuList[menu_index].name, 0, 0, 2, 8);
-
-                // trailing menu item - small text
-                int next_index = menu_index + 1;
-                if (next_index >= menu_count) {
-                    next_index = 0;
-                }
-                UI_PrintStringSmallNormal(MenuList[next_index].name, 0, 0, 4);
-
-
-                // draw the menu index number/count
-    #ifndef ENABLE_FEAT_F4HWN
-                sprintf(String, "%2u.%u", 1 + menu_index, menu_count);
-                UI_PrintStringSmallNormal(String, 2, 0, 6);
-    #endif
-            }
-            else
-            {   
-                // current menu item
-//              strcat(String, ":");
-                UI_PrintString(MenuList[menu_index].name, 0, 0, 0, 8);
-//              UI_PrintStringSmallNormal(String, 0, 0, 0);
-            }
-
-    #ifdef ENABLE_FEAT_F4HWN
-            sprintf(String, "%02u/%u", 1 + menu_index, menu_count);
-            UI_PrintStringSmallNormal(String, 6, 0, 6);
-    #endif
-        }
-    }
 #endif
 
     // **************
@@ -1051,28 +1380,47 @@ void UI_DisplayMenu(void)
         case MENU_S_PRI_CH_1:
         case MENU_S_PRI_CH_2:
         {
-            if(gSubMenuSelection == MR_CHANNELS_MAX)
+            if (gSubMenuSelection == MR_CHANNELS_MAX)
             {
+                strcpy(String, "None");
+#ifndef ENABLE_CUSTOM_MENU_LAYOUT
                 UI_PrintString("None", menu_item_x1, menu_item_x2, 2, 8);
+#endif
                 already_printed = true;
                 break;
             }
             else
             {
                 const bool valid = RADIO_CheckValidChannel(gSubMenuSelection, false, 0);
+                char       ch_str[16];
+                char       name[16];
+                char       freq[16];
 
-                UI_GenerateChannelStringEx(String, valid, gSubMenuSelection);
-                UI_PrintString(String, menu_item_x1, menu_item_x2, 0, 8);
+                UI_GenerateChannelStringEx(ch_str, valid, gSubMenuSelection);
+                name[0] = '\0';
+                freq[0] = '\0';
 
-                if (valid && !gAskForConfirmation)
-                {   // show the frequency so that the user knows the channels frequency
-                    const uint32_t frequency = SETTINGS_FetchChannelFrequency(gSubMenuSelection);
-                    sprintf(String, "%u.%05u", frequency / 100000, frequency % 100000);
-                    UI_PrintString(String, menu_item_x1, menu_item_x2, 5, 8);
+                if (valid) {
+                    SETTINGS_FetchChannelName(name, gSubMenuSelection);
+                    if (!gAskForConfirmation) {
+                        const uint32_t frequency = SETTINGS_FetchChannelFrequency(gSubMenuSelection);
+                        sprintf(freq, "%u.%05u", frequency / 100000, frequency % 100000);
+                    }
                 }
+                if (name[0] == '\0')
+                    strcpy(name, "--");
 
-                SETTINGS_FetchChannelName(String, gSubMenuSelection);
-                UI_PrintString(String[0] ? String : "--", menu_item_x1, menu_item_x2, 2, 8);
+#ifdef ENABLE_CUSTOM_MENU_LAYOUT
+                if (freq[0] != '\0')
+                    sprintf(String, "%s\n%s\n%s", ch_str, name, freq);
+                else
+                    sprintf(String, "%s\n%s", ch_str, name);
+#else
+                UI_PrintString(ch_str, menu_item_x1, menu_item_x2, 0, 8);
+                UI_PrintString(name, menu_item_x1, menu_item_x2, 2, 8);
+                if (freq[0] != '\0')
+                    UI_PrintString(freq, menu_item_x1, menu_item_x2, 5, 8);
+#endif
                 already_printed = true;
                 break;
             }
@@ -1081,58 +1429,71 @@ void UI_DisplayMenu(void)
         case MENU_MEM_NAME:
         {
             const bool valid = RADIO_CheckValidChannel(gSubMenuSelection, false, 0);
+            char       ch_str[16];
+            char       name[16];
+            char       freq[16];
 
-            UI_GenerateChannelStringEx(String, valid, gSubMenuSelection);
-            UI_PrintString(String, menu_item_x1, menu_item_x2, 0, 8);
+            UI_GenerateChannelStringEx(ch_str, valid, gSubMenuSelection);
+            name[0] = '\0';
+            freq[0] = '\0';
+
+            if (!gIsInSubMenu)
+                edit_index = -1;
 
             if (valid)
             {
                 const uint32_t frequency = SETTINGS_FetchChannelFrequency(gSubMenuSelection);
 
-                //if (!gIsInSubMenu || edit_index < 0)
-                if (!gIsInSubMenu)
-                    edit_index = -1;
-                if (edit_index < 0)
-                {   // show the channel name
-                    SETTINGS_FetchChannelName(String, gSubMenuSelection);
-                    char *pPrintStr = String[0] ? String : "--";
-                    UI_PrintString(pPrintStr, menu_item_x1, menu_item_x2, 2, 8);
+                if (edit_index < 0) {
+                    SETTINGS_FetchChannelName(name, gSubMenuSelection);
+                } else {
+                    strncpy(name, edit, sizeof(name) - 1u);
+                    name[sizeof(name) - 1u] = '\0';
                 }
-                else
-                {   // show the channel name being edited
-                    //UI_PrintString(edit, menu_item_x1, 0, 2, 8);
+                if (!gAskForConfirmation)
+                    sprintf(freq, "%u.%05u", frequency / 100000, frequency % 100000);
+            }
+            if (name[0] == '\0')
+                strcpy(name, "--");
+
+#ifdef ENABLE_CUSTOM_MENU_LAYOUT
+            if (freq[0] != '\0')
+                sprintf(String, "%s\n%s\n%s", ch_str, name, freq);
+            else
+                sprintf(String, "%s\n%s", ch_str, name);
+#else
+            UI_PrintString(ch_str, menu_item_x1, menu_item_x2, 0, 8);
+
+            if (valid)
+            {
+                if (edit_index < 0) {
+                    UI_PrintString(name, menu_item_x1, menu_item_x2, 2, 8);
+                } else {
                     UI_PrintString(edit, menu_item_x1, menu_item_x2, 2, 8);
                     if (edit_index < 10) {
-                        // UI_PrintString("^", menu_item_x1 - 1 + (8 * edit_index),0, 4, 8); // show the cursor
                         uint8_t x = menu_item_x1 - 1;
-                        for (uint8_t i = 0; i < 10; i++) 
+                        for (uint8_t i = 0; i < 10; i++)
                         {
-                            if (i != edit_index) 
+                            if (i != edit_index)
                             {
                                 if (edit[i] != 'g' && edit[i] != 'j')
-                                {
                                     UI_DrawLineBuffer(gFrameBuffer, x, 29, x + 6, 29, 1);
-                                }
                             }
-                            else 
+                            else
                             {
                                 UI_DrawLineBuffer(gFrameBuffer, x + 2, 30, x + 4, 30, 1);
                                 UI_DrawPixelBuffer(gFrameBuffer, x + 3, 29, 1);
                             }
                             x += 8;
                         }
-                        
                         UI_PrintStringSmallNormal(edit_is_uppercase ? "ABC" : "abc", 77, 0, 4);
                     }
                 }
 
-                if (!gAskForConfirmation)
-                {   // show the frequency so that the user knows the channels frequency
-                    sprintf(String, "%u.%05u", frequency / 100000, frequency % 100000);
-                    UI_PrintString(String, menu_item_x1, menu_item_x2, 5, 8);
-                }
+                if (freq[0] != '\0')
+                    UI_PrintString(freq, menu_item_x1, menu_item_x2, 5, 8);
             }
-
+#endif
             already_printed = true;
             break;
         }
@@ -1294,8 +1655,10 @@ void UI_DisplayMenu(void)
             if (page == p++) {
                 // Page 0: firmware identity.
 #ifdef ENABLE_FEAT_F4HWN
-                sprintf(String, "%s\n%s", AUTHOR_STRING_2, VERSION_STRING_2);
+                sprintf(String, "%s\n%s\n%s", AUTHOR_STRING_2, VERSION_STRING_2, Edition);
+#ifndef ENABLE_CUSTOM_MENU_LAYOUT
                 UI_PrintStringSmallNormal(Edition, menu_item_x1 - 1, menu_item_x2, 6);
+#endif
 #else
                 sprintf(String, "%u.%02uV\n%u%%",
                     gBatteryVoltageAverage / 100, gBatteryVoltageAverage % 100,
@@ -1305,28 +1668,35 @@ void UI_DisplayMenu(void)
             }
 #ifdef ENABLE_FEAT_F4HWN
             if (page == p++) {
+                sprintf(String, "BUILD\n%s\n%s", BuildDate, BuildTime);
+#ifndef ENABLE_CUSTOM_MENU_LAYOUT
                 strcpy(top_right_badge, "BUILD");
                 UI_PrintStringSmallNormal(BuildDate, menu_item_x1 - 1, menu_item_x2, 3);
                 UI_PrintStringSmallNormal(BuildTime, menu_item_x1 - 1, menu_item_x2, 4);
                 UI_PrintStringSmallNormal(BuildCommit, menu_item_x1 - 1, menu_item_x2, 6);
-
                 already_printed = true;
+#endif
                 break;
             }
 
             if (page == p++) {
-                char val[16];
-
-                strcpy(top_right_badge, "BATTERY");
-
-                sprintf(val, "%u.%02uV %u%%",
+                sprintf(String, "BATTERY\n%u.%02uV %u%%\n%s",
                     gBatteryVoltageAverage / 100, gBatteryVoltageAverage % 100,
-                    BATTERY_VoltsToPercent(gBatteryVoltageAverage));
-                UI_PrintStringSmallNormal(val, menu_item_x1 - 1, menu_item_x2, 3);
+                    BATTERY_VoltsToPercent(gBatteryVoltageAverage),
+                    gSubMenu_BATTYP[gEeprom.BATTERY_TYPE]);
+#ifndef ENABLE_CUSTOM_MENU_LAYOUT
+                {
+                    char val[16];
 
-                UI_PrintStringSmallNormal(gSubMenu_BATTYP[gEeprom.BATTERY_TYPE], menu_item_x1 - 1, menu_item_x2, 5);
-
-                already_printed = true;
+                    strcpy(top_right_badge, "BATTERY");
+                    sprintf(val, "%u.%02uV %u%%",
+                        gBatteryVoltageAverage / 100, gBatteryVoltageAverage % 100,
+                        BATTERY_VoltsToPercent(gBatteryVoltageAverage));
+                    UI_PrintStringSmallNormal(val, menu_item_x1 - 1, menu_item_x2, 3);
+                    UI_PrintStringSmallNormal(gSubMenu_BATTYP[gEeprom.BATTERY_TYPE], menu_item_x1 - 1, menu_item_x2, 5);
+                    already_printed = true;
+                }
+#endif
                 break;
             }
 #endif
@@ -1336,21 +1706,23 @@ void UI_DisplayMenu(void)
                 uint16_t ram_pct   = 0;
                 UI_GetMemPercents(&flash_pct, &ram_pct);
 
-                char val[16];
-
-                // MEMORY title capsule centered in right zone, fb line 1.
-                strcpy(top_right_badge, "MEMORY");
-
-                // Flash + SRAM values stacked below, normal small font, with a fb-line of breathing space.
-                sprintf(val, "FLASH %u.%u%%",
-                        (unsigned)(flash_pct / 100), (unsigned)((flash_pct / 10) % 10));
-                UI_PrintStringSmallNormal(val, menu_item_x1 - 1, menu_item_x2, 3);
-
-                sprintf(val, "SRAM  %u.%u%%",
+                sprintf(String, "MEMORY\nFLASH %u.%u%%\nSRAM %u.%u%%",
+                        (unsigned)(flash_pct / 100), (unsigned)((flash_pct / 10) % 10),
                         (unsigned)(ram_pct / 100), (unsigned)((ram_pct / 10) % 10));
-                UI_PrintStringSmallNormal(val, menu_item_x1 - 1, menu_item_x2, 5);
+#ifndef ENABLE_CUSTOM_MENU_LAYOUT
+                {
+                    char val[16];
 
-                already_printed = true;
+                    strcpy(top_right_badge, "MEMORY");
+                    sprintf(val, "FLASH %u.%u%%",
+                            (unsigned)(flash_pct / 100), (unsigned)((flash_pct / 10) % 10));
+                    UI_PrintStringSmallNormal(val, menu_item_x1 - 1, menu_item_x2, 3);
+                    sprintf(val, "SRAM  %u.%u%%",
+                            (unsigned)(ram_pct / 100), (unsigned)((ram_pct / 10) % 10));
+                    UI_PrintStringSmallNormal(val, menu_item_x1 - 1, menu_item_x2, 5);
+                    already_printed = true;
+                }
+#endif
                 break;
             }
 #endif
@@ -1360,10 +1732,12 @@ void UI_DisplayMenu(void)
             if (page == p || page == p + 1) {
                 const bool is_wiki = (page == (p + 1));
 
+                sprintf(String, "%s\nQR CODE", is_wiki ? "WIKI" : "CODE");
+#ifndef ENABLE_CUSTOM_MENU_LAYOUT
                 strcpy(top_right_badge, is_wiki ? "WIKI" : "CODE");
                 UI_DrawQRCode(is_wiki, 72, 28);
-                
                 already_printed = true;
+#endif
                 break;
             }
 
@@ -1556,6 +1930,23 @@ void UI_DisplayMenu(void)
 
     }
 
+#ifdef ENABLE_CUSTOM_MENU_LAYOUT
+    if (s_menu_fill_only)
+        return;
+
+    (void)already_printed;
+    (void)gaugeLine;
+    (void)gaugeMin;
+    (void)gaugeMax;
+    (void)menu_item_x1;
+    (void)menu_item_x2;
+    (void)top_right_badge;
+
+    /* Side-panel draws from the switch are discarded; rebuild list + card. */
+    UI_MENU_DrawListStyle(String);
+    ST7565_BlitFullScreen();
+    return;
+#else
     //#if !defined(ENABLE_SPECTRUM) || !defined(ENABLE_FMRADIO)
     if(gaugeLine != 0)
     {
@@ -1589,14 +1980,6 @@ void UI_DisplayMenu(void)
                 if (lines > 7)
                     lines = 7;
             }
-
-            // center vertically'ish
-            /*
-            if (small)
-                y = 3 - ((lines + 0) / 2);  // untested
-            else
-                y = 2 - ((lines + 0) / 2);
-            */
 
             y = (small ? 3 : 2) - (lines / 2); 
 
@@ -1679,4 +2062,5 @@ void UI_DisplayMenu(void)
     }
 
     ST7565_BlitFullScreen();
+#endif
 }
