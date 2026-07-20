@@ -1,14 +1,47 @@
+<div align="center">
+
 # Mangosteen
 
-[![Latest Release](https://img.shields.io/github/v/release/EthanYan6/Mangosteen?display_name=release&sort=semver)](https://github.com/EthanYan6/Mangosteen/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/EthanYan6/Mangosteen/total)](https://github.com/EthanYan6/Mangosteen/releases)
-[![Stars](https://img.shields.io/github/stars/EthanYan6/Mangosteen)](https://github.com/EthanYan6/Mangosteen/stargazers)
-[![License](https://img.shields.io/github/license/EthanYan6/Mangosteen)](https://github.com/EthanYan6/Mangosteen/blob/main/LICENSE)
-[![Build](https://img.shields.io/github/actions/workflow/status/EthanYan6/Mangosteen/main.yml?branch=main&label=build)](https://github.com/EthanYan6/Mangosteen/actions/workflows/main.yml)
+**Quansheng UV-K1 / K5V3 定制固件**
 
-基于 [armel/uv-k1-k5v3-firmware-custom](https://github.com/armel/uv-k1-k5v3-firmware-custom)（F4HWN Fusion / UV-K1·K5V3）的定制固件。
+卡片主页 · 广播并入 VFO · FSK 短信 · 全新菜单
 
-上游：<https://github.com/armel/uv-k1-k5v3-firmware-custom.git>
+[![Latest Release](https://img.shields.io/github/v/release/EthanYan6/Mangosteen?display_name=release&sort=semver&style=for-the-badge)](https://github.com/EthanYan6/Mangosteen/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/EthanYan6/Mangosteen/total?style=for-the-badge)](https://github.com/EthanYan6/Mangosteen/releases)
+[![Stars](https://img.shields.io/github/stars/EthanYan6/Mangosteen?style=for-the-badge)](https://github.com/EthanYan6/Mangosteen/stargazers)
+[![License](https://img.shields.io/github/license/EthanYan6/Mangosteen?style=for-the-badge)](https://github.com/EthanYan6/Mangosteen/blob/main/LICENSE)
+[![Build](https://img.shields.io/github/actions/workflow/status/EthanYan6/Mangosteen/main.yml?branch=main&label=build&style=for-the-badge)](https://github.com/EthanYan6/Mangosteen/actions/workflows/main.yml)
+
+[下载固件](https://github.com/EthanYan6/Mangosteen/releases/latest) ·
+[提交 Issue](https://github.com/EthanYan6/Mangosteen/issues) ·
+[上游 F4HWN](https://github.com/armel/uv-k1-k5v3-firmware-custom)
+
+</div>
+
+---
+
+## 简介
+
+Mangosteen 基于 [armel/uv-k1-k5v3-firmware-custom](https://github.com/armel/uv-k1-k5v3-firmware-custom)（F4HWN Fusion），面向泉盛 **UV-K1 / K5V3** 手台，在保留 F4HWN 核心能力的同时，重新设计了主页与菜单交互，并集成与 GOGUFW 互通的 FSK 短信。
+
+| | |
+|---|---|
+| **适用机型** | Quansheng UV-K1、UV-K5(8) / K5V3 等兼容机 |
+| **当前版本** | 见上方 Latest Release 徽章 |
+| **产物命名** | `mangosteen_<version>.bin` |
+| **许可** | Apache-2.0 |
+
+---
+
+## 亮点一览
+
+| 模块 | 一句话 |
+|---|---|
+| **卡片主页** | 双 VFO 卡片叠放，RX 跟随置前，圆形 S 表 + DTMF |
+| **广播 WFM** | 广播频段直接并入主 VFO，无需独立收音机界面 |
+| **设置菜单** | 列表式大字菜单 + 单项编辑卡片 |
+| **消息提示** | 键盘锁定、禁止发射等统一弹出提示 |
+| **FSK 短信** | 与 GOGUFW Messenger 互通（`GGM2`），含 HEARD / Range Check |
 
 ---
 
@@ -18,9 +51,9 @@
 
 双 VFO 以卡片叠放显示；收到信号的信道自动置前，前方卡片即主信道（发射信道）。
 
-* 圆形 S 表：弧形仪表 + 指针；信号上升立刻跟上，减弱时缓降
-* 广播（WFM）同样显示信号强度
-* 前方卡片顶部显示 DTMF 输入 / 呼叫 / 实时解码
+- 圆形 S 表：弧形仪表 + 指针；信号上升立刻跟上，减弱时缓降
+- 广播（WFM）同样显示信号强度
+- 前方卡片顶部显示 DTMF 输入 / 呼叫 / 实时解码
 
 ### 广播收音（WFM）
 
@@ -45,7 +78,7 @@
 | HEARD / Range Check | 邻居发现与测距 |
 | 状态栏 | 主页后台收信，未读显示信封图标 |
 
-快捷键：
+**快捷键**
 
 | 按键 | 功能 |
 |---|---|
@@ -56,25 +89,68 @@
 
 相关菜单项：MsgRx、MsgCsg（呼号）、MsgAck、MsgBep、MsgLed、RngRsp、MsgHop 等。
 
-配置与草稿保存在 Flash `0x012000`；收件箱 / 已发送仅在 RAM，断电清空。
-
-为给短信让出 FSK，默认关闭 AirCopy 界面、BEAM 与小游戏。
+配置与草稿保存在 Flash `0x012000`；收件箱 / 已发送仅在 RAM，断电清空。为给短信让出 FSK，默认关闭 AirCopy 界面、BEAM 与小游戏。
 
 ---
 
-## 编译
+## 快速开始
+
+### 1. 下载固件
+
+前往 [Releases](https://github.com/EthanYan6/Mangosteen/releases/latest) 下载最新 `mangosteen_*.bin`。
+
+### 2. 刷写
+
+使用 k5prog、CHIRP、官方写频软件或其它支持 UV-K1 / K5 系列的刷机工具，将固件写入手台。刷机前请备份原厂固件与信道数据。
+
+### 3. 本地编译（可选）
+
+环境：Docker Desktop。
 
 ```bash
 ./compile-with-docker.sh Custom
 ```
 
-产物名：`mangosteen_${VERSION_STRING_2}`（当前 Custom：`v2.0.0`，见 `CMakePresets.json`）。
+产物位于编译输出目录，文件名形如 `mangosteen_<VERSION_STRING_2>.bin`（版本见 `CMakePresets.json`）。
+
+也可用其它 preset（Bandscope、Fusion 等）；本仓库默认开启 Messenger，并关闭 AirCopy UI / BEAM / Game。
+
+---
+
+## 项目结构（简要）
+
+```
+Mangosteen/
+├── App/                 # 应用与 UI（主页卡片、菜单、Messenger…）
+├── Core/ Drivers/       # 芯片与外设驱动
+├── cmake/               # CMake 工具链与选项
+├── CMakePresets.json    # 构建 preset 与版本号
+├── compile-with-docker.sh
+└── .github/workflows/   # CI 构建
+```
+
+---
+
+## 链接
+
+| 资源 | 地址 |
+|---|---|
+| 本仓库 | https://github.com/EthanYan6/Mangosteen |
+| 最新下载 | https://github.com/EthanYan6/Mangosteen/releases/latest |
+| 上游 F4HWN | https://github.com/armel/uv-k1-k5v3-firmware-custom |
+| GOGUFW Messenger | https://github.com/Gogu-Qs/GOGUFW-UV-K1-Messenger |
 
 ---
 
 ## 许可与致谢
 
-* 基础固件遵循上游 / DualTachyon / F4HWN / Egzumer 等 Apache-2.0 与署名要求。
-* Messenger 参考 [Gogu-Qs/GOGUFW-UV-K1-Messenger](https://github.com/Gogu-Qs/GOGUFW-UV-K1-Messenger)。
+- 基础固件遵循上游 / DualTachyon / F4HWN / Egzumer 等 **Apache-2.0** 与署名要求。
+- Messenger 协议与实现参考 [Gogu-Qs/GOGUFW-UV-K1-Messenger](https://github.com/Gogu-Qs/GOGUFW-UV-K1-Messenger)。
 
-按「原样」提供，请在合法频率与执照范围内使用，并自行承担刷机与操作风险。
+本固件按「原样」提供，请在合法频率与执照范围内使用，并自行承担刷机与操作风险。
+
+<div align="center">
+
+**若本项目对你有帮助，欢迎 Star 支持**
+
+</div>
