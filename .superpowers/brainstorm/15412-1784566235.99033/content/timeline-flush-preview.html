@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>版本时间线预览 · 融入底色</title>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Nunito:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-page: #fff6f2;
+      --bg-elevated: #ffffff;
+      --bg-muted: #f3e4ea;
+      --border-default: #ebcfd9;
+      --border-strong: #d9a8b8;
+      --text-primary: #3a2433;
+      --text-muted: #7a5a68;
+      --text-disabled: #b89aa6;
+      --accent: #a33d6b;
+      --accent-dot-glow: rgba(163, 61, 107, 0.35);
+      --btn-primary: #6b2d52;
+      --font-display: "Baloo 2", "Noto Sans SC", sans-serif;
+      --font-body: "Nunito", "Noto Sans SC", sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-body);
+      background:
+        radial-gradient(ellipse 80% 50% at 10% -10%, rgba(245, 198, 206, 0.55), transparent 55%),
+        radial-gradient(ellipse 60% 40% at 100% 0%, rgba(163, 61, 107, 0.12), transparent 50%),
+        var(--bg-page);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+    .note {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px 20px 8px;
+      font-size: 0.92em;
+      color: var(--text-muted);
+    }
+    .note strong { color: var(--accent); }
+    .page-layout {
+      display: flex;
+      min-height: calc(100vh - 48px);
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    /* 融入底色：无白底面板、无右边框、无独立“侧栏”感 */
+    .timeline-rail {
+      flex: 0 0 340px;
+      background: transparent;
+      border: none;
+      padding: 28px 18px 28px 24px;
+      overflow-y: auto;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+    .timeline-title {
+      font-family: var(--font-display);
+      font-size: 1.05em;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid transparent;
+    }
+    .timeline { position: relative; padding-left: 24px; }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 6px; top: 4px; bottom: 4px;
+      width: 2px;
+      background: var(--border-strong);
+      opacity: 0.7;
+    }
+    .timeline-item { position: relative; padding-bottom: 22px; }
+    .timeline-dot {
+      position: absolute;
+      left: -21px; top: 5px;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--border-strong);
+      border: 2px solid var(--bg-page);
+      z-index: 1;
+    }
+    .timeline-item:first-child .timeline-dot {
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent-dot-glow);
+    }
+    .timeline-header {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 2px;
+    }
+    .timeline-tag {
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 0.88em;
+      text-decoration: none;
+    }
+    .timeline-date { color: var(--text-disabled); font-size: 0.72em; }
+    .timeline-name { color: var(--text-primary); font-size: 0.82em; margin-bottom: 4px; }
+    .timeline-body {
+      color: var(--text-muted);
+      font-size: 0.78em;
+      line-height: 1.55;
+      margin-top: 6px;
+    }
+    .timeline-body p { margin: 0 0 8px; }
+    .timeline-body ul { margin: 4px 0 8px; padding-left: 1.2em; }
+    .timeline-body li { margin-bottom: 3px; }
+    .timeline-body strong { color: var(--text-primary); font-weight: 700; }
+    .timeline-body code {
+      font-family: ui-monospace, Consolas, monospace;
+      background: rgba(243, 228, 234, 0.65);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 0.95em;
+    }
+    .timeline-body a { color: var(--accent); }
+
+    .main-column {
+      flex: 1;
+      min-width: 0;
+      padding: 24px 28px 40px 12px;
+    }
+    .card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-default);
+      border-radius: 16px;
+      padding: 22px 24px;
+      box-shadow: 0 8px 24px rgba(74, 32, 64, 0.06);
+      max-width: 560px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .mango {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #843a66, #4a2040);
+    }
+    .brand h1 {
+      font-family: var(--font-display);
+      font-size: 1.45em;
+      color: var(--accent);
+    }
+    .brand p { font-size: 0.85em; color: var(--text-muted); }
+    .tabs {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .tab {
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.78em;
+      background: var(--bg-muted);
+      color: var(--text-muted);
+    }
+    .tab.active {
+      background: var(--btn-primary);
+      color: #fff;
+    }
+    .fake-btn {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 10px 18px;
+      border-radius: 10px;
+      background: var(--btn-primary);
+      color: #fff;
+      font-size: 0.88em;
+    }
+    .caption {
+      margin-top: 14px;
+      font-size: 0.8em;
+      color: var(--text-disabled);
+    }
+
+    @media (max-width: 800px) {
+      .page-layout { flex-direction: column; }
+      .timeline-rail {
+        position: static;
+        height: auto;
+        order: 2;
+        border-top: 1px dashed var(--border-default);
+        padding-top: 20px;
+      }
+      .main-column { order: 1; }
+    }
+  </style>
+</head>
+<body>
+  <p class="note">预览：左侧<strong>版本时间线融入页面底色</strong>（无白底侧栏、无分割边框），Release body 以 Markdown 渲染（列表 / 加粗 / 代码）。</p>
+
+  <div class="page-layout">
+    <aside class="timeline-rail">
+      <h2 class="timeline-title">版本更新历史</h2>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-header">
+            <a class="timeline-tag" href="#">v2.1.0</a>
+            <span class="timeline-date">2026/07/20 14:32:00</span>
+          </div>
+          <div class="timeline-name">Mangosteen v2.1.0</div>
+          <div class="timeline-body">
+            <p><strong>亮点</strong></p>
+            <ul>
+              <li>卡片主页双守跟随 RX</li>
+              <li>FSK 短信与 <code>GGM2</code> 互通</li>
+              <li>刷机站支持远程拉取最新固件</li>
+            </ul>
+            <p>详见 <a href="#">Release Notes</a></p>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-header">
+            <a class="timeline-tag" href="#">v2.0.0</a>
+            <span class="timeline-date">2026/07/10 09:15:00</span>
+          </div>
+          <div class="timeline-name">Mangosteen v2.0.0</div>
+          <div class="timeline-body">
+            <ul>
+              <li>全新菜单与消息提示</li>
+              <li>广播 WFM 并入主 VFO</li>
+            </ul>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-header">
+            <a class="timeline-tag" href="#">v1.0.0</a>
+            <span class="timeline-date">2026/06/28 18:00:00</span>
+          </div>
+          <div class="timeline-name">首个公开版本</div>
+          <div class="timeline-body">
+            <p>基于 F4HWN Fusion 的首发构建。</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-column">
+      <div class="card">
+        <div class="brand">
+          <div class="mango" aria-hidden="true"></div>
+          <div>
+            <h1>山竹刷机网站</h1>
+            <p>Mangosteen · Quansheng UV-K1 / K5V3</p>
+          </div>
+        </div>
+        <div class="tabs">
+          <span class="tab active">备份校准</span>
+          <span class="tab">刷固件</span>
+          <span class="tab">校验校准</span>
+          <span class="tab">恢复校准</span>
+          <span class="tab">写频</span>
+        </div>
+        <p style="font-size:0.88em;color:var(--text-muted);">主操作区示意（右侧白卡片），左侧时间线与整页粉白底色一体。</p>
+        <span class="fake-btn">导出校准数据</span>
+        <p class="caption">对照：旧 Dondji 侧栏是白底 + 右边框，本预览已去掉。</p>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
