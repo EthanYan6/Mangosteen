@@ -597,7 +597,7 @@
       'freqRead': 'Read',
       'freqWrite': 'Write',
       'freqClear': 'Clear',
-      'writefreqNote': 'Note: Frequency programming is for Dondji firmware only. Missing characters:',
+      'writefreqNote': 'Tip: Write frequency is for Mangosteen only. Channel names are ASCII (max 10 bytes); modulation includes WFM.',
       'clickSupplement': 'Click to submit',
       'readFromDevice': 'Read from Device',
       'writeToDevice': 'Write to Device',
@@ -869,65 +869,84 @@
 
   // Current language
   let currentLang = 'zh';
+  const LANG_STORAGE_KEY = 'mangosteen-web-lang';
 
   // Get translation for a key
-  function t(key, params = {}) {
+  function t(key, params) {
+    if (!params) params = {};
     const langData = translations[currentLang] || translations.zh;
-    let text = langData[key] || translations.zh[key] || key;
-    
-    // Replace placeholders like {total}, {filled}, etc. with actual values
+    let text = langData[key];
+    if (text === undefined || text === null) {
+      text = translations.zh[key];
+    }
+    if (text === undefined || text === null) {
+      text = key;
+    }
+
     if (params && typeof params === 'object') {
-      Object.keys(params).forEach(paramKey => {
+      Object.keys(params).forEach(function(paramKey) {
         const regex = new RegExp('\\{' + paramKey + '\\}', 'g');
-        text = text.replace(regex, String(params[paramKey]));
+        text = String(text).replace(regex, String(params[paramKey]));
       });
     }
-    
+
     return text;
   }
 
-  // Export translation function globally
   window.t = t;
-  window.getCurrentLang = () => currentLang;
+  window.getCurrentLang = function() { return currentLang; };
 
-  // Apply translations to elements with data-i18n attribute
+  function updateLangSwitchLabel() {
+    const langText = document.getElementById('langSwitchLabel');
+    if (!langText) return;
+    langText.textContent = currentLang === 'zh' ? 'EN' : '\u4e2d\u6587';
+  }
+
   function applyTranslations() {
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-      const key = el.getAttribute('data-i18n');
-      const params = el.getAttribute('data-i18n-params');
-      let paramObj = {};
-      if (params) {
-        try {
-          paramObj = JSON.parse(params);
-        } catch (e) {}
+    document.querySelectorAll('[data-i18n]').forEach(function(el) {
+      try {
+        const key = el.getAttribute('data-i18n');
+        if (!key) return;
+        const params = el.getAttribute('data-i18n-params');
+        let paramObj = {};
+        if (params) {
+          try { paramObj = JSON.parse(params); } catch (e) {}
+        }
+        if (el.hasAttribute('data-i18n-html')) {
+          el.innerHTML = t(key, paramObj);
+        } else {
+          el.textContent = t(key, paramObj);
+        }
+      } catch (err) {}
+    });
+
+    document.querySelectorAll('[data-i18n-title]').forEach(function(el) {
+      try {
+        el.title = t(el.getAttribute('data-i18n-title'));
+      } catch (e) {}
+    });
+
+    document.querySelectorAll('[data-i18n-aria]').forEach(function(el) {
+      try {
+        el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria')));
+      } catch (e) {}
+    });
+
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) {
+      try {
+        el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+      } catch (e) {}
+    });
+
+    try {
+      if (typeof window.writefreqRebuildRows === 'function') {
+        window.writefreqRebuildRows();
       }
-      el.textContent = t(key, paramObj);
-    });
+      if (typeof window.writefreqUpdatePaginationUI === 'function') {
+        window.writefreqUpdatePaginationUI();
+      }
+    } catch (wfErr) {}
 
-    document.querySelectorAll('[data-i18n-title]').forEach(el => {
-      const key = el.getAttribute('data-i18n-title');
-      el.title = t(key);
-    });
-
-    document.querySelectorAll('[data-i18n-aria]').forEach(el => {
-      const key = el.getAttribute('data-i18n-aria');
-      el.setAttribute('aria-label', t(key));
-    });
-
-    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-      const key = el.getAttribute('data-i18n-placeholder');
-      el.placeholder = t(key);
-    });
-
-    // Update dynamic content: writefreq table and pagination
-    if (window.writefreqRebuildRows) {
-      window.writefreqRebuildRows();
-    }
-    if (window.writefreqUpdatePaginationUI) {
-      window.writefreqUpdatePaginationUI();
-    }
-
-    // Update page title
     const titleEl = document.querySelector('title');
     if (titleEl) {
       if (document.body.classList.contains('help-page')) {
@@ -937,86 +956,60 @@
       }
     }
 
-    // Update html lang attribute
     document.documentElement.lang = currentLang;
+    updateLangSwitchLabel();
   }
 
-  // Switch language
   function switchLanguage(lang) {
+    if (lang !== 'zh' && lang !== 'en') return;
     if (lang === currentLang) return;
     currentLang = lang;
-    
-    // Save preference
     try {
-      localStorage.setItem('uvk1-web-lang', lang);
+      localStorage.setItem(LANG_STORAGE_KEY, lang);
     } catch (e) {}
-    
-    // Apply translations
     applyTranslations();
-    
-    // Update button text
-    const langBtn = document.getElementById('langSwitchBtn');
-    if (langBtn) {
-      const langText = langBtn.querySelector('.lang-switch__text');
-      if (langText) {
-        langText.textContent = lang === 'zh' ? 'EN' : '中文';
-      }
-    }
-
-    // Dispatch event for other scripts to react
-    window.dispatchEvent(new CustomEvent('langchange', { detail: { lang } }));
+    try {
+      window.dispatchEvent(new CustomEvent('langchange', { detail: { lang: lang } }));
+    } catch (e) {}
   }
 
-  // Toggle language
-  function toggleLanguage() {
+  function toggleLanguage(ev) {
+    if (ev) {
+      try { ev.preventDefault(); } catch (e) {}
+      try { ev.stopPropagation(); } catch (e) {}
+    }
     switchLanguage(currentLang === 'zh' ? 'en' : 'zh');
   }
 
-  // Initialize language from storage
   function initLanguage() {
     try {
-      const savedLang = localStorage.getItem('uvk1-web-lang');
-      if (savedLang && (savedLang === 'zh' || savedLang === 'en')) {
+      const savedLang = localStorage.getItem(LANG_STORAGE_KEY);
+      if (savedLang === 'zh' || savedLang === 'en') {
         currentLang = savedLang;
       }
     } catch (e) {}
-
-    // Apply initial translations
     applyTranslations();
-
-    // Update button text
-    const langBtn = document.getElementById('langSwitchBtn');
-    if (langBtn) {
-      const langText = langBtn.querySelector('.lang-switch__text');
-      if (langText) {
-        langText.textContent = currentLang === 'zh' ? 'EN' : '中文';
-      }
-    }
   }
 
-  // Create language switch button
   function createLangSwitchButton() {
     const langBtn = document.getElementById('langSwitchBtn');
-    if (langBtn) {
-      langBtn.addEventListener('click', toggleLanguage);
-    }
+    if (!langBtn) return;
+    langBtn.addEventListener('click', toggleLanguage, false);
   }
 
-  // Initialize on DOM ready
   function init() {
     initLanguage();
     createLangSwitchButton();
   }
 
-  // Export functions for external use
   window.i18n = {
-    t,
-    switchLanguage,
-    getCurrentLang: () => currentLang,
-    applyTranslations
+    t: t,
+    switchLanguage: switchLanguage,
+    toggleLanguage: toggleLanguage,
+    getCurrentLang: function() { return currentLang; },
+    applyTranslations: applyTranslations
   };
 
-  // Run init
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {

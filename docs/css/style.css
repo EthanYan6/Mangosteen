@@ -1622,7 +1622,7 @@ html.theme-light .calib-check-modal__backdrop {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(145deg, #fff6f2 0%, #f5c6ce 45%, #6b2d52 100%);
   display: flex;
   align-items: center;
   justify-content: center;

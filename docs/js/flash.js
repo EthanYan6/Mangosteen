@@ -453,7 +453,6 @@ document.querySelectorAll('.tab').forEach(tab => {
 });
 syncWritefreqFullLayoutClass();
 syncLogDockPlacement();
-initThemeToggle();
 initFlashDeviceWarningModal();
 initBusuanziSync();
 window.requestAnimationFrame(() => {
