@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>山竹刷机网站 · Mangosteen</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Nunito:wght@400;600;700&family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=20260720a">
+  <script src="//cdn.busuanzi.cc/busuanzi/3.6.9/busuanzi.min.js" defer></script>
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem('mangosteen-web-theme') === 'dark') {
+          document.documentElement.classList.add('theme-dark');
+          document.documentElement.classList.remove('theme-light');
+        } else {
+          document.documentElement.classList.add('theme-light');
+          document.documentElement.classList.remove('theme-dark');
+        }
+      } catch (e) {
+        document.documentElement.classList.add('theme-light');
+      }
+    })();
+  </script>
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="icon-mango" viewBox="0 0 120 120">
+      <ellipse class="leaf" cx="78" cy="22" rx="18" ry="10" fill="#3d7a5c" transform="rotate(-28 78 22)"/>
+      <path d="M72 18c8-10 22-8 26 2" fill="none" stroke="#2f5f47" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="60" cy="68" rx="38" ry="40" fill="#4a2040"/>
+      <ellipse cx="60" cy="70" rx="30" ry="32" fill="#6b2d52"/>
+      <ellipse cx="48" cy="58" rx="10" ry="14" fill="#843a66" opacity="0.55"/>
+      <path d="M42 55c8 4 14 18 10 30" fill="none" stroke="#f5c6ce" stroke-width="2" opacity="0.35" stroke-linecap="round"/>
+      <circle cx="48" cy="62" r="3.2" fill="#fff6f2"/>
+      <circle cx="68" cy="62" r="3.2" fill="#fff6f2"/>
+      <circle cx="49" cy="61" r="1.1" fill="#4a2040"/>
+      <circle cx="69" cy="61" r="1.1" fill="#4a2040"/>
+      <path d="M52 74c4 5 12 5 16 0" fill="none" stroke="#f5c6ce" stroke-width="2.5" stroke-linecap="round"/>
+      <ellipse cx="60" cy="88" rx="14" ry="8" fill="#fff6f2" opacity="0.2"/>
+    </symbol>
+  </svg>
+
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-content">
+      <svg class="loading-mango" aria-hidden="true"><use href="#icon-mango"></use></svg>
+      <div class="loading-text" data-i18n="loadingChicken">山竹正在努力加载中...</div>
+      <div class="loading-progress">
+        <div class="loading-progress-bar">
+          <div class="loading-progress-fill"></div>
+        </div>
+        <div class="loading-progress-text">0%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="top-marquee">
+    <div class="top-marquee-inner" id="marqueeInner">
+      <span class="marquee-text" id="marqueeText">
+        🍇 <span data-i18n="visitorTotalPrefix">共有</span> <span id="busuanzi_page_uv"><i class="loading-spinner"></i></span> <span data-i18n="visitorTotalSuffix">位 Ham 访问过本网站</span>，<span data-i18n="visitorTodayPrefix">今日与你一起刷机的有</span> <span id="busuanzi_today_uv"><i class="loading-spinner"></i></span> <span data-i18n="visitorTodaySuffix">人</span> 🍇
+      </span>
+    </div>
+  </div>
+
+  <div class="top-right-buttons" style="position:fixed;top:44px;right:12px;z-index:9998;">
+    <button type="button" id="langSwitchBtn" class="lang-switch" title="切换语言" aria-label="切换语言" data-i18n-title="langSwitchTitle" data-i18n-aria="langSwitchTitle">
+      <span class="lang-switch__text" data-i18n="langSwitchLabel">EN</span>
+    </button>
+    <button type="button" id="themeToggleBtn" class="theme-toggle" title="切换深色主题" aria-label="切换深色主题" data-i18n-title="themeToggleTitle" data-i18n-aria="themeToggleTitle">
+      <svg class="theme-toggle__icon theme-toggle__icon--sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+      </svg>
+      <svg class="theme-toggle__icon theme-toggle__icon--moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+  </div>
+
+  <div id="appToastRoot" class="app-toast-root" aria-live="polite"></div>
+
+  <div id="flashDeviceWarningModal" class="flash-device-warning-modal" hidden aria-hidden="true">
+    <div class="flash-device-warning-modal__backdrop" data-flash-warning-dismiss tabindex="-1" aria-hidden="true"></div>
+    <div class="flash-device-warning-modal__panel" role="dialog" aria-modal="true" aria-labelledby="flashDeviceWarningTitle">
+      <h2 id="flashDeviceWarningTitle" class="flash-device-warning-modal__title" data-i18n="flashWarningTitle">刷机前请确认设备型号</h2>
+      <p class="flash-device-warning-modal__text" data-i18n="flashWarningText1">请检查你的设备是否为泉盛 UV-K1、UV-K5/UV-K6 <strong>V3 版本</strong>。老版本刷机可能变砖！！！</p>
+      <p class="flash-device-warning-modal__text" data-i18n="flashWarningText2">查看方法：机器背部标签是否有 V3 字样，或者询问卖家。</p>
+      <button type="button" class="flash-device-warning-modal__btn" id="flashDeviceWarningOkBtn" data-i18n="flashWarningOk">我已了解</button>
+    </div>
+  </div>
+
+  <div class="page-layout">
+    <main class="main-column">
+      <div class="container">
+        <header class="header brand-hero">
+          <svg class="brand-mango" aria-hidden="true"><use href="#icon-mango"></use></svg>
+          <div class="brand-copy">
+            <h1 data-i18n="mainTitle">山竹刷机网站</h1>
+            <p class="brand-tagline" data-i18n="brandTagline">Mangosteen · Quansheng UV-K1 / K5V3</p>
+          </div>
+        </header>
+
+        <div class="subtitle subtitle-social" role="doc-subtitle">
+          <div class="subtitle-dev">
+            <span data-i18n="devBy" data-i18n-params='{"dev":"BD1AHN"}'>由 <strong class="subtitle-call">BD1AHN</strong> 开发</span>
+          </div>
+          <button type="button" class="coffee-btn" id="coffeeBtn" title="点击打开页面进行打赏" aria-label="请他喝杯咖啡" data-i18n-title="buyCoffeeTitle" data-i18n-aria="buyCoffee">
+            <span class="coffee-text" data-i18n="buyCoffee">请他喝杯咖啡</span>
+          </button>
+        </div>
+
+        <div class="flash-steps-bar">
+          <div class="flash-steps-scroll">
+            <div class="flash-steps-inner">
+              <div class="flash-steps-heading">
+                <span class="flash-steps-label" data-i18n="flashSteps">推荐步骤</span>
+              </div>
+              <ol class="flash-steps-list" aria-label="推荐刷机顺序">
+                <li class="flash-step-item" tabindex="0">
+                  <span class="flash-step-index">1</span>
+                  <span class="flash-step-name" data-i18n="step1">备份校准</span>
+                  <span class="flash-step-help" aria-hidden="true">?</span>
+                  <span class="flash-step-tooltip" role="tooltip" data-i18n="step1Tooltip">原厂固件备份一次校准即可。开机状态下备份。</span>
+                </li>
+                <li class="flash-step-item" tabindex="0">
+                  <span class="flash-step-index">2</span>
+                  <span class="flash-step-name" data-i18n="step2">刷固件</span>
+                  <span class="flash-step-help" aria-hidden="true">?</span>
+                  <span class="flash-step-tooltip" role="tooltip" data-i18n="step2Tooltip">关机后，按住 PTT 键的同时转动旋钮开机，进入刷机模式。</span>
+                </li>
+                <li class="flash-step-item" tabindex="0">
+                  <span class="flash-step-index">3</span>
+                  <span class="flash-step-name" data-i18n="stepCalibCheck">校验校准</span>
+                  <span class="flash-step-help" aria-hidden="true">?</span>
+                  <span class="flash-step-tooltip" role="tooltip" data-i18n="stepCalibCheckTooltip">对比设备与备份校准，确认数据正常后再恢复。</span>
+                </li>
+                <li class="flash-step-item" tabindex="0">
+                  <span class="flash-step-index">4</span>
+                  <span class="flash-step-name" data-i18n="step5">恢复校准</span>
+                  <span class="flash-step-help" aria-hidden="true">?</span>
+                  <span class="flash-step-tooltip" role="tooltip" data-i18n="step5Tooltip">开机状态下恢复。请使用本站备份的校准文件。</span>
+                </li>
+                <li class="flash-step-item" tabindex="0">
+                  <span class="flash-step-index">5</span>
+                  <span class="flash-step-name" data-i18n="step6">写频</span>
+                  <span class="flash-step-help" aria-hidden="true">?</span>
+                  <span class="flash-step-tooltip" role="tooltip" data-i18n="step6Tooltip">开机状态下进行。仅适配 Mangosteen 固件。</span>
+                </li>
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        <p style="text-align:center;color:var(--text-muted);font-size:0.85em;margin:8px 0;" data-i18n="calibWarning">
+          恢复校准请使用原厂固件初始备份。不必每次备份，后面的备份可能是错的！
+        </p>
+
+        <div class="tabs" role="tablist">
+          <button class="tab active" type="button" data-tab="dump" id="tabDump" data-i18n="tabDump">备份校准</button>
+          <button class="tab" type="button" data-tab="flash" id="tabFlash" data-i18n="tabFlash">刷固件</button>
+          <button class="tab" type="button" data-tab="calibcheck" id="tabCalibCheck" data-i18n="tabCalibCheck">校验校准</button>
+          <button class="tab" type="button" data-tab="restore" id="tabRestore" data-i18n="tabRestore">恢复校准</button>
+          <button class="tab" type="button" data-tab="writefreq" id="tabWritefreq" data-i18n="tabWritefreq">写频</button>
+        </div>
+
+        <!-- DUMP -->
+        <div class="tab-content active" id="dump-content">
+          <section class="section">
+            <p style="font-size:0.85em;color:var(--accent);margin-bottom:12px;" data-i18n="dumpWarning">
+              ⚠️ 仅需原厂固件刷机前备份一次。先<strong>正常开机进入使用界面</strong>，再连接 USB 并导出。
+            </p>
+            <button id="dumpBtn" data-i18n="exportCalib">导出校准数据</button>
+          </section>
+          <div class="download-link" id="dumpDownload">
+            <a href="#" id="dumpLink" download="calibration.dat" data-i18n="downloadCalib">下载 calibration.dat</a>
+          </div>
+        </div>
+
+        <!-- FLASH -->
+        <div class="tab-content" id="flash-content">
+          <section class="section">
+            <label data-i18n="fwFile">固件文件 (.bin)</label>
+            <div class="file-input-wrapper file-input-wrapper--dual">
+              <div class="file-input-label" id="fileLabel">
+                <span class="file-name" id="fileName" data-i18n="noFileSelected">未选择文件</span>
+                <div class="file-input-actions">
+                  <button type="button" class="btn-fetch file-action-remote" id="fetchLatestBtn" data-i18n="remoteFetch">远程获取</button>
+                  <div class="file-local-trigger">
+                    <input type="file" id="firmwareFile" accept=".bin" data-i18n-aria="selectLocalFw">
+                    <span class="file-button" data-i18n="localSelect">本地选择</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="fwReleaseInfo" class="fw-info" style="display:none"></div>
+            <p style="font-size:0.85em;color:var(--text-muted);margin-top:10px;" data-i18n="fwDownloadHint">
+              「远程获取」将从 GitHub Releases 下载最新 Mangosteen 固件。
+            </p>
+          </section>
+          <button id="flashBtn" disabled data-i18n="flashFirmware">刷入固件</button>
+        </div>
+
+        <!-- CALIB CHECK -->
+        <div class="tab-content" id="calibcheck-content">
+          <section class="section">
+            <p style="font-size:0.85em;color:var(--accent);margin-bottom:12px;" data-i18n="calibCheckTabDesc">
+              ⚠️ 请先<strong>正常开机进入使用界面</strong>后再连接 USB。可读取设备校准、加载备份文件并对比官方区 / 第三方区。
+            </p>
+            <button type="button" class="btn-fetch" id="checkCalibBtn" data-i18n="calibCheckDesc">打开校准检查</button>
+          </section>
+        </div>
+
+        <!-- RESTORE -->
+        <div class="tab-content" id="restore-content">
+          <section class="section">
+            <p style="font-size:0.85em;color:var(--accent);margin-bottom:12px;" data-i18n="restoreWarning">
+              ⚠️ 恢复前需<strong>正常开机进入使用界面</strong>后再连接 USB；写入完成后设备会自动重启。请使用 512 字节备份文件。
+            </p>
+            <label data-i18n="selectCalibFile">选择校准备份文件 (.dat)</label>
+            <div class="file-input-wrapper file-input-wrapper--dual">
+              <div class="file-input-label" id="calibFileLabel">
+                <span class="file-name" id="calibFileName" data-i18n="noFileSelected">未选择文件</span>
+                <div class="file-input-actions">
+                  <div class="file-local-trigger">
+                    <input type="file" id="calibFile" accept=".dat">
+                    <span class="file-button" data-i18n="localSelect">本地选择</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+          <button id="restoreBtn" disabled data-i18n="restoreCalib">恢复校准数据</button>
+        </div>
+
+        <!-- CALIB CHECK MODAL -->
+        <div id="calibCheckModal" class="calib-check-modal" hidden aria-hidden="true">
+          <div class="calib-check-modal__backdrop" data-calib-check-dismiss tabindex="-1" aria-hidden="true"></div>
+          <div class="calib-check-modal__panel" role="dialog" aria-modal="true" aria-labelledby="calibCheckModalTitle">
+            <div class="calib-check-modal__header">
+              <h2 id="calibCheckModalTitle" class="calib-check-modal__title" data-i18n="calibCheckTitle">校准数据检查</h2>
+              <button type="button" class="calib-check-modal__close" data-calib-check-dismiss aria-label="关闭" data-i18n-aria="close">&times;</button>
+            </div>
+            <div class="calib-check-modal__toolbar">
+              <button type="button" class="btn-fetch" id="calibReadDeviceBtn" data-i18n="calibReadDevice">读取设备校准</button>
+              <button type="button" class="btn-secondary" id="calibLoadBackupBtn" data-i18n="calibLoadBackup">加载备份校准文件</button>
+              <button type="button" class="btn-secondary" id="calibExportBackupBtn" data-i18n="calibExportBackup">导出备份校准</button>
+            </div>
+            <div class="calib-check-modal__table-wrap">
+              <table class="calib-check-table" id="calibCheckTable">
+                <thead>
+                  <tr>
+                    <th class="calib-check-table__col-desc" data-i18n="calibCheckDescCol">校准解读</th>
+                    <th class="calib-check-table__col-data" data-i18n="calibCheckOffical">官方/v4+ 校准地址(0x1E00)</th>
+                    <th class="calib-check-table__col-data" data-i18n="calibCheckThird">第三方固件/v5+ 校准地址(0xB000)</th>
+                    <th class="calib-check-table__col-backup" data-i18n="calibCheckBackup">备份校准</th>
+                  </tr>
+                </thead>
+                <tbody id="calibCheckBody"></tbody>
+              </table>
+            </div>
+            <div class="calib-check-modal__actions">
+              <button type="button" id="calibWriteOfficialBtn" data-i18n="calibWriteOfficial">写入官方地址</button>
+              <button type="button" id="calibWriteThirdPartyBtn" data-i18n="calibWriteThirdParty">写入第三方地址</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- WRITEFREQ -->
+        <div class="tab-content" id="writefreq-content">
+          <section class="section">
+            <p class="writefreq-lead">
+              <span class="writefreq-scope-note" data-i18n="writefreqNote">
+                提示：写频功能仅供 Mangosteen 固件使用。信道名为 ASCII，最长 10 字节；调制含 WFM。
+              </span>
+            </p>
+            <div id="logDockWritefreq" class="writefreq-log-dock"></div>
+          </section>
+
+          <section class="section writefreq-toolbar">
+            <div class="writefreq-toolbar-head">
+              <div class="writefreq-actions-split">
+                <div class="writefreq-actions-left">
+                  <button type="button" class="btn-inline btn-with-icon" id="writefreqReadBtn" title="从设备读取" data-i18n-title="readFromDevice">
+                    <span data-i18n="readFromDevice">从设备读取</span>
+                  </button>
+                  <button type="button" class="btn-inline btn-with-icon" id="writefreqWriteBtn" title="写入设备" data-i18n-title="writeToDevice">
+                    <span data-i18n="writeToDevice">写入设备</span>
+                  </button>
+                </div>
+                <div class="writefreq-actions-right">
+                  <button type="button" class="btn-inline btn-secondary btn-with-icon" id="writefreqExportBtn" title="导出 Excel" data-i18n-title="exportExcel">
+                    <span data-i18n="exportExcel">导出 Excel</span>
+                  </button>
+                  <button type="button" class="btn-inline btn-secondary btn-with-icon" id="writefreqImportBtn" title="导入 Excel" data-i18n-title="importExcel">
+                    <span data-i18n="importExcel">导入 Excel</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <input type="file" id="writefreqImportFile" accept=".xlsx,.xls,.csv" hidden>
+          </section>
+
+          <div class="wide-scroll writefreq-table-scroll" id="writefreqTableScroll">
+            <table class="writefreq-table" id="writefreqTable">
+              <thead>
+                <tr>
+                  <th class="wf-drag-th" title="拖动排序" data-i18n-title="dragSort">⠿</th>
+                  <th data-i18n="freqChannel">信道号</th>
+                  <th data-i18n="freqName">信道名<br><span class="th-sub" data-i18n="freqNameSub">ASCII 最长 10 字节</span></th>
+                  <th data-i18n="freqReceive">接收频率<br><span class="th-sub" data-i18n="freqMHz">MHz</span></th>
+                  <th data-i18n="freqPower">功率<br><span class="th-sub" data-i18n="freqPowerSub">（排除 USER）</span></th>
+                  <th data-i18n="freqRxDCS">接收数字亚音<br><span class="th-sub" data-i18n="freqDCS">DCS</span></th>
+                  <th data-i18n="freqRxCTCSS">接收模拟亚音<br><span class="th-sub" data-i18n="freqCTCSS">CTCSS</span></th>
+                  <th data-i18n="freqTxDCS">发射数字亚音<br><span class="th-sub" data-i18n="freqDCS">DCS</span></th>
+                  <th data-i18n="freqTxCTCSS">发射模拟亚音<br><span class="th-sub" data-i18n="freqCTCSS">CTCSS</span></th>
+                  <th data-i18n="freqOffsetDir">频差方向</th>
+                  <th data-i18n="freqOffset">频差频率<br><span class="th-sub" data-i18n="freqMHz">MHz</span></th>
+                  <th data-i18n="freqMode">调制模式<br><span class="th-sub" data-i18n="freqModeSub">FM/AM/USB/WFM</span></th>
+                  <th data-i18n="freqStep">步进<br><span class="th-sub" data-i18n="freqkHz">kHz</span></th>
+                  <th data-i18n="freqList">信道列表</th>
+                  <th class="wf-delete-th" scope="col" aria-label="清空本行" data-i18n-aria="clearRow"></th>
+                </tr>
+              </thead>
+              <tbody id="writefreqTbody"></tbody>
+            </table>
+          </div>
+          <div class="writefreq-pagination" id="writefreqPagination" aria-label="写频分页">
+            <button type="button" class="btn-inline btn-secondary" id="writefreqPagePrev" data-i18n="prevPage">上一页</button>
+            <span class="writefreq-page-info" id="writefreqPageInfo" aria-live="polite" data-i18n="freqPageInfo">共 1024 条 · 第 1 页</span>
+            <button type="button" class="btn-inline btn-secondary" id="writefreqPageNext" data-i18n="nextPage">下一页</button>
+          </div>
+          <p id="writefreqValidation" class="writefreq-validation" style="display:none;"></p>
+        </div>
+
+        <section class="log-container" id="logContainerSection">
+          <button class="log-toggle" id="logToggle" data-i18n="showLog">显示日志</button>
+          <div class="log" id="log"></div>
+        </section>
+
+        <section class="progress-container" id="progressContainer">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+            <div class="progress-label" id="progressLabel">0%</div>
+          </div>
+        </section>
+
+        <aside class="info-box">
+          <strong data-i18n="note">注意：</strong>
+          <span data-i18n="browserNote">需要 Chrome / Edge / Opera 浏览器。</span>
+          <strong data-i18n="flashFirmwareBoot">仅刷固件</strong>
+          <span data-i18n="enterBootMode">需进入 BOOT 模式（按住 PTT 开机）。</span>
+          <strong data-i18n="otherOperations">备份校准、校验校准、恢复校准、写频</strong>
+          <span data-i18n="normalMode">均在正常开机使用界面下连接 USB 操作。</span>
+        </aside>
+
+        <footer class="footer">
+          <span data-i18n="footerDev">固件 & 工具由 BD1AHN 开发</span>
+          &middot; <a href="https://github.com/EthanYan6/Mangosteen" target="_blank" rel="noopener">GitHub</a>
+          &middot; Based on <a href="https://github.com/armel/uv-k1-k5v3-firmware-custom" target="_blank" rel="noopener">F4HWN / UVTools2</a>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <div id="coffeeModal" class="coffee-modal coffee-modal--donation" hidden aria-hidden="true">
+    <div class="coffee-modal__backdrop" data-coffee-dismiss tabindex="-1" aria-hidden="true"></div>
+    <div class="coffee-modal__panel" role="dialog" aria-modal="true" aria-labelledby="coffeeModalTitle">
+      <h2 id="coffeeModalTitle" class="coffee-modal__title" data-i18n="coffeeTitle">请作者喝杯咖啡</h2>
+      <div class="coffee-modal__body">
+        <div class="coffee-modal__left">
+          <div class="coffee-modal__content">
+            <p class="coffee-modal__text" data-i18n="coffeeText1">
+              感谢您使用山竹（Mangosteen）固件！维护网站与固件需要时间和精力。
+            </p>
+            <p class="coffee-modal__text" data-i18n="coffeeText2">
+              如果这个项目对您有帮助，欢迎打赏支持！<strong>打赏时请备注您的呼号</strong>。
+            </p>
+            <div class="coffee-modal__qrcodes">
+              <div class="coffee-modal__qrcode-item">
+                <img src="images/wechat_pay.jpg" alt="微信收款码" class="coffee-modal__qrcode-img">
+                <span class="coffee-modal__qrcode-label" data-i18n="wechatPay">微信支付</span>
+              </div>
+              <div class="coffee-modal__qrcode-item">
+                <img src="images/ali_pay.jpg" alt="支付宝收款码" class="coffee-modal__qrcode-img">
+                <span class="coffee-modal__qrcode-label" data-i18n="aliPay">支付宝</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="coffee-modal__right">
+          <div class="donation-board">
+            <div class="donation-board__header" data-i18n="donationBoard">打赏榜单</div>
+            <div class="donation-board__scroll">
+              <table class="donation-board__table">
+                <thead>
+                  <tr>
+                    <th data-i18n="donationTime">时间</th>
+                    <th data-i18n="donationName">昵称</th>
+                    <th data-i18n="donationAmount">金额</th>
+                    <th data-i18n="donationMessage">留言</th>
+                    <th data-i18n="donationSource">来源</th>
+                  </tr>
+                </thead>
+                <tbody id="donationTableBody">
+                  <tr><td colspan="5" class="donation-loading" data-i18n="loading">加载中...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="coffee-modal__footer">
+        <p class="coffee-modal__notice" data-i18n="coffeeNotice">量力而行，心意至上，拒绝攀比，自愿为主。</p>
+        <button type="button" class="coffee-modal__btn" id="coffeeModalCloseBtn" data-i18n="exit">退出</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+  <script src="js/lang.js?v=20260720a"></script>
+  <script src="js/flash.js?v=20260720a"></script>
+  <script>
+  (function() {
+    var coffeeBtn = document.getElementById('coffeeBtn');
+    var coffeeModal = document.getElementById('coffeeModal');
+    var coffeeModalCloseBtn = document.getElementById('coffeeModalCloseBtn');
+    var coffeeBackdrop = coffeeModal.querySelector('.coffee-modal__backdrop');
+    var donationDataLoaded = false;
+    var scrollInterval = null;
+
+    function parseDonationCSV(csvText) {
+      var tbody = document.getElementById('donationTableBody');
+      if (!tbody) return false;
+      var lines = csvText.trim().split('\n');
+      if (lines.length <= 1) {
+        tbody.innerHTML = '<tr><td colspan="5" class="donation-loading">暂无打赏记录</td></tr>';
+        return false;
+      }
+      var dataLines = [];
+      for (var i = 1; i < lines.length; i++) {
+        var cols = lines[i].split(',');
+        if (cols.length >= 5) dataLines.push(cols);
+      }
+      dataLines.reverse();
+      var html = '';
+      for (var j = 0; j < dataLines.length; j++) {
+        var c = dataLines[j];
+        html += '<tr><td>' + c[0] + '</td><td>' + c[1] + '</td><td>' + c[2] + '</td><td>' + (c[3] || '') + '</td><td>' + c[4] + '</td></tr>';
+      }
+      tbody.innerHTML = html;
+      return true;
+    }
+
+    function loadDonationData() {
+      if (donationDataLoaded) return;
+      fetch('data/donations.csv?t=' + Date.now()).then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      }).then(function(text) {
+        if (parseDonationCSV(text)) donationDataLoaded = true;
+      }).catch(function() {
+        var tbody = document.getElementById('donationTableBody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="donation-loading">榜单加载失败</td></tr>';
+      });
+    }
+
+    function openCoffeeModal() {
+      coffeeModal.hidden = false;
+      coffeeModal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      loadDonationData();
+    }
+    function closeCoffeeModal() {
+      coffeeModal.hidden = true;
+      coffeeModal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      if (scrollInterval) { clearInterval(scrollInterval); scrollInterval = null; }
+    }
+    coffeeBtn.addEventListener('click', openCoffeeModal);
+    coffeeModalCloseBtn.addEventListener('click', closeCoffeeModal);
+    coffeeBackdrop.addEventListener('click', closeCoffeeModal);
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && !coffeeModal.hidden) closeCoffeeModal();
+    });
+  })();
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 *.d
 *.o
-firmware
+/firmware
 /firmware.packed.bin
 /firmware.bin
 /compiled-firmware
@@ -9,7 +9,6 @@ compile_commands.json
 .vscode
 .claude
 .agents
-/docs
 k5_eeprom.raw
 
 /build

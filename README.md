@@ -13,6 +13,7 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/EthanYan6/Mangosteen/main.yml?branch=main&label=build&style=for-the-badge)](https://github.com/EthanYan6/Mangosteen/actions/workflows/main.yml)
 
 [下载固件](https://github.com/EthanYan6/Mangosteen/releases/latest) ·
+[山竹刷机网站](https://ethanyan6.github.io/Mangosteen/) ·
 [提交 Issue](https://github.com/EthanYan6/Mangosteen/issues) ·
 [上游 F4HWN](https://github.com/armel/uv-k1-k5v3-firmware-custom)
 
@@ -137,6 +138,7 @@ Mangosteen/
 |---|---|
 | 本仓库 | https://github.com/EthanYan6/Mangosteen |
 | 最新下载 | https://github.com/EthanYan6/Mangosteen/releases/latest |
+| 山竹刷机网站 | https://ethanyan6.github.io/Mangosteen/ |
 | 上游 F4HWN | https://github.com/armel/uv-k1-k5v3-firmware-custom |
 | GOGUFW Messenger | https://github.com/Gogu-Qs/GOGUFW-UV-K1-Messenger |
 
