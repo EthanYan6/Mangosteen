@@ -49,7 +49,7 @@
       'otherFirmware': '其它固件合集',
       
       // Timeline sidebar
-      'timelineTitle': '叮咚鸡（Dondji）历史版本',
+      'timelineTitle': '山竹（Mangosteen）历史版本',
       'timelineLoading': '加载中...',
       
       // Main header
@@ -477,7 +477,7 @@
       'otherFirmware': 'Other Firmware Collection',
       
       // Timeline sidebar
-      'timelineTitle': 'Dondji Version History',
+      'timelineTitle': 'Mangosteen Version History',
       'timelineLoading': 'Loading...',
       
       // Main header

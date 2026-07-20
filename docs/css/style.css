@@ -72,11 +72,6 @@ body {
   min-height: 100vh;
 }
 
-/* Hide Dondji timeline sidebar on Mangosteen */
-.timeline-sidebar { display: none !important; }
-.page-layout { display: block; min-height: 100vh; padding-top: 36px; }
-.main-column { width: 100%; }
-
 /* Brand hero */
 .brand-hero {
   display: flex;
@@ -167,9 +162,18 @@ body {
   font-family: var(--font-display);
 }
 
-/* Two-column layout kept for writefreq full mode compatibility */
+/* Two-column layout: left version timeline (flush with page bg) + main column */
 .page-layout { display: flex; min-height: 100vh; padding-top: 32px; }
-.timeline-sidebar { flex: 0 0 400px; background: var(--bg-elevated); border-right: 1px solid var(--border-default); padding: 32px 24px; overflow-y: auto; position: sticky; top: 32px; height: calc(100vh - 32px); }
+.timeline-sidebar {
+  flex: 0 0 340px;
+  background: transparent;
+  border: none;
+  padding: 28px 18px 28px 24px;
+  overflow-y: auto;
+  position: sticky;
+  top: 32px;
+  height: calc(100vh - 32px);
+}
 /* 右侧主栏：内部 .container 为 720px 居中内容区；步骤条另按需定宽并居中 */
 .main-column {
   flex: 1;
@@ -1546,13 +1550,13 @@ html.theme-light .calib-check-modal__backdrop {
 .timeline-sidebar::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 .timeline-sidebar::-webkit-scrollbar-thumb:hover { background: var(--text-disabled); }
 
-.timeline-title { font-size: 1em; color: var(--text-primary); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border-default); }
+.timeline-title { font-size: 1em; color: var(--text-primary); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid transparent; }
 .timeline { position: relative; padding-left: 24px; }
-.timeline::before { content: ''; position: absolute; left: 6px; top: 0; bottom: 0; width: 2px; background: var(--border-strong); }
+.timeline::before { content: ''; position: absolute; left: 6px; top: 0; bottom: 0; width: 2px; background: var(--border-strong); opacity: 0.7; }
 .timeline-loading { color: var(--text-disabled); font-size: 0.8em; padding: 8px 0; }
 .timeline-item { position: relative; padding-bottom: 20px; }
 .timeline-item:last-child { padding-bottom: 0; }
-.timeline-dot { position: absolute; left: -21px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); border: 2px solid var(--bg-elevated); z-index: 1; }
+.timeline-dot { position: absolute; left: -21px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); border: 2px solid var(--bg-page); z-index: 1; }
 .timeline-item:first-child .timeline-dot { background: var(--accent); box-shadow: 0 0 6px var(--accent-dot-glow); }
 .timeline-header { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-bottom: 2px; }
 .timeline-tag { color: var(--accent); font-weight: 600; font-size: 0.85em; text-decoration: none; }
@@ -1592,7 +1596,7 @@ html.theme-light .calib-check-modal__backdrop {
   .page-layout { flex-direction: column; }
   .main-column { order: 1; flex: none; width: 100%; max-width: 100%; }
   .container { max-width: 100%; padding: 16px 12px; }
-  .timeline-sidebar { order: 2; flex: none; width: 100%; height: auto; position: static; border-right: none; border-top: 1px solid var(--border-default); border-bottom: none; padding: 20px; max-height: none; }
+  .timeline-sidebar { order: 2; flex: none; width: 100%; height: auto; position: static; border-right: none; border-top: 1px dashed var(--border-default); border-bottom: none; padding: 20px; max-height: none; background: transparent; }
   .h1 { font-size: 1.3em; }
   .tabs { flex-wrap: wrap; }
   .tab { padding: 8px 12px; font-size: 0.8em; }
