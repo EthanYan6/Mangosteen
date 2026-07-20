@@ -305,14 +305,11 @@ function syncWritefreqFullLayoutClass() {
  * 若只移日志、不移进度条，则进度条会留在 main 底部，看起来仍在「表格下方」。
  */
 function syncLogDockPlacement() {
-  const logSection = $('logContainerSection');
-  const progressSection = $('progressContainer');
-  const dockWf = $('logDockWritefreq');
-  const anchor = $('logAnchorDefault');
-  if (!logSection || !anchor) {
-    return;
-  }
-  if (!progressSection) {
+  const logSection = document.getElementById('logContainerSection');
+  const progressSection = document.getElementById('progressContainer');
+  const dockWf = document.getElementById('logDockWritefreq');
+  const anchor = document.getElementById('logAnchorDefault');
+  if (!logSection || !anchor || !progressSection) {
     return;
   }
   const activeTab = document.querySelector('.tab.active');
@@ -325,8 +322,10 @@ function syncLogDockPlacement() {
     dockWf.appendChild(progressSection);
     return;
   }
-  anchor.after(logSection);
-  logSection.after(progressSection);
+  if (typeof anchor.after === 'function') {
+    anchor.after(logSection);
+    logSection.after(progressSection);
+  }
 }
 
 function openFlashDeviceWarningModal() {
@@ -416,6 +415,13 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (tabContentEl) tabContentEl.classList.add('active');
     syncWritefreqFullLayoutClass();
     syncLogDockPlacement();
+    if (tab.dataset.tab === 'writefreq') {
+      try {
+        writefreqRebuildRows();
+      } catch (wfTabErr) {
+        console.warn('writefreqRebuildRows on tab', wfTabErr);
+      }
+    }
     window.requestAnimationFrame(() => {
       flashStepsBarApplyOverflowPolicy();
     });
@@ -3183,6 +3189,9 @@ function writefreqClearCurrentRowFromUi(tr) {
 }
 
 function writefreqApplyFieldsToTr(tr, fields) {
+  if (!tr || !fields) {
+    return;
+  }
   const rxIn = tr.querySelector('.wf-rx');
   const offsetEl = tr.querySelector('.wf-offset');
   const channelNameEl = tr.querySelector('.wf-channel-name');
@@ -3195,34 +3204,34 @@ function writefreqApplyFieldsToTr(tr, fields) {
   const modEl = tr.querySelector('.wf-mod');
   const stepEl = tr.querySelector('.wf-step');
   if (rxIn) {
-    rxIn.value = fields.rxText;
+    rxIn.value = fields.rxText || '';
   }
   if (offsetEl) {
-    offsetEl.value = fields.offsetText;
+    offsetEl.value = fields.offsetText || '';
   }
   if (channelNameEl) {
-    channelNameEl.value = fields.channelNameText;
+    channelNameEl.value = fields.channelNameText || '';
   }
   if (powerEl) {
-    powerEl.value = fields.powerVal;
+    powerEl.value = fields.powerVal || '';
   }
   if (rxCtcssEl) {
-    rxCtcssEl.value = fields.rxCtcss;
+    rxCtcssEl.value = fields.rxCtcss || '';
   }
   if (rxDcsEl) {
-    rxDcsEl.value = fields.rxDcs;
+    rxDcsEl.value = fields.rxDcs || '';
   }
   if (txCtcssEl) {
-    txCtcssEl.value = fields.txCtcss;
+    txCtcssEl.value = fields.txCtcss || '';
   }
   if (txDcsEl) {
-    txDcsEl.value = fields.txDcs;
+    txDcsEl.value = fields.txDcs || '';
   }
   if (sftEl) {
-    sftEl.value = fields.sftVal;
+    sftEl.value = fields.sftVal || '0';
   }
   if (modEl) {
-    modEl.value = fields.modVal;
+    modEl.value = fields.modVal || '0';
   }
   if (stepEl) {
     stepEl.value = fields.stepVal !== undefined ? fields.stepVal : String(WF_STEP_DEFAULT);
@@ -3357,13 +3366,28 @@ function writefreqShowCurrentPage() {
   if (!tbody) {
     return;
   }
+  let rowList = tbody.querySelectorAll('tr');
+  // 与叮咚鸡一致：若尚未建出空行，先重建一页可编辑行（避免空表无法手写）
+  if (rowList.length < WRITE_FREQ_PAGE_SIZE) {
+    if (!writefreqShowCurrentPage._rebuilding) {
+      writefreqShowCurrentPage._rebuilding = true;
+      try {
+        writefreqRebuildRows();
+      } finally {
+        writefreqShowCurrentPage._rebuilding = false;
+      }
+    }
+    return;
+  }
   const base = writefreqGetBaseChannel();
   const page = writefreqPageIndex;
   const startSlot = page * WRITE_FREQ_PAGE_SIZE;
-  const rowList = tbody.querySelectorAll('tr');
   let slot = 0;
   for (; slot < WRITE_FREQ_PAGE_SIZE; slot++) {
     const tr = rowList[slot];
+    if (!tr) {
+      continue;
+    }
     const chIdx = startSlot + slot;
     if (chIdx >= WRITE_FREQ_MR_MAX) {
       tr.style.display = 'none';
@@ -3374,7 +3398,7 @@ function writefreqShowCurrentPage() {
     tr.style.display = '';
     tr.removeAttribute('data-sortable-ignore');
     tr.dataset.writefreqChIdx = String(chIdx);
-    const fields = writefreqRowsData[chIdx];
+    const fields = writefreqRowsData[chIdx] || writefreqEmptyRowFields();
     writefreqApplyFieldsToTr(tr, fields);
     const cell = tr.querySelector('.ch-num');
     if (cell) {
@@ -4650,7 +4674,15 @@ if (writefreqTbodyEl) {
 window.writefreqRebuildRows = writefreqRebuildRows;
 window.writefreqUpdatePaginationUI = writefreqUpdatePaginationUI;
 
-writefreqRebuildRows();
+function writefreqBootEnsureRows() {
+  try {
+    writefreqRebuildRows();
+  } catch (bootErr) {
+    console.warn('writefreqRebuildRows boot', bootErr);
+  }
+}
+writefreqBootEnsureRows();
+window.addEventListener('load', writefreqBootEnsureRows);
 
 // Listen for language change events to rebuild table with translated placeholders
 window.addEventListener('langchange', function(e) {
