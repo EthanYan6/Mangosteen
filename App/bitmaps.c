@@ -301,6 +301,13 @@ const uint8_t BITMAP_NOAA[12] =
 };
 #endif
 
+#ifdef ENABLE_MESSENGER
+const uint8_t BITMAP_MSG_ENVELOPE[10] =
+{	/* unread SMS marker (column-major 10×7) */
+    0x7E, 0x42, 0x46, 0x4A, 0x52, 0x52, 0x4A, 0x46, 0x42, 0x7E
+};
+#endif
+
 #ifndef ENABLE_CUSTOM_MENU_LAYOUT
 const uint8_t BITMAP_CurrentIndicator[8] = {
     0xFF,

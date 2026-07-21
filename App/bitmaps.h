@@ -45,6 +45,10 @@ extern const uint8_t BITMAP_compand[6];
 
 extern const uint8_t BITMAP_NOAA[12];
 
+#ifdef ENABLE_MESSENGER
+extern const uint8_t BITMAP_MSG_ENVELOPE[10];
+#endif
+
 #ifndef ENABLE_CUSTOM_MENU_LAYOUT
     extern const uint8_t BITMAP_CurrentIndicator[8];
 #endif

@@ -57,12 +57,6 @@ static void convertTime(uint8_t *line, uint8_t type)
 #endif
 #endif
 
-#ifdef ENABLE_MESSENGER
-static const uint8_t BITMAP_MSG_ENVELOPE[10] = {
-    0x7E, 0x42, 0x46, 0x4A, 0x52, 0x52, 0x4A, 0x46, 0x42, 0x7E
-};
-#endif
-
 void UI_DisplayStatus()
 {
     gUpdateStatus = false;

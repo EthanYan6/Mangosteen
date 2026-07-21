@@ -10,6 +10,9 @@
 #include <string.h>
 
 #include "app/dtmf.h"
+#ifdef ENABLE_MESSENGER
+#include "app/messenger.h"
+#endif
 #include "bitmaps.h"
 #include "dcs.h"
 #include "driver/bk4819.h"
@@ -402,6 +405,29 @@ static void HC_DrawFreqLed(uint8_t x, uint8_t y, uint32_t hz)
 	}
 }
 
+#ifdef ENABLE_MESSENGER
+/* Column-major 1bpp blit into the home-card coordinate space. */
+static void HC_Blit1bpp(uint8_t x, uint8_t y, const uint8_t *bmp, uint8_t w)
+{
+	for (uint8_t col = 0; col < w; col++) {
+		const uint8_t bits = bmp[col];
+		for (uint8_t row = 0; row < 8; row++) {
+			if (bits & (1u << row))
+				HC_Pixel((uint8_t)(x + col), (uint8_t)(y + row), true);
+		}
+	}
+}
+
+/* Unread SMS envelope, immediately left of the A/B channel letter. */
+static void HC_DrawMsgIcon(void)
+{
+	if (!MSG_HasUnread())
+		return;
+	/* A/B is at x=60; icon is 10px wide with a 2px gap. */
+	HC_Blit1bpp(48, 1, BITMAP_MSG_ENVELOPE, (uint8_t)sizeof(BITMAP_MSG_ENVELOPE));
+}
+#endif
+
 /* Compact battery: 9×5 outline + tip. Fill tracks gBatteryDisplayLevel (0..7). */
 static void HC_DrawMiniBattery(uint8_t x, uint8_t y)
 {
@@ -654,6 +680,9 @@ static void HC_DrawFront(uint8_t vfo_num)
 	HC_Small(str, 5, 3);
 
 	/* VFO letter + channel # + battery + %/V */
+#ifdef ENABLE_MESSENGER
+	HC_DrawMsgIcon();
+#endif
 	str[0] = (vfo_num == 0) ? 'A' : 'B';
 	str[1] = 0;
 	HC_Small(str, 60, 3);
