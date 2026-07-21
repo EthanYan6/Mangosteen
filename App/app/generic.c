@@ -25,6 +25,9 @@
 #endif
 
 #include "app/generic.h"
+#ifdef ENABLE_MESSENGER
+#include "app/messenger_rf.h"
+#endif
 #include "app/menu.h"
 #include "app/scanner.h"
 #include "audio.h"
@@ -188,6 +191,11 @@ void GENERIC_Key_PTT(bool bKeyPressed)
     DTMF_clear_input_box();
 
 start_tx:
+#ifdef ENABLE_MESSENGER
+    /* Clear MsgRx FSK/Tone2 sidecar before analog mic TX (GOGUFW parity).
+     * Without this, REG_70/REG_58 stay in Aircopy mode → carrier + Yan ID OK, no voice. */
+    MSG_RF_HardRestoreVoicePath();
+#endif
     // request start TX
     gFlagPrepareTX = true;
     goto done;

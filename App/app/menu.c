@@ -25,6 +25,7 @@
 #include "app/scanner.h"
 #ifdef ENABLE_MESSENGER
     #include "app/messenger_store.h"
+    #include "app/messenger_rf.h"
 #endif
 #include "audio.h"
 #include "board.h"
@@ -546,7 +547,11 @@ void MENU_AcceptSetting(void)
 
 #ifdef ENABLE_MESSENGER
         case MENU_MSG_RX:
-            gMessengerConfig.msg_rx = gSubMenuSelection; MSG_STORE_SaveConfig(); break;
+            gMessengerConfig.msg_rx = gSubMenuSelection;
+            MSG_STORE_SaveConfig();
+            if (!gMessengerConfig.msg_rx)
+                MSG_RF_HardRestoreVoicePath();
+            break;
         case MENU_MSG_CSG:
             if (edit_index >= 0)
             {

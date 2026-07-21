@@ -1158,6 +1158,9 @@ static void HandleVox(void)
 #ifdef ENABLE_DTMF_CALLING
             gDTMF_ReplyState = DTMF_REPLY_NONE;
 #endif
+#ifdef ENABLE_MESSENGER
+            MSG_RF_HardRestoreVoicePath();
+#endif
             RADIO_PrepareTX();
             gUpdateDisplay = true;
         }
