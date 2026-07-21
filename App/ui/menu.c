@@ -307,17 +307,17 @@ const char* const gSubMenu_PTT_ID[] =
 const char* const gSubMenu_PONMSG[] =
 {
 #ifdef ENABLE_FEAT_F4HWN
-    "ALL",
-    "SOUND",
-#else
-    "FULL",
-#endif
-    "MESSAGE",
-    "VOLTAGE",
+    "NONE",
+    "DEFAULT",
 #ifdef ENABLE_FEAT_F4HWN_LOGO
     "LOGO",
 #endif
+#else
+    "FULL",
+    "MESSAGE",
+    "VOLTAGE",
     "NONE"
+#endif
 };
 
 #if defined(ENABLE_FEAT_F4HWN) && defined(ENABLE_FEAT_F4HWN_LOGO_SAV)
@@ -1762,9 +1762,9 @@ void UI_DisplayMenu(void)
             if (page == p++) {
                 // Page 0: firmware identity.
 #ifdef ENABLE_FEAT_F4HWN
-                sprintf(String, "%s\n%s\n%s", AUTHOR_STRING_2, VERSION_STRING_2, Edition);
+                sprintf(String, "Mangosteen\n%s\nBD1AHN", VERSION_STRING_2);
 #ifndef ENABLE_CUSTOM_MENU_LAYOUT
-                UI_PrintStringSmallNormal(Edition, menu_item_x1 - 1, menu_item_x2, 6);
+                UI_PrintStringSmallNormal("BD1AHN", menu_item_x1 - 1, menu_item_x2, 6);
 #endif
 #else
                 sprintf(String, "%u.%02uV\n%u%%",

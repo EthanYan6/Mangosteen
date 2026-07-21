@@ -275,7 +275,7 @@
     'logConnectFailed': '连接失败: {msg}',
     'logUploadingBootLogo': '正在上传开机图片...',
     'logWrittenBytesProgress': '已写入 {written}/{total} bytes',
-    'logBootLogoUploadSuccess': '开机图片上传成功！请在菜单「开机画面」中选择「自定义」',
+    'logBootLogoUploadSuccess': '开机图片上传成功！请在菜单 POnMsg 中选择 Logo',
     'logUploadFailed': '上传失败: {msg}',
     'logReadingBootLogo': '正在读取开机图片...',
     'logBootLogoReadSuccess': '开机图片读取成功',
@@ -321,7 +321,7 @@
       
       // Logo
       'logoDesc': '上传自定义开机图片（128x64像素，黑白位图）',
-      'logoDesc1': '上传自定义 128×64 开机图片到对讲机。支持 PNG、JPG、BMP 等格式，图片会自动缩放并转为单色位图。在菜单「开机画面」中选择「自定义」即可显示。',
+      'logoDesc1': '上传自定义 128×64 开机图片到对讲机。支持 PNG、JPG、BMP 等格式，图片会自动缩放并转为单色位图。在菜单 POnMsg 中选择 Logo 即可显示。',
       'logoWarning': '⚠️ 请先正常开机进入使用界面后再连接 USB 操作（与刷字库、备份校准相同，无需 BOOT 模式）。',
       'logoFile': '图片文件 (.bmp)',
       'logoFlash': '刷入开机图片',
@@ -706,7 +706,7 @@
     'logConnectFailed': 'Connection failed: {msg}',
     'logUploadingBootLogo': 'Uploading boot logo...',
     'logWrittenBytesProgress': 'Written {written}/{total} bytes',
-    'logBootLogoUploadSuccess': 'Boot logo uploaded successfully! Please select "Custom" in menu "Boot Screen"',
+    'logBootLogoUploadSuccess': 'Boot logo uploaded successfully! Please select Logo in menu POnMsg',
     'logUploadFailed': 'Upload failed: {msg}',
     'logReadingBootLogo': 'Reading boot logo...',
     'logBootLogoReadSuccess': 'Boot logo read successfully',
@@ -751,7 +751,7 @@
       
       // Logo
       'logoDesc': 'Upload custom boot logo (128x64 pixels, black and white bitmap)',
-      'logoDesc1': 'Upload custom 128×64 boot logo. Supports PNG, JPG, BMP formats. Image will be scaled and converted to monochrome bitmap. Select "Custom" in menu "Boot Logo" to display.',
+      'logoDesc1': 'Upload custom 128×64 boot logo. Supports PNG, JPG, BMP formats. Image will be scaled and converted to monochrome bitmap. Select Logo in menu POnMsg to display.',
       'logoWarning': '⚠️ Please enter normal usage interface first before connecting USB (same as font flash, calibration backup, no BOOT mode needed).',
       'logoFile': 'Image file (.bmp)',
       'logoFlash': 'Flash Boot Logo',

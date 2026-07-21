@@ -229,9 +229,9 @@ extern const char* const            gSubMenu_D_RSP[4];
 extern const char* const gSubMenu_PTT_ID[5];
 #ifdef ENABLE_FEAT_F4HWN
     #ifdef ENABLE_FEAT_F4HWN_LOGO
-        extern const char* const    gSubMenu_PONMSG[6];
+        extern const char* const    gSubMenu_PONMSG[3];
     #else
-        extern const char* const    gSubMenu_PONMSG[5];
+        extern const char* const    gSubMenu_PONMSG[2];
     #endif
 #else
     extern const char* const        gSubMenu_PONMSG[4];

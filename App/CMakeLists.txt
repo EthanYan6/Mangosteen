@@ -27,6 +27,7 @@ target_sources(App INTERFACE
     app/scanner.c
     audio.c
     bitmaps.c
+    bitmap_mangosteen.c
     board.c
     dcs.c
     font.c

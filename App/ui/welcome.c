@@ -28,6 +28,7 @@
 #include "ui/status.h"
 #include "version.h"
 #include "bitmaps.h"
+#include "bitmap_mangosteen.h"
 
 #ifdef ENABLE_FEAT_F4HWN_K5VIEWER
     #include "k5viewer.h"
@@ -232,6 +233,8 @@ void UI_DisplayReleaseKeys(void)
 
 void UI_DisplayWelcome(void)
 {
+    char WelcomeString0[24];
+
     UI_StatusClear();
 
 #if defined(ENABLE_FEAT_F4HWN_CTR) || defined(ENABLE_FEAT_F4HWN_INV)
@@ -243,26 +246,52 @@ void UI_DisplayWelcome(void)
     ST7565_BlitStatusLine();
     ST7565_BlitFullScreen();
 
-    if (gEeprom.POWER_ON_DISPLAY_MODE == POWER_ON_DISPLAY_MODE_NONE || gEeprom.POWER_ON_DISPLAY_MODE == POWER_ON_DISPLAY_MODE_SOUND) {
+    if (gEeprom.POWER_ON_DISPLAY_MODE == POWER_ON_DISPLAY_MODE_NONE) {
         ST7565_FillScreen(0x00);
         return;
     }
+
+#ifdef ENABLE_FEAT_F4HWN_LOGO
+    if (gEeprom.POWER_ON_DISPLAY_MODE == POWER_ON_DISPLAY_MODE_LOGO) {
+        UI_LoadLogo();
+    }
+    else
+#endif
+    {
+        // Default: centered mangosteen + identity text.
+        const uint8_t ox = (uint8_t)((128u - BITMAP_MANGOSTEEN_WIDTH) / 2u);
+
+        for (uint8_t page = 0; page < BITMAP_MANGOSTEEN_PAGES; page++) {
+            const uint8_t *src = &BITMAP_Mangosteen[(uint16_t)page * BITMAP_MANGOSTEEN_WIDTH];
+            const uint8_t y0 = (uint8_t)(page * 8u);
+
+            if (y0 < 8u) {
+                memcpy(gStatusLine + ox, src, BITMAP_MANGOSTEEN_WIDTH);
+            } else {
+                const uint8_t fb_line = (uint8_t)((y0 - 8u) / 8u);
+                memcpy(gFrameBuffer[fb_line] + ox, src, BITMAP_MANGOSTEEN_WIDTH);
+            }
+        }
+
+        sprintf(WelcomeString0, "Mangosteen %s", VERSION_STRING_2);
+        UI_PrintStringSmallNormal(WelcomeString0, 0, 127, 5);
+        UI_PrintStringSmallNormal("BD1AHN", 0, 127, 6);
+    }
+
+    ST7565_BlitStatusLine();
+    ST7565_BlitFullScreen();
+
+    #ifdef ENABLE_FEAT_F4HWN_K5VIEWER
+        K5VIEWER_Update(true);
+    #endif
 #else
     if (gEeprom.POWER_ON_DISPLAY_MODE == POWER_ON_DISPLAY_MODE_NONE || gEeprom.POWER_ON_DISPLAY_MODE == POWER_ON_DISPLAY_MODE_FULL_SCREEN) {
         ST7565_FillScreen(0xFF);
         return;
     }
-#endif
-#ifdef ENABLE_FEAT_F4HWN_LOGO
-    else if (gEeprom.POWER_ON_DISPLAY_MODE == POWER_ON_DISPLAY_MODE_LOGO) {
-        UI_LoadLogo();
-    }
-#endif
     else {
-        char WelcomeString0[16];
         char WelcomeString1[16];
         char WelcomeString2[16];
-        char WelcomeString3[32];
 
         // 0x0EB0
         PY25Q16_ReadBuffer(0x00A0C8, WelcomeString0, 16);
@@ -279,22 +308,6 @@ void UI_DisplayWelcome(void)
             strcpy(WelcomeString0, "VOLTAGE");
             strcpy(WelcomeString1, WelcomeString2);
         }
-        else if(gEeprom.POWER_ON_DISPLAY_MODE == POWER_ON_DISPLAY_MODE_ALL)
-        {
-            if(strlen(WelcomeString0) == 0 && strlen(WelcomeString1) == 0)
-            {
-                strcpy(WelcomeString0, "WELCOME");
-                strcpy(WelcomeString1, WelcomeString2);
-            }
-            else if(strlen(WelcomeString0) == 0 || strlen(WelcomeString1) == 0)
-            {
-                if(strlen(WelcomeString0) == 0)
-                {
-                    strcpy(WelcomeString0, WelcomeString1);
-                }
-                strcpy(WelcomeString1, WelcomeString2);
-            }
-        }
         else if(gEeprom.POWER_ON_DISPLAY_MODE == POWER_ON_DISPLAY_MODE_MESSAGE)
         {
             if(strlen(WelcomeString0) == 0)
@@ -310,52 +323,10 @@ void UI_DisplayWelcome(void)
 
         UI_PrintString(WelcomeString0, 0, 127, 0, 10);
         UI_PrintString(WelcomeString1, 0, 127, 2, 10);
-
-#ifdef ENABLE_FEAT_F4HWN
-        UI_PrintStringSmallNormal(Version, 0, 128, 4);
-
-        UI_DrawLineBuffer(gFrameBuffer, 0, 35, 18, 35, 1);
-        gFrameBuffer[4][19] ^= 0x7F;
-        for (uint8_t x = 20; x < 108; x++)
-        {
-            gFrameBuffer[4][x] ^= 0xFF;
-            gFrameBuffer[3][x] ^= 0x80;
-        }
-        gFrameBuffer[4][108] ^= 0x7F;
-        UI_DrawLineBuffer(gFrameBuffer, 109, 35, 127, 35, 1);
-
-        /*
-        #ifdef ENABLE_FEAT_F4HWN_MEM
-            uint32_t ram_used   = 0;
-            uint32_t flash_used = 0;
-            build_usage(&ram_used, &flash_used);
-
-            const uint16_t ram_pct   = pct_x100(ram_used,   RAM_SIZE_BYTES);
-            const uint16_t flash_pct = pct_x100(flash_used, FLASH_SIZE_BYTES);
-
-            // No floats: 7559 => 75.59%
-            sprintf(WelcomeString3,
-            "FLASH %u.%02u %% - SRAM  %u.%02u %%",
-            (unsigned)(flash_pct / 100), (unsigned)(flash_pct % 100),
-            (unsigned)(ram_pct / 100),   (unsigned)(ram_pct % 100));
-
-            GUI_DisplaySmallest(WelcomeString3, 5, 1, true, true);
-            ST7565_BlitStatusLine();
-        #endif
-        */
-
-        sprintf(WelcomeString3, "%s Edition", Edition);
-        UI_PrintStringSmallNormal(WelcomeString3, 0, 127, 6);
-
-#else
         UI_PrintStringSmallNormal(Version, 0, 127, 6);
-#endif
     }
 
     ST7565_BlitStatusLine();
     ST7565_BlitFullScreen();
-
-    #ifdef ENABLE_FEAT_F4HWN_K5VIEWER
-        K5VIEWER_Update(true);
-    #endif
+#endif
 }

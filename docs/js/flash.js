@@ -4942,7 +4942,7 @@ flashStepsInitFloatingTooltips();
       }
 
       updateProgress(100);
-      log(window.t ? window.t('logBootLogoUploadSuccess') : '开机图片上传成功！请在菜单「开机画面」中选择「自定义」', 'success');
+      log(window.t ? window.t('logBootLogoUploadSuccess') : '开机图片上传成功！请在菜单 POnMsg 中选择 Logo', 'success');
     } catch(e) {
       log(window.t ? window.t('logUploadFailed', {msg: e.message}) : '上传失败: ' + e.message, 'error');
     } finally {

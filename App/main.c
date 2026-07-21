@@ -228,11 +228,7 @@ void Main(void)
 
         BACKLIGHT_TurnOn();
 
-#ifdef ENABLE_FEAT_F4HWN
-        if (gEeprom.POWER_ON_DISPLAY_MODE != POWER_ON_DISPLAY_MODE_NONE && gEeprom.POWER_ON_DISPLAY_MODE != POWER_ON_DISPLAY_MODE_SOUND)
-#else
         if (gEeprom.POWER_ON_DISPLAY_MODE != POWER_ON_DISPLAY_MODE_NONE)
-#endif
         {   // 2.55 second boot-up screen
             while (boot_counter_10ms > 0)
             {
@@ -244,7 +240,7 @@ void Main(void)
             }
         }
 
-        // Always re-arm after welcome (BK1080 needs a post-boot tune; SOUND/NONE
+        // Always re-arm after welcome (BK1080 needs a post-boot tune; NONE
         // used to skip this and stay silent until the user changed frequency).
         RADIO_SetupRegisters(true);
 

@@ -1,0 +1,44 @@
+<h2>POnMsg 三项预览（128×64 开机屏）</h2>
+<p class="subtitle">真机是单色 LCD。先看三种模式整体效果，点击可选中。</p>
+
+<div class="cards">
+  <div class="card" data-choice="none" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#1a1a1a;padding:16px;display:flex;justify-content:center;">
+      <div style="width:256px;height:128px;background:#0d0d0d;border:2px solid #444;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:monospace;color:#666;font-size:12px;">
+        （跳过 · 直接进主页）
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>None</h3>
+      <p>不显示开机画面，跳过动画，直接进入主界面</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="default" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#1a1a1a;padding:16px;display:flex;justify-content:center;">
+      <div style="width:256px;height:128px;background:#0d0d0d;border:2px solid #444;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-family:'Courier New',monospace;color:#c8c8c8;">
+        <img src="mangosteen.png" alt="mangosteen" style="width:48px;height:48px;object-fit:contain;filter:grayscale(1) contrast(1.2);image-rendering:pixelated;" />
+        <div style="font-size:11px;letter-spacing:0.5px;">Mangosteen v4.2</div>
+        <div style="font-size:11px;letter-spacing:1px;">BD1AHN</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Default</h3>
+      <p>内置山竹图 + Mangosteen 版本号 + BD1AHN</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="logo" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#1a1a1a;padding:16px;display:flex;justify-content:center;">
+      <div style="width:256px;height:128px;background:#0d0d0d;border:2px solid #444;border-radius:4px;overflow:hidden;display:flex;align-items:center;justify-content:center;">
+        <img src="mangosteen.png" alt="custom logo" style="width:100%;height:100%;object-fit:cover;filter:grayscale(1) contrast(1.3) brightness(1.1);image-rendering:pixelated;" />
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Logo</h3>
+      <p>显示从上位机上传的自定义开机图片（满屏 128×64）</p>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1.5rem;">说明：Logo 用的是你上传的那张图做示意；真机上会是你刷入的自定义位图。Default 里的山竹会做成固件内置单色位图。</p>
