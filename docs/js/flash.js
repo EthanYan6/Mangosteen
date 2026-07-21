@@ -191,8 +191,14 @@ const CONFIG_FLASH_BASE   = 0x00A000;
 const CONFIG_FLASH_SIZE   = 0x0200;
 const CONFIG_CHUNK        = 32;
 
-/** 校准区在 EEPROM 中的起始地址：与 UVTools2 一致，v5.0.0 起为 0xB000，更早固件为 0x1E00（由导出/恢复时请求设备信息解析） */
-let calibEepromBase = 0x1E00;
+/**
+ * 山竹校准区 EEPROM 基址（固定，不按版本切换）。
+ * 对应 App/driver/eeprom_compat.c：物理 Flash 0x010000 ↔ 协议地址 0xB000（512 字节）。
+ */
+const CALIB_MANGOSTEEN_BASE = 0xB000;
+const CALIB_OFFICIAL_BASE   = 0x1E00;
+const CALIB_THIRD_PARTY_BASE = 0xB000;
+let calibEepromBase = CALIB_MANGOSTEEN_BASE;
 
 // ========== STATE ==========
 let port = null, reader = null, writer = null;
@@ -716,8 +722,9 @@ async function handshake(blVersion) {
   readBuffer = [];
 }
 
-/** 根据 MSG_DEV_INFO_RESP 中的 ASCII 设备字符串解析固件主版本，设置全局 calibEepromBase（对齐 armel UVTools2） */
+/** 记录设备信息；山竹校准基址固定为 CALIB_MANGOSTEEN_BASE，不再按版本号切换 */
 function applyCalibBaseFromDeviceInfo(deviceInfoPayload) {
+  calibEepromBase = CALIB_MANGOSTEEN_BASE;
   let asciiLine = '';
   let idx = 0;
   for (; idx < deviceInfoPayload.length; idx++) {
@@ -732,18 +739,8 @@ function applyCalibBaseFromDeviceInfo(deviceInfoPayload) {
   if (asciiLine.length > 0) {
     log(window.t ? window.t('logDeviceInfo') + asciiLine : '设备信息: ' + asciiLine, 'success');
     const versionMatch = asciiLine.match(/v(\d+\.\d+\.\d+)/);
-    if (versionMatch) {
-      const verStr = versionMatch[1];
-      const parts = verStr.split('.');
-      const major = parseInt(parts[0], 10);
-      if (major >= 5) {
-        calibEepromBase = 0xB000;
-        log(window.t ? window.t('logFirmwareCalibBase', {ver: verStr, addr: 'B000'}) : '固件 v' + verStr + '：校准区基址 0xB000', 'info');
-      } else {
-        calibEepromBase = 0x1E00;
-        log(window.t ? window.t('logFirmwareCalibBase', {ver: verStr, addr: '1E00'}) : '固件 v' + verStr + '：校准区基址 0x1E00', 'info');
-      }
-    }
+    const verStr = versionMatch ? versionMatch[1] : '?';
+    log(window.t ? window.t('logFirmwareCalibBase', {ver: verStr, addr: 'B000'}) : '固件 v' + verStr + '：校准区基址 0xB000（山竹固定）', 'info');
     return;
   }
   let hexLine = '';
@@ -753,11 +750,12 @@ function applyCalibBaseFromDeviceInfo(deviceInfoPayload) {
     hexLine += deviceInfoPayload[hi].toString(16).padStart(2, '0').toUpperCase() + ' ';
   }
   log(window.t ? window.t('logDeviceInfoHex') + hexLine : '设备信息(hex): ' + hexLine, 'info');
+  log(window.t ? window.t('logFirmwareCalibBase', {ver: '?', addr: 'B000'}) : '校准区基址 0xB000（山竹固定）', 'info');
 }
 
 /** 导出/恢复校准用：发 DEV_INFO_REQ，等设备应答（运行中的固件协议），不使用 Bootloader 的 NOTIFY 检测 */
 async function requestDeviceInfoForCalib(purpose) {
-  calibEepromBase = 0x1E00;
+  calibEepromBase = CALIB_MANGOSTEEN_BASE;
   const purposeText = purpose || '校准';
   log(window.t ? window.t('logRequestingDeviceInfo', {purpose: purposeText}) : '正在请求设备信息（' + purposeText + '）...', 'info');
   const sessionTimestamp = Date.now() & 0xffffffff;
@@ -1334,7 +1332,8 @@ on('restoreBtn', 'click', async () => {
   ];
 
   var calibOfficialData = null;   // 0x1E00 读取的512字节
-  var calibThirdPartyData = null; // 0xB000 读取的512字节
+  var calibThirdPartyData = null; // 0xB000 读取的512字节（第三方/v5+）
+  var calibMangosteenData = null; // 0xB000 山竹固定校准区
   var calibBackupData = null;     // 备份校准512字节
 
   /** 读取单个校准值 */
@@ -1351,6 +1350,15 @@ on('restoreBtn', 'click', async () => {
     return size === 1 ? buf[off] === 0xFF : (buf[off] | (buf[off + 1] << 8)) === 0xFFFF;
   }
 
+  function appendReadonlyCalibCell(tr, buf, f) {
+    var td = document.createElement('td');
+    var val = readCalibVal(buf, f.offset, f.size, f.signed);
+    var bad = isValInvalid(buf, f.offset, f.size);
+    td.className = 'calib-val' + (val !== null ? '' : ' calib-val--empty') + (bad ? ' calib-val--invalid' : '');
+    td.textContent = val !== null ? String(val) : '--';
+    tr.appendChild(td);
+  }
+
   function renderCalibTable() {
     var tbody = $('calibCheckBody');
     tbody.innerHTML = '';
@@ -1365,21 +1373,9 @@ on('restoreBtn', 'click', async () => {
       tdDesc.title = '0x' + f.offset.toString(16).toUpperCase();
       tr.appendChild(tdDesc);
 
-      // 官方地址列
-      var tdOff = document.createElement('td');
-      var offV = readCalibVal(calibOfficialData, f.offset, f.size, f.signed);
-      var offBad = isValInvalid(calibOfficialData, f.offset, f.size);
-      tdOff.className = 'calib-val' + (offV !== null ? '' : ' calib-val--empty') + (offBad ? ' calib-val--invalid' : '');
-      tdOff.textContent = offV !== null ? String(offV) : '--';
-      tr.appendChild(tdOff);
-
-      // 第三方地址列
-      var tdTp = document.createElement('td');
-      var tpV = readCalibVal(calibThirdPartyData, f.offset, f.size, f.signed);
-      var tpBad = isValInvalid(calibThirdPartyData, f.offset, f.size);
-      tdTp.className = 'calib-val' + (tpV !== null ? '' : ' calib-val--empty') + (tpBad ? ' calib-val--invalid' : '');
-      tdTp.textContent = tpV !== null ? String(tpV) : '--';
-      tr.appendChild(tdTp);
+      appendReadonlyCalibCell(tr, calibOfficialData, f);
+      appendReadonlyCalibCell(tr, calibThirdPartyData, f);
+      appendReadonlyCalibCell(tr, calibMangosteenData, f);
 
       // 备份列（单行输入）
       var tdBackup = document.createElement('td');
@@ -1476,7 +1472,7 @@ on('restoreBtn', 'click', async () => {
     return data;
   }
 
-  // 读取设备校准（两个地址都读）
+  // 读取设备校准（官方 / 第三方 / 山竹）
   on('calibReadDeviceBtn', 'click', async function() {
     if (isRestoring || isDumping) return;
     this.disabled = true;
@@ -1486,12 +1482,12 @@ on('restoreBtn', 'click', async () => {
       if (!port) await connect();
       readBuffer = [];
       await sleep(1000);
-      calibOfficialData = await readCalibFromDevice(0x1E00, '校准检查-官方');
+      calibOfficialData = await readCalibFromDevice(CALIB_OFFICIAL_BASE, '校准检查-官方');
       updateProgress(50);
-      // 需要重新连接以读取第二个地址（设备可能重启或状态变化）
-      // 实际上同一连接可以继续读，只需重置 readBuffer
       readBuffer = [];
-      calibThirdPartyData = await readCalibFromDevice(0xB000, '校准检查-第三方');
+      // 山竹与第三方协议地址同为 0xB000，只读一次填两列
+      calibThirdPartyData = await readCalibFromDevice(CALIB_MANGOSTEEN_BASE, '校准检查-山竹/第三方');
+      calibMangosteenData = calibThirdPartyData;
       updateProgress(100);
       renderCalibTable();
       log(window.t ? window.t('logDeviceCalibrationReadComplete') : '设备校准读取完成', 'success');
@@ -1590,6 +1586,14 @@ on('restoreBtn', 'click', async () => {
     log(window.t ? window.t('logDeviceRebooted') : '设备已重启', 'success');
   }
 
+  function setCalibWriteButtonsDisabled(disabled) {
+    var ids = ['calibWriteOfficialBtn', 'calibWriteThirdPartyBtn', 'calibWriteMangosteenBtn'];
+    ids.forEach(function(id) {
+      var el = $(id);
+      if (el) el.disabled = disabled;
+    });
+  }
+
   // 写入官方地址
   on('calibWriteOfficialBtn', 'click', async function() {
     if (isRestoring || isDumping) return;
@@ -1597,21 +1601,19 @@ on('restoreBtn', 'click', async () => {
       log(window.t ? window.t('logNoBackupCalibrationWrite') : '没有备份校准数据可写入', 'error');
       return;
     }
-    this.disabled = true;
-    $('calibWriteThirdPartyBtn').disabled = true;
+    setCalibWriteButtonsDisabled(true);
     $('progressContainer').style.display = 'block';
     updateProgress(0);
     try {
       if (!port) await connect();
       readBuffer = [];
       await sleep(1000);
-      await writeCalibToAddress(0x1E00, '写入官方');
+      await writeCalibToAddress(CALIB_OFFICIAL_BASE, '写入官方');
       updateProgress(100);
     } catch(e) {
       log(window.t ? window.t('logError', {msg: e.message}) : '错误: ' + e.message, 'error');
     } finally {
-      this.disabled = false;
-      $('calibWriteThirdPartyBtn').disabled = false;
+      setCalibWriteButtonsDisabled(false);
       if (port) await disconnect();
       setTimeout(function() { $('progressContainer').style.display = 'none'; updateProgress(0); }, 800);
     }
@@ -1624,21 +1626,44 @@ on('restoreBtn', 'click', async () => {
       log(window.t ? window.t('logNoBackupCalibrationWrite') : '没有备份校准数据可写入', 'error');
       return;
     }
-    this.disabled = true;
-    $('calibWriteOfficialBtn').disabled = true;
+    setCalibWriteButtonsDisabled(true);
     $('progressContainer').style.display = 'block';
     updateProgress(0);
     try {
       if (!port) await connect();
       readBuffer = [];
       await sleep(1000);
-      await writeCalibToAddress(0xB000, '写入第三方');
+      await writeCalibToAddress(CALIB_THIRD_PARTY_BASE, '写入第三方');
       updateProgress(100);
     } catch(e) {
       log(window.t ? window.t('logError', {msg: e.message}) : '错误: ' + e.message, 'error');
     } finally {
-      this.disabled = false;
-      $('calibWriteOfficialBtn').disabled = false;
+      setCalibWriteButtonsDisabled(false);
+      if (port) await disconnect();
+      setTimeout(function() { $('progressContainer').style.display = 'none'; updateProgress(0); }, 800);
+    }
+  });
+
+  // 写入山竹地址（固定 0xB000）
+  on('calibWriteMangosteenBtn', 'click', async function() {
+    if (isRestoring || isDumping) return;
+    if (!calibBackupData && !$('calibCheckBody').querySelector('input[data-offset]')) {
+      log(window.t ? window.t('logNoBackupCalibrationWrite') : '没有备份校准数据可写入', 'error');
+      return;
+    }
+    setCalibWriteButtonsDisabled(true);
+    $('progressContainer').style.display = 'block';
+    updateProgress(0);
+    try {
+      if (!port) await connect();
+      readBuffer = [];
+      await sleep(1000);
+      await writeCalibToAddress(CALIB_MANGOSTEEN_BASE, '写入山竹');
+      updateProgress(100);
+    } catch(e) {
+      log(window.t ? window.t('logError', {msg: e.message}) : '错误: ' + e.message, 'error');
+    } finally {
+      setCalibWriteButtonsDisabled(false);
       if (port) await disconnect();
       setTimeout(function() { $('progressContainer').style.display = 'none'; updateProgress(0); }, 800);
     }

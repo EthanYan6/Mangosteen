@@ -1536,6 +1536,7 @@ html.theme-light .calib-check-modal__backdrop {
   justify-content: center;
   gap: 12px;
   margin-top: 14px;
+  flex-wrap: wrap;
 }
 .calib-check-modal__actions button {
   width: auto;

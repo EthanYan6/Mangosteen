@@ -113,7 +113,7 @@
       'downloadCalib': '下载 calibration.dat',
       
       // Restore calibration tab
-      'restoreWarning': '⚠️ 恢复前同样需正常开机进入使用界面后再连接 USB；写入完成后设备会自动重启。请使用与本机固件版本匹配的备份文件（512 字节）。',
+      'restoreWarning': '⚠️ 恢复前同样需正常开机进入使用界面后再连接 USB；写入完成后设备会自动重启。山竹校准固定写入 0xB000，请使用本站或兼容格式的备份文件（512 字节）。',
       'selectCalibFile': '选择校准备份文件 (.dat)',
       'restoreCalib': '恢复校准',
       
@@ -122,6 +122,7 @@
       'calibCheckDesc': '校准解读',
       'calibCheckOffical': '官方/v4+ 校准地址(0x1E00)',
       'calibCheckThird': '第三方固件/v5+ 校准地址(0xB000)',
+      'calibCheckMangosteen': '山竹校准地址(0xB000)',
       'calibCheckBackup': '备份校准',
       'calibCheckConfirm': '确认恢复',
       'calibCheckCancel': '取消',
@@ -130,6 +131,7 @@
       'calibExportBackup': '导出备份校准',
       'calibWriteOfficial': '写入官方地址',
       'calibWriteThirdParty': '写入第三方地址',
+      'calibWriteMangosteen': '写入山竹地址',
       
       // Flash device warning modal
       'flashWarningTitle': '刷机前请确认设备型号',
@@ -541,7 +543,7 @@
       'downloadCalib': 'Download calibration.dat',
       
       // Restore calibration tab
-      'restoreWarning': '⚠️ Same as restore, enter normal usage interface first before connecting USB; device auto-reboots after write. Use backup file matching firmware version (512 bytes).',
+      'restoreWarning': '⚠️ Same as restore, enter normal usage interface first before connecting USB; device auto-reboots after write. Mangosteen always writes calib to 0xB000; use a backup from this site or a compatible 512-byte file.',
       'selectCalibFile': 'Select calibration backup file (.dat)',
       'restoreCalib': 'Restore Calibration',
       
@@ -550,6 +552,7 @@
       'calibCheckDesc': 'Calibration Interpretation',
       'calibCheckOffical': 'Official/v4+ Calib Addr(0x1E00)',
       'calibCheckThird': 'Third-party/v5+ Calib Addr(0xB000)',
+      'calibCheckMangosteen': 'Mangosteen (0xB000)',
       'calibCheckBackup': 'Backup Calibration',
       'calibCheckConfirm': 'Confirm Restore',
       'calibCheckCancel': 'Cancel',
@@ -558,6 +561,7 @@
       'calibExportBackup': 'Export Backup Calibration',
       'calibWriteOfficial': 'Write to Official Address',
       'calibWriteThirdParty': 'Write to Third-party Address',
+      'calibWriteMangosteen': 'Write to Mangosteen Address',
       
       // Flash device warning modal
       'flashWarningTitle': 'Confirm Device Model Before Flashing',
