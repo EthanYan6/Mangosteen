@@ -1942,6 +1942,18 @@ void APP_TimeSlice500ms(void)
         }
     }
 
+    if (gYanId_RX_timeout > 0)
+    {
+        if (--gYanId_RX_timeout == 0)
+        {
+            if (gYanId_RX[0] != 0)
+            {
+                gYanId_RX[0] = 0;
+                gUpdateDisplay = true;
+            }
+        }
+    }
+
     if (gMenuCountdown > 0)
         if (--gMenuCountdown == 0)
             exit_menu = (gScreenToDisplay == DISPLAY_MENU); // exit menu mode

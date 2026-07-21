@@ -98,6 +98,7 @@ enum
     MENU_D_LIVE_DEC,
     MENU_PONMSG,
     MENU_ROGER,
+    MENU_YAN_ID,
     MENU_VOL,
     MENU_BAT_TXT,
     MENU_AM,
@@ -237,7 +238,7 @@ extern const char* const gSubMenu_PTT_ID[5];
     extern const char* const        gSubMenu_PONMSG[4];
 #endif
 
-extern const char* const            gSubMenu_ROGER[3];
+extern const char* const            gSubMenu_ROGER[4];
 extern const char* const            gSubMenu_RESET[2];
 extern const char* const            gSubMenu_F_LOCK[F_LOCK_LEN];
 extern const char* const            gSubMenu_RX_TX[4];

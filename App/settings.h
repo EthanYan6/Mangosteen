@@ -159,9 +159,12 @@ typedef enum ALARM_Mode_t ALARM_Mode_t;
 enum ROGER_Mode_t {
     ROGER_MODE_OFF = 0,
     ROGER_MODE_ROGER,
-    ROGER_MODE_MDC
+    ROGER_MODE_MDC,
+    ROGER_MODE_YAN_ID
 };
 typedef enum ROGER_Mode_t ROGER_Mode_t;
+
+#define YAN_ID_LEN 6
 
 enum CHANNEL_DisplayMode_t {
     MDF_FREQUENCY = 0,
@@ -307,6 +310,7 @@ typedef struct {
 #endif
     uint8_t               BACKLIGHT_MAX;
     BATTERY_Type_t        BATTERY_TYPE;
+    char                  yan_id[YAN_ID_LEN + 1];
 #ifdef ENABLE_RSSI_BAR
     uint8_t               S0_LEVEL;
     uint8_t               S9_LEVEL;

@@ -117,6 +117,12 @@ uint8_t MSG_PACKET_BuildPing(uint8_t *out, uint8_t out_len, uint16_t id, const c
     return build_control(out, out_len, MSG_PKT_TYPE_PING, id, from, MSG_PKT_TO_ALL);
 }
 
+uint8_t MSG_PACKET_BuildYanId(uint8_t *out, uint8_t out_len, uint16_t id, const char *from)
+{
+    /* Dedicated type so Messenger TEXT/ACK/PING/PONG paths never treat this as SMS. */
+    return build_control(out, out_len, MSG_PKT_TYPE_YAN_ID, id, from, MSG_PKT_TO_ALL);
+}
+
 uint8_t MSG_PACKET_BuildPong(uint8_t *out, uint8_t out_len, uint16_t id, const char *from, const char *to, uint16_t battery_cv)
 {
     uint8_t n = build_control(out, out_len, MSG_PKT_TYPE_PONG, id, from, to && to[0] ? to : MSG_PKT_TO_ALL);

@@ -1246,7 +1246,8 @@ static bool parse_aircopy_native_packet(MSG_Packet_t *pkt)
             bytes[2] != MSG_PKT_MAGIC2 || bytes[3] != MSG_PKT_MAGIC3) continue;
         if (bytes[4] != MSG_PKT_VERSION) continue;
         if (bytes[5] != MSG_PKT_TYPE_TEXT && bytes[5] != MSG_PKT_TYPE_ACK &&
-            bytes[5] != MSG_PKT_TYPE_PING && bytes[5] != MSG_PKT_TYPE_PONG) continue;
+            bytes[5] != MSG_PKT_TYPE_PING && bytes[5] != MSG_PKT_TYPE_PONG &&
+            bytes[5] != MSG_PKT_TYPE_YAN_ID) continue;
         if (bytes[27] > MSG_RF_TEXT_LIMIT) continue;
 
         const uint16_t got = (uint16_t)bytes[MSG_PKT_WIRE_LEN - 2u] |
@@ -1267,7 +1268,8 @@ static bool parse_aircopy_native_packet(MSG_Packet_t *pkt)
         pkt->payload_len = bytes[27];
         memcpy(pkt->payload, &bytes[28], pkt->payload_len);
         pkt->payload[pkt->payload_len] = 0;
-        if (pkt->type == MSG_PKT_TYPE_ACK || pkt->type == MSG_PKT_TYPE_PING || pkt->type == MSG_PKT_TYPE_PONG) return true;
+        if (pkt->type == MSG_PKT_TYPE_ACK || pkt->type == MSG_PKT_TYPE_PING ||
+            pkt->type == MSG_PKT_TYPE_PONG || pkt->type == MSG_PKT_TYPE_YAN_ID) return true;
         return pkt->payload[0] != 0;
     }
 
@@ -1421,6 +1423,24 @@ static void try_store_rx_packet(void)
 #if MSG_RF_HAS_FSK_PATH
     MSG_Packet_t pkt;
     if (!parse_aircopy_native_packet(&pkt)) return;
+
+    if (pkt.type == MSG_PKT_TYPE_YAN_ID) {
+        /* Display-only ID burst — never Inbox / HEARD / ACK / range. */
+        if (s_ignore_next_self_rx) {
+            s_ignore_next_self_rx = false;
+            MSG_RF_FinishRxAttempt(false);
+            return;
+        }
+        if (pkt.from[0] != 0) {
+            memset(gYanId_RX, 0, sizeof(gYanId_RX));
+            strncpy(gYanId_RX, pkt.from, YAN_ID_LEN);
+            gYanId_RX[YAN_ID_LEN] = 0;
+            gYanId_RX_timeout = YanId_RX_timeout_500ms;
+            gUpdateDisplay = true;
+        }
+        MSG_RF_FinishRxAttempt(false);
+        return;
+    }
 
     if (pkt.type == MSG_PKT_TYPE_PING) {
         MSG_HeardUpdate(pkt.from, MSG_RF_CurrentRSSIdBm(), MSG_PKT_TYPE_PING);
@@ -1630,6 +1650,21 @@ bool MSG_RF_SendRangePing(void)
     MSG_RF_RequestControlledReprime(1u);
     gUpdateDisplay = true;
     return true;
+#else
+    return false;
+#endif
+}
+
+bool MSG_RF_SendYanId(void)
+{
+    if (gEeprom.yan_id[0] == 0)
+        return false;
+#if MSG_RF_HAS_FSK_PATH
+    uint8_t packet[MSG_PKT_WIRE_LEN];
+    if (MSG_PACKET_BuildYanId(packet, sizeof(packet), 0, gEeprom.yan_id) != MSG_PKT_WIRE_LEN)
+        return false;
+    /* count_tx=false: do not pollute messenger TX stats; ignore_self_rx=true */
+    return MSG_RF_SendPacketFrame(packet, false, true);
 #else
     return false;
 #endif

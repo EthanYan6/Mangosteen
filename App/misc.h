@@ -98,6 +98,9 @@ extern const uint8_t         menu_timeout_500ms;
 extern const uint16_t        menu_timeout_long_500ms;
 
 extern const uint8_t         DTMF_RX_live_timeout_500ms;
+extern const uint8_t         YanId_RX_timeout_500ms;
+extern char                  gYanId_RX[7];
+extern uint8_t               gYanId_RX_timeout;
 #ifdef ENABLE_DTMF_CALLING
 extern const uint8_t         DTMF_RX_timeout_500ms;
 extern const uint8_t         DTMF_decode_ring_countdown_500ms;

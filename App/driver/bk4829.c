@@ -1857,6 +1857,11 @@ void BK4819_PlayRoger(BK4819_FilterBandwidth_t Bandwidth)
         BK4819_PlayRogerNormal(Bandwidth);
     } else if (gEeprom.ROGER == ROGER_MODE_MDC) {
         BK4819_PlayRogerMDC();
+#ifdef ENABLE_MESSENGER
+    } else if (gEeprom.ROGER == ROGER_MODE_YAN_ID) {
+        extern bool MSG_RF_SendYanId(void);
+        (void)MSG_RF_SendYanId();
+#endif
     }
 }
 

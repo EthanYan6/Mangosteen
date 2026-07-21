@@ -493,6 +493,9 @@ int MENU_GetLimits(uint8_t menu_id, int32_t *pMin, int32_t *pMax)
             *pMax = 2;
             break;
 #endif
+        case MENU_YAN_ID:
+            *pMax = 0;
+            break;
 
         case MENU_VOL: {
             // SysInf paginates: 
@@ -577,6 +580,29 @@ void MENU_AcceptSetting(void)
         case MENU_MSG_DEBUG:
             gMessengerConfig.msg_debug = gSubMenuSelection; MSG_STORE_SaveConfig(); break;
 #endif
+        case MENU_YAN_ID:
+            if (edit_index >= 0)
+            {
+                char yan[YAN_ID_LEN + 1];
+                uint8_t j = 0;
+                memset(yan, 0, sizeof(yan));
+                for (uint8_t i = 0; i < YAN_ID_LEN && edit[i]; i++) {
+                    char c = edit[i];
+                    if (c == ' ')
+                        continue;
+                    if (c >= 'a' && c <= 'z')
+                        c = (char)(c - 32);
+                    if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+                        yan[j++] = c;
+                        if (j >= YAN_ID_LEN)
+                            break;
+                    }
+                }
+                strncpy(gEeprom.yan_id, yan, YAN_ID_LEN);
+                gEeprom.yan_id[YAN_ID_LEN] = 0;
+                gRequestSaveSettings = 1;
+            }
+            break;
 
         case MENU_SQL:
             gEeprom.SQUELCH_LEVEL = gSubMenuSelection;
@@ -1164,6 +1190,9 @@ void MENU_ShowCurrentSetting(void)
         case MENU_MSG_DEBUG:
             MSG_STORE_Init(); gSubMenuSelection = gMessengerConfig.msg_debug; break;
 #endif
+        case MENU_YAN_ID:
+            gSubMenuSelection = 0;
+            break;
 
         case MENU_SQL:
             gSubMenuSelection = gEeprom.SQUELCH_LEVEL;
@@ -1638,6 +1667,8 @@ static bool MENU_IsTextEditMenuItemId(const int m)
 {
     if (m == MENU_MEM_NAME)
         return true;
+    if (m == MENU_YAN_ID)
+        return true;
 #ifdef ENABLE_MESSENGER
     if (m == MENU_MSG_CSG)
         return true;
@@ -1647,6 +1678,8 @@ static bool MENU_IsTextEditMenuItemId(const int m)
 
 static uint8_t MENU_TextEditMaxLen(void)
 {
+    if (UI_MENU_GetCurrentMenuId() == MENU_YAN_ID)
+        return YAN_ID_LEN;
 #ifdef ENABLE_MESSENGER
     if (UI_MENU_GetCurrentMenuId() == MENU_MSG_CSG)
         return MSG_CALLSIGN_EDIT_LEN;
@@ -2014,6 +2047,11 @@ static void MENU_Key_MENU(const bool bKeyPressed, const bool bKeyHeld)
                     return;
 
                 SETTINGS_FetchChannelName(edit, gSubMenuSelection);
+            }
+            else if (UI_MENU_GetCurrentMenuId() == MENU_YAN_ID)
+            {
+                memset(edit, 0, sizeof(edit));
+                strncpy(edit, gEeprom.yan_id, YAN_ID_LEN);
             }
 #ifdef ENABLE_MESSENGER
             else if (UI_MENU_GetCurrentMenuId() == MENU_MSG_CSG)

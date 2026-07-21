@@ -106,6 +106,7 @@ const t_menu_item MenuList[] =
     {"Voice",       MENU_VOICE         },
 #endif
     {"Roger",       MENU_ROGER         },
+    {"Yan ID",      MENU_YAN_ID        },
     {"STE",         MENU_STE           },
     {"RP STE",      MENU_RP_STE        },
     {"1 Call",      MENU_1_CALL        },
@@ -334,7 +335,8 @@ const char* const gSubMenu_ROGER[] =
 {
     "OFF",
     "ROGER",
-    "MDC"
+    "MDC",
+    "YAN ID"
 };
 
 const char* const gSubMenu_RESET[] =
@@ -1098,13 +1100,17 @@ static void UI_MENU_DrawListStyle(const char *current_value)
             edit_len   = 10;
         }
 #ifdef ENABLE_MESSENGER
-        /* MSG_CSG edit path does not always refresh String with the live buffer. */
         else if (edit_index >= 0 && cur_id == MENU_MSG_CSG) {
             card_value = edit;
             text_edit  = true;
             edit_len   = MSG_CALLSIGN_EDIT_LEN;
         }
 #endif
+        else if (edit_index >= 0 && cur_id == MENU_YAN_ID) {
+            card_value = edit;
+            text_edit  = true;
+            edit_len   = YAN_ID_LEN;
+        }
         UI_MENU_DrawEditCard(MenuList[save_cur].name, card_value, text_edit, edit_len);
     }
 
@@ -1480,6 +1486,48 @@ void UI_DisplayMenu(void)
             else strcpy(String, "YELLOW");
             break;
 #endif
+
+        case MENU_YAN_ID:
+            if (!gIsInSubMenu)
+                edit_index = -1;
+            if (edit_index < 0)
+            {
+                strncpy(String, gEeprom.yan_id, YAN_ID_LEN + 1);
+                String[YAN_ID_LEN] = 0;
+                UI_PrintString(String[0] ? String : "--", menu_item_x1, menu_item_x2, 2, 8);
+            }
+            else
+            {
+                UI_PrintString(edit, menu_item_x1, menu_item_x2, 2, 8);
+                if (edit_index < YAN_ID_LEN)
+                {
+                    const uint8_t edit_len = YAN_ID_LEN;
+                    uint8_t x = menu_item_x1;
+                    if (menu_item_x2 > menu_item_x1)
+                    {
+                        x = menu_item_x1 + (uint8_t)((((menu_item_x2 - menu_item_x1) - (edit_len * 8)) + 1) / 2);
+                    }
+                    if (x > 0) x--;
+
+                    for (uint8_t i = 0; i < edit_len; i++)
+                    {
+                        if (i != edit_index)
+                        {
+                            if (edit[i] != 'g' && edit[i] != 'j')
+                                UI_DrawLineBuffer(gFrameBuffer, x, 29, x + 6, 29, 1);
+                        }
+                        else
+                        {
+                            UI_DrawLineBuffer(gFrameBuffer, x + 2, 30, x + 4, 30, 1);
+                            UI_DrawPixelBuffer(gFrameBuffer, x + 3, 29, 1);
+                        }
+                        x += 8;
+                    }
+                    UI_PrintStringSmallNormal(edit_is_uppercase ? "ABC" : "abc", 77, 0, 4);
+                }
+            }
+            already_printed = true;
+            break;
 
         case MENU_MEM_CH:
         case MENU_1_CALL:
