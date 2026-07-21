@@ -27,7 +27,7 @@
       'loadingProgress': '0%',
       
       // Top marquee
-      'marqueeText': '📻 共有 {uv} 位 Ham 访问过本网站，今日与你一起刷机的有 {today_uv} 人 📻',
+      'marqueeText': '🍇 共有 {uv} 位 Ham 访问过本网站，今日与你一起刷机的有 {today_uv} 人 🍇',
       
       // Header buttons
       'helpDoc': '帮助文档',
@@ -457,7 +457,7 @@
       'loadingProgress': '0%',
       
       // Top marquee
-      'marqueeText': '📻 Total {uv} Hams visited this site, {today_uv} flashing with you today 📻',
+      'marqueeText': '🍇 Total {uv} Hams visited this site, {today_uv} flashing with you today 🍇',
       
       // Header buttons
       'helpDoc': 'Help',
