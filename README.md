@@ -43,6 +43,7 @@ Mangosteen 基于 [armel/uv-k1-k5v3-firmware-custom](https://github.com/armel/uv
 | **设置菜单** | 列表式大字菜单 + 单项编辑卡片 |
 | **消息提示** | 键盘锁定、禁止发射等统一弹出提示 |
 | **FSK 短信** | 与 GOGUFW Messenger 互通（`GGM2`），含 HEARD / Range Check |
+| **Yan ID** | 松手尾音发呼号；对方主页显示 `CALL SIGN:`（双方均需本固件） |
 
 ---
 
@@ -91,6 +92,33 @@ Mangosteen 基于 [armel/uv-k1-k5v3-firmware-custom](https://github.com/armel/uv
 相关菜单项：MsgRx、MsgCsg（呼号）、MsgAck、MsgBep、MsgLed、RngRsp、MsgHop 等。
 
 配置与草稿保存在 Flash `0x012000`；收件箱 / 已发送仅在 RAM，断电清空。为给短信让出 FSK，默认关闭 AirCopy 界面、BEAM 与小游戏。
+
+### Yan ID 呼号尾音（使用手册）
+
+两台都刷了 Mangosteen 后，可在松手结束发射时用 FSK 发出自己的呼号；对方主页 DTMF 行优先显示 `CALL SIGN:` + 呼号（约数秒后消失）。与 Messenger 短信呼号（`MsgCsg`）分开存储，互不影响。
+
+**双方都要设置：**
+
+| 步骤 | 菜单项 | 怎么设 |
+|:---:|--------|--------|
+| 1 | **MsgRx** | 设为 **ON**（打开 FSK 后台接收；关则收不到 Yan ID / 短信） |
+| 2 | **Yan ID** | 输入自己的呼号：字母 + 数字，最多 **6** 位（空则不会发射） |
+| 3 | **Roger** | 选 **YAN ID**（尾音发呼号；选 OFF / ROGER / MDC 则不发 Yan ID） |
+
+**使用：**
+
+1. 两台同频、能正常对讲。
+2. 按上表设好 MsgRx、Yan ID、Roger。
+3. 按 PTT 说话，**松手**后发送端发出 FSK 呼号包。
+4. 接收端主页应出现 `CALL SIGN:你的呼号`。
+
+**建议自检：** 先确认 Messenger 短信能互通（证明 FSK 正常），再测 Yan ID。若短信也收不到，先查 MsgRx 是否打开、是否同频。
+
+**说明：**
+
+- 仅 Mangosteen ↔ Mangosteen；原厂或其它固件无法解析显示。
+- Yan ID 包不会进短信收件箱，也不会进 HEARD。
+- Yan ID 为空却选了 Roger=`YAN ID` 时，等同尾音关闭，不发任何 roger。
 
 ---
 
