@@ -150,6 +150,15 @@ enum ACTION_OPT_t {
     typedef enum VOICE_Prompt_t VOICE_Prompt_t;
 #endif
 
+enum UI_Language_t {
+    UI_LANGUAGE_EN = 0,
+    UI_LANGUAGE_CN = 1
+};
+typedef enum UI_Language_t UI_Language_t;
+/* Second EEPROM byte at 0x00A170 must match, else treat as unset → English. */
+#define UI_LANGUAGE_MAGIC 0xA5u
+extern uint8_t gUiLanguage;
+
 enum ALARM_Mode_t {
     ALARM_MODE_SITE = 0,
     ALARM_MODE_TONE

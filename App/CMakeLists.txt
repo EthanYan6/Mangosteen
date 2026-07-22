@@ -46,6 +46,8 @@ target_sources(App INTERFACE
     ui/inputbox.c
     ui/main.c
     ui/menu.c
+    ui/menu_lang.c
+    ui/menu_sub_values_cn.c
     ui/scanner.c
     ui/status.c
     ui/ui.c

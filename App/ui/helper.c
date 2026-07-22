@@ -17,12 +17,20 @@
 #include <string.h>
 
 #include "driver/st7565.h"
+#include "driver/py25q16.h"
 #include "external/printf/printf.h"
 #include "font.h"
 #include "ui/helper.h"
 #include "ui/inputbox.h"
 #include "misc.h"
 #include "settings.h"
+
+#ifndef FLASH_FONT16_BASE
+#define FLASH_FONT16_BASE  0x0A0000u
+#define FLASH_FONT8_BASE   0x0E0000u
+#define FONT16_SIZE        32u
+#define FONT8_SIZE         8u
+#endif
 
 
 void UI_GenerateChannelString(char *pString, const uint16_t Channel)
@@ -71,11 +79,30 @@ void UI_PrintStringBuffer(const char *pString, uint8_t * buffer, uint32_t char_w
 {
     const size_t Length = strlen(pString);
     const unsigned int char_spacing = char_width + 1;
+    uint32_t cur = 1;
+
     for (size_t i = 0; i < Length; i++) {
-        const unsigned int index = pString[i] - ' ' - 1;
-        if (pString[i] > ' ' && pString[i] < 127) {
-            const uint32_t offset = i * char_spacing + 1;
-            memcpy(buffer + offset, font + index * char_width, char_width);
+        const uint8_t c = (uint8_t)pString[i];
+
+        if (c >= 0xA1 && c <= 0xF7 && (i + 1) < Length) {
+            const uint8_t lo = (uint8_t)pString[i + 1];
+            if (lo >= 0xA1 && lo <= 0xFE) {
+                const uint32_t idx = (uint32_t)(c - 0xA1) * 94u + (lo - 0xA1);
+                uint8_t cnDot[FONT8_SIZE];
+                PY25Q16_ReadBuffer(FLASH_FONT8_BASE + idx * FONT8_SIZE, cnDot, FONT8_SIZE);
+                memcpy(buffer + cur, cnDot, FONT8_SIZE);
+                cur += FONT8_SIZE;
+                i++;
+                continue;
+            }
+        }
+
+        if (c > ' ' && c < 127) {
+            const unsigned int index = c - ' ' - 1;
+            memcpy(buffer + cur, font + index * char_width, char_width);
+            cur += char_spacing;
+        } else if (c == ' ') {
+            cur += char_spacing;
         }
     }
 }
@@ -84,18 +111,52 @@ void UI_PrintString(const char *pString, uint8_t Start, uint8_t End, uint8_t Lin
 {
     size_t i;
     size_t Length = strlen(pString);
+    uint8_t cur = Start;
 
-    if (End > Start)
-        Start += (((End - Start) - (Length * Width)) + 1) / 2;
+    /* Approximate center using ASCII-width units (CN counts as 2 Width units). */
+    if (End > Start) {
+        unsigned units = 0;
+        for (i = 0; i < Length; ) {
+            const uint8_t c = (uint8_t)pString[i];
+            if (c >= 0xA1 && c <= 0xF7 && (i + 1) < Length &&
+                (uint8_t)pString[i + 1] >= 0xA1 && (uint8_t)pString[i + 1] <= 0xFE) {
+                units += 2;
+                i += 2;
+            } else {
+                units += 1;
+                i++;
+            }
+        }
+        Start += (uint8_t)((((End - Start) - (units * Width)) + 1) / 2);
+        cur = Start;
+    }
 
     for (i = 0; i < Length; i++)
     {
-        const unsigned int ofs   = (unsigned int)Start + (i * Width);
-        if (pString[i] > ' ' && pString[i] < 127)
+        const uint8_t c = (uint8_t)pString[i];
+
+        if (c >= 0xA1 && c <= 0xF7 && (i + 1) < Length) {
+            const uint8_t lo = (uint8_t)pString[i + 1];
+            if (lo >= 0xA1 && lo <= 0xFE) {
+                const uint32_t idx = (uint32_t)(c - 0xA1) * 94u + (lo - 0xA1);
+                uint8_t cnDot[FONT16_SIZE];
+                PY25Q16_ReadBuffer(FLASH_FONT16_BASE + idx * FONT16_SIZE, cnDot, FONT16_SIZE);
+                memcpy(gFrameBuffer[Line + 0] + cur, cnDot + 0, 16);
+                memcpy(gFrameBuffer[Line + 1] + cur, cnDot + 16, 16);
+                cur = (uint8_t)(cur + 16);
+                i++;
+                continue;
+            }
+        }
+
+        if (c > ' ' && c < 127)
         {
-            const unsigned int index = pString[i] - ' ' - 1;
-            memcpy(gFrameBuffer[Line + 0] + ofs, &gFontBig[index][0], 7);
-            memcpy(gFrameBuffer[Line + 1] + ofs, &gFontBig[index][7], 7);
+            const unsigned int index = c - ' ' - 1;
+            memcpy(gFrameBuffer[Line + 0] + cur, &gFontBig[index][0], 7);
+            memcpy(gFrameBuffer[Line + 1] + cur, &gFontBig[index][7], 7);
+            cur = (uint8_t)(cur + Width);
+        } else if (c == ' ') {
+            cur = (uint8_t)(cur + Width);
         }
     }
 }

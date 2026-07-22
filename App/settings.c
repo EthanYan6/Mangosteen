@@ -29,6 +29,7 @@
 #include "ui/menu.h"
 
 EEPROM_Config_t gEeprom = { 0 };
+uint8_t gUiLanguage = UI_LANGUAGE_EN;
 
 // Load a DTMF code from EEPROM, falling back to default_val if invalid.
 static void SETTINGS_LoadEepromDtmf(uint32_t addr, char *dest, size_t size, const char *default_val)
@@ -282,6 +283,17 @@ gEeprom.FreqChannel[1]   = IS_FREQ_CHANNEL(Data16[5]) ? Data16[5] : (FREQ_CHANNE
     #ifdef ENABLE_VOICE
     gEeprom.VOICE_PROMPT = (Data[0] < 3) ? Data[0] : VOICE_PROMPT_ENGLISH;
     #endif
+    {
+        /* Only accept a language previously saved by this firmware.
+         * Bare 0/1 at 0x00A170 is common leftover (Dondji / erased-ish data)
+         * and must not force Chinese after a fresh MCU flash. */
+        uint8_t langBuf[2] = { UI_LANGUAGE_EN, 0 };
+        PY25Q16_ReadBuffer(0x00A170, langBuf, sizeof(langBuf));
+        if (langBuf[1] == UI_LANGUAGE_MAGIC && langBuf[0] < 2u)
+            gUiLanguage = langBuf[0];
+        else
+            gUiLanguage = UI_LANGUAGE_EN;
+    }
     #ifdef ENABLE_RSSI_BAR
         for (uint8_t i = 0; i < 7; i++) {
             int8_t val = (int8_t)Data[i + 1];
@@ -1183,6 +1195,13 @@ void SETTINGS_SaveSettings(void)
     /* DTMF UP / DOWN codes (loaded from 0x00A0F8+0x18 / +0x28) */
     PY25Q16_WriteBuffer(0x00A0F8 + 0x18, gEeprom.DTMF_UP_CODE, sizeof(gEeprom.DTMF_UP_CODE), false);
     PY25Q16_WriteBuffer(0x00A0F8 + 0x28, gEeprom.DTMF_DOWN_CODE, sizeof(gEeprom.DTMF_DOWN_CODE), false);
+
+    {
+        uint8_t langBuf[2];
+        langBuf[0] = gUiLanguage & 1u;
+        langBuf[1] = UI_LANGUAGE_MAGIC;
+        PY25Q16_WriteBuffer(0x00A170, langBuf, sizeof(langBuf), false);
+    }
 }
 
 void SETTINGS_SaveChannel(uint16_t Channel, uint8_t VFO, const VFO_Info_t *pVFO, uint8_t Mode)

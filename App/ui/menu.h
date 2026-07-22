@@ -31,6 +31,7 @@ typedef struct __attribute__((packed)) {
 enum
 {
     MENU_SQL = 0,
+    MENU_LANGUAGE,
     MENU_STEP,
     MENU_TXP,
     MENU_R_DCS,
@@ -268,6 +269,10 @@ extern char              edit_original[17];
 extern char              edit[17];
 extern int               edit_index;
 extern bool              edit_is_uppercase;
+
+const char *UI_MENU_GetMenuTitle(const t_menu_item *item);
+const char *UI_MENU_GetHeaderTitle(void);
+const char *UI_MENU_GetSideFunctionName(uint8_t index);
 
 void UI_DisplayMenu(void);
 int UI_MENU_GetCurrentMenuId();

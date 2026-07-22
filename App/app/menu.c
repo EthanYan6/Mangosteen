@@ -124,6 +124,11 @@ int MENU_GetLimits(uint8_t menu_id, int32_t *pMin, int32_t *pMax)
             *pMax = 9;
             break;
 
+        case MENU_LANGUAGE:
+            //*pMin = 0;
+            *pMax = 1;
+            break;
+
         case MENU_STEP:
             //*pMin = 0;
             *pMax = STEP_N_ELEM - 1;
@@ -612,6 +617,11 @@ void MENU_AcceptSetting(void)
                 gEeprom.yan_id[YAN_ID_LEN] = 0;
                 gRequestSaveSettings = 1;
             }
+            break;
+
+        case MENU_LANGUAGE:
+            gUiLanguage = (uint8_t)gSubMenuSelection & 1u;
+            gRequestSaveSettings = 1;
             break;
 
         case MENU_SQL:
@@ -1225,6 +1235,10 @@ void MENU_ShowCurrentSetting(void)
 #endif
         case MENU_YAN_ID:
             gSubMenuSelection = 0;
+            break;
+
+        case MENU_LANGUAGE:
+            gSubMenuSelection = gUiLanguage;
             break;
 
         case MENU_SQL:
