@@ -920,14 +920,20 @@ static void UI_MENU_DrawEditCard(const char *title, const char *value, bool text
             }
         }
 
-        UI_MENU_PrintSmallAtY(edit_is_uppercase ? "ABC" : "abc",
-                              (uint8_t)(x1 + 2), (uint8_t)(x2 - 1),
-                              (uint8_t)(val_y + 10u), 8);
-        shown = 0; /* confirm uses absolute offset below */
-        if (confirm) {
-            const char *msg = (gAskForConfirmation == 1) ? "SURE?" : "WAIT!";
-            UI_MENU_PrintSmallAtY(msg, (uint8_t)(x1 + 2), (uint8_t)(x2 - 1),
-                                  (uint8_t)(val_y + 18u), 8);
+        {
+            const int  mid       = UI_MENU_GetCurrentMenuId();
+            const bool hide_case = (mid == MENU_UPCODE || mid == MENU_DWCODE);
+            if (!hide_case) {
+                UI_MENU_PrintSmallAtY(edit_is_uppercase ? "ABC" : "abc",
+                                      (uint8_t)(x1 + 2), (uint8_t)(x2 - 1),
+                                      (uint8_t)(val_y + 10u), 8);
+            }
+            shown = 0; /* confirm uses absolute offset below */
+            if (confirm) {
+                const char *msg = (gAskForConfirmation == 1) ? "SURE?" : "WAIT!";
+                UI_MENU_PrintSmallAtY(msg, (uint8_t)(x1 + 2), (uint8_t)(x2 - 1),
+                                      (uint8_t)(val_y + (hide_case ? 10u : 18u)), 8);
+            }
         }
         return;
     } else {
@@ -1110,6 +1116,11 @@ static void UI_MENU_DrawListStyle(const char *current_value)
             card_value = edit;
             text_edit  = true;
             edit_len   = YAN_ID_LEN;
+        }
+        else if (edit_index >= 0 && (cur_id == MENU_UPCODE || cur_id == MENU_DWCODE)) {
+            card_value = edit;
+            text_edit  = true;
+            edit_len   = 16;
         }
         UI_MENU_DrawEditCard(MenuList[save_cur].name, card_value, text_edit, edit_len);
     }

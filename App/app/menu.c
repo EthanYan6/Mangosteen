@@ -498,6 +498,11 @@ int MENU_GetLimits(uint8_t menu_id, int32_t *pMin, int32_t *pMax)
             *pMax = 0;
             break;
 
+        case MENU_UPCODE:
+        case MENU_DWCODE:
+            *pMax = 0;
+            break;
+
         case MENU_VOL: {
             // SysInf paginates: 
             // page 0 = identity, 
@@ -727,6 +732,29 @@ void MENU_AcceptSetting(void)
             }
 
             SETTINGS_SaveChannelName(gSubMenuSelection, edit);
+            return;
+
+        case MENU_UPCODE:
+        case MENU_DWCODE:
+            if (edit_index >= 0)
+            {
+                char buf[16];
+                memset(buf, 0, sizeof(buf));
+                memcpy(buf, edit, sizeof(buf));
+                for (int i = (int)sizeof(buf) - 1; i >= 0; i--) {
+                    if (buf[i] == ' ' || buf[i] == 0x00 || (uint8_t)buf[i] == 0xff)
+                        buf[i] = 0;
+                    else
+                        break;
+                }
+                if (!DTMF_ValidateCodes(buf, sizeof(buf)))
+                    return;
+                if (UI_MENU_GetCurrentMenuId() == MENU_UPCODE)
+                    memcpy(gEeprom.DTMF_UP_CODE, buf, sizeof(gEeprom.DTMF_UP_CODE));
+                else
+                    memcpy(gEeprom.DTMF_DOWN_CODE, buf, sizeof(gEeprom.DTMF_DOWN_CODE));
+                gRequestSaveSettings = true;
+            }
             return;
 
         case MENU_S_PRI_CH_1:
@@ -1668,11 +1696,18 @@ static const char* const char_map[10] = {
     "wxyz9"                         // KEY_9
 };
 
+static bool MENU_IsDtmfCodeEditMenuItemId(const int m)
+{
+    return m == MENU_UPCODE || m == MENU_DWCODE;
+}
+
 static bool MENU_IsTextEditMenuItemId(const int m)
 {
     if (m == MENU_MEM_NAME)
         return true;
     if (m == MENU_YAN_ID)
+        return true;
+    if (MENU_IsDtmfCodeEditMenuItemId(m))
         return true;
 #ifdef ENABLE_MESSENGER
     if (m == MENU_MSG_CSG)
@@ -1683,6 +1718,8 @@ static bool MENU_IsTextEditMenuItemId(const int m)
 
 static uint8_t MENU_TextEditMaxLen(void)
 {
+    if (MENU_IsDtmfCodeEditMenuItemId(UI_MENU_GetCurrentMenuId()))
+        return 16;
     if (UI_MENU_GetCurrentMenuId() == MENU_YAN_ID)
         return YAN_ID_LEN;
 #ifdef ENABLE_MESSENGER
@@ -1690,6 +1727,34 @@ static uint8_t MENU_TextEditMaxLen(void)
         return MSG_CALLSIGN_EDIT_LEN;
 #endif
     return 10;
+}
+
+/* Allowed DTMF edit glyphs (space = clear / shorten). */
+static const char dtmf_edit_chars[] = " 0123456789ABCD*#";
+
+static void MENU_CycleDtmfEditChar(const int8_t Direction)
+{
+    const int n = (int)(sizeof(dtmf_edit_chars) - 1u);
+    char      c = edit[edit_index];
+    int       idx = -1;
+
+    for (int i = 0; i < n; i++) {
+        if (dtmf_edit_chars[i] == c) {
+            idx = i;
+            break;
+        }
+    }
+
+    if (idx < 0)
+        idx = (Direction > 0) ? -1 : n;
+
+    idx += Direction;
+    if (idx < 0)
+        idx = n - 1;
+    else if (idx >= n)
+        idx = 0;
+
+    edit[edit_index] = dtmf_edit_chars[idx];
 }
 
 static bool MENU_IsEditingName() {
@@ -1712,12 +1777,21 @@ static void MENU_Key_0_to_9(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
     gBeepToPlay = BEEP_1KHZ_60MS_OPTIONAL;
 
     if (MENU_IsTextEditMenuItemId(UI_MENU_GetCurrentMenuId()) && edit_index >= 0)
-    {   // currently editing channel name / callsign
+    {   // currently editing channel name / callsign / DTMF code
         const uint8_t edit_max_len = MENU_TextEditMaxLen();
         if (edit_index >= edit_max_len)
             return;
 
         uint8_t key_idx = Key - KEY_0;
+
+        if (MENU_IsDtmfCodeEditMenuItemId(UI_MENU_GetCurrentMenuId()))
+        {
+            /* Digits only — no multi-tap IME. */
+            edit[edit_index] = (char)('0' + key_idx);
+            edit_last_key = 255;
+            gRequestDisplayScreen = DISPLAY_MENU;
+            return;
+        }
 
         if (bKeyHeld)
         {
@@ -2015,13 +2089,10 @@ static void MENU_Key_MENU(const bool bKeyPressed, const bool bKeyHeld)
             if (m != MENU_SCR)
                 gAnotherVoiceID = MenuList[gMenuCursor].voice_id;
         #endif
-        if (m == MENU_UPCODE 
-            || m == MENU_DWCODE 
-#ifdef ENABLE_DTMF_CALLING 
-            || m == MENU_ANI_ID
-#endif
-            )
+#ifdef ENABLE_DTMF_CALLING
+        if (m == MENU_ANI_ID)
             return;
+#endif
         #if 1
             if (m == MENU_DEL_CH || m == MENU_MEM_NAME)
                 if (!RADIO_CheckValidChannel(gSubMenuSelection, false, 0))
@@ -2057,6 +2128,18 @@ static void MENU_Key_MENU(const bool bKeyPressed, const bool bKeyHeld)
             {
                 memset(edit, 0, sizeof(edit));
                 strncpy(edit, gEeprom.yan_id, YAN_ID_LEN);
+            }
+            else if (UI_MENU_GetCurrentMenuId() == MENU_UPCODE)
+            {
+                memset(edit, 0, sizeof(edit));
+                memcpy(edit, gEeprom.DTMF_UP_CODE, sizeof(gEeprom.DTMF_UP_CODE));
+                edit[16] = '\0';
+            }
+            else if (UI_MENU_GetCurrentMenuId() == MENU_DWCODE)
+            {
+                memset(edit, 0, sizeof(edit));
+                memcpy(edit, gEeprom.DTMF_DOWN_CODE, sizeof(gEeprom.DTMF_DOWN_CODE));
+                edit[16] = '\0';
             }
 #ifdef ENABLE_MESSENGER
             else if (UI_MENU_GetCurrentMenuId() == MENU_MSG_CSG)
@@ -2116,7 +2199,9 @@ static void MENU_Key_MENU(const bool bKeyPressed, const bool bKeyHeld)
         if (m == MENU_RESET  ||
             m == MENU_MEM_CH ||
             m == MENU_DEL_CH ||
-            m == MENU_MEM_NAME)
+            m == MENU_MEM_NAME ||
+            m == MENU_UPCODE ||
+            m == MENU_DWCODE)
         {
             switch (gAskForConfirmation)
             {
@@ -2177,11 +2262,14 @@ static void MENU_Key_STAR(const bool bKeyPressed, const bool bKeyHeld)
     gBeepToPlay = BEEP_1KHZ_60MS_OPTIONAL;
 
     if (MENU_IsTextEditMenuItemId(UI_MENU_GetCurrentMenuId()) && edit_index >= 0)
-    {   // currently editing channel name / callsign
+    {   // currently editing channel name / callsign / DTMF code
 
         if (edit_index < MENU_TextEditMaxLen())
         {
-            edit[edit_index] = !bKeyHeld ? '-' : '*';
+            if (MENU_IsDtmfCodeEditMenuItemId(UI_MENU_GetCurrentMenuId()))
+                edit[edit_index] = '*';
+            else
+                edit[edit_index] = !bKeyHeld ? '-' : '*';
             edit_last_key = 255;
 
             gRequestDisplayScreen = DISPLAY_MENU;
@@ -2239,18 +2327,25 @@ static void MENU_Key_UP_DOWN(bool bKeyPressed, bool bKeyHeld, int8_t Direction)
     {   // change the character
         if (edit_index < MENU_TextEditMaxLen() && Direction != 0)
         {
-            const char   unwanted[] = "$%&!\"':;?^`|{}_";
-            char         c          = edit[edit_index] + Direction;
-            unsigned int i          = 0;
-            while (i < sizeof(unwanted) && c >= 32 && c <= 126)
+            if (MENU_IsDtmfCodeEditMenuItemId(UI_MENU_GetCurrentMenuId()))
             {
-                if (c == unwanted[i++])
-                {   // choose next character
-                    c += Direction;
-                    i = 0;
-                }
+                MENU_CycleDtmfEditChar(Direction);
             }
-            edit[edit_index] = (c < 32) ? 126 : (c > 126) ? 32 : c;
+            else
+            {
+                const char   unwanted[] = "$%&!\"':;?^`|{}_";
+                char         c          = edit[edit_index] + Direction;
+                unsigned int i          = 0;
+                while (i < sizeof(unwanted) && c >= 32 && c <= 126)
+                {
+                    if (c == unwanted[i++])
+                    {   // choose next character
+                        c += Direction;
+                        i = 0;
+                    }
+                }
+                edit[edit_index] = (c < 32) ? 126 : (c > 126) ? 32 : c;
+            }
             edit_last_key = 255;
 
             gRequestDisplayScreen = DISPLAY_MENU;
@@ -2387,7 +2482,7 @@ void MENU_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
             break;
         case KEY_F:
             if (MENU_IsTextEditMenuItemId(UI_MENU_GetCurrentMenuId()) && edit_index >= 0)
-            {   // currently editing channel name / callsign
+            {   // currently editing channel name / callsign / DTMF code
                 if (!bKeyPressed)
                     break;
 
@@ -2395,10 +2490,18 @@ void MENU_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 
                 if (edit_index < MENU_TextEditMaxLen())
                 {
-                    if (bKeyHeld)
+                    if (MENU_IsDtmfCodeEditMenuItemId(UI_MENU_GetCurrentMenuId()))
+                    {
+                        /* Short press writes '#' — no case toggle. */
                         edit[edit_index] = '#';
+                    }
+                    else
+                    {
+                        if (bKeyHeld)
+                            edit[edit_index] = '#';
 
-                    edit_is_uppercase = !edit_is_uppercase;
+                        edit_is_uppercase = !edit_is_uppercase;
+                    }
                     edit_last_key = 255;
 
                     gRequestDisplayScreen = DISPLAY_MENU;
