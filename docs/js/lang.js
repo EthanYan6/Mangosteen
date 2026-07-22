@@ -100,7 +100,7 @@
       'flashFirmware': '刷入固件',
       
       // Font tab (UV-K1 FontTool GB2312)
-      'fontDesc1': '将 UV-K1 FontTool 合并字库（康体 16×16 + 8×8）刷入 SPI Flash：16×16 于 0xA0000，8×8 于 0xE0000。需固件自行按 GB2312 读取；本站仅负责写入。',
+      'fontDesc1': '将字库刷入 SPI Flash：16×16 于 0xA0000，8×8 于 0xE0000。',
       'fontWarning1': '⚠️ 地址布局与 https://gitee.com/oldlicn/uv-k1_font-tool 一致。',
       'fontWarning2': '⚠️ 请先正常开机进入使用界面后再连接 USB 刷字库（与备份/恢复校准相同，无需 BOOT 模式）。',
       'fontFile': '字库文件 (.bin)',
@@ -531,7 +531,7 @@
       'flashFirmware': 'Flash Firmware',
       
       // Font tab (UV-K1 FontTool GB2312)
-      'fontDesc1': 'Flash the UV-K1 FontTool combined font (Kangti 16×16 + 8×8) to SPI Flash: 16×16 at 0xA0000, 8×8 at 0xE0000. Firmware must read GB2312 lattices; this page only writes.',
+      'fontDesc1': 'Flash the font to SPI Flash: 16×16 at 0xA0000, 8×8 at 0xE0000.',
       'fontWarning1': '⚠️ Address layout matches https://gitee.com/oldlicn/uv-k1_font-tool.',
       'fontWarning2': '⚠️ Enter normal usage UI first, then connect USB to flash font (same as calib backup/restore; no BOOT mode).',
       'fontFile': 'Font file (.bin)',
