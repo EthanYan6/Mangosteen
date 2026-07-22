@@ -661,8 +661,11 @@ static char s_menu_fill_buf[64];
 #define MENU_LIST_PITCH         (MENU_LIST_ITEM_H + MENU_LIST_GAP)
 #define MENU_LIST_FIRST_Y       9   /* 1px gap below separator at y=7 */
 #define MENU_LIST_TEXT_H        7   /* gFontSmall uses bits 0..6 */
+#define MENU_LIST_TEXT_H_BIG    16  /* selected CN row: 16x16 glyphs */
+#define MENU_LIST_SEL_PAD       2   /* inverted pad above/below selected glyphs */
 #define MENU_LIST_VALUE_MAX     10
 #define MENU_SMALL_CHAR_PITCH   (ARRAY_SIZE(gFontSmall[0]) + 1u)
+#define MENU_BIG_CHAR_PITCH     8u  /* matches UI_PrintString / PrintTitleBig */
 #define MENU_FB_H               (FRAME_LINES * 8)
 
 static void UI_MENU_CompactValue(const char *in, char *out, unsigned out_sz, unsigned prefer_line)
@@ -785,6 +788,29 @@ static unsigned UI_MENU_TextPixelWidth(const char *text)
     return text_w;
 }
 
+static unsigned UI_MENU_TextPixelWidthBig(const char *text)
+{
+    const size_t len = strlen(text);
+    unsigned text_w = 0;
+
+    for (size_t k = 0; k < len; k++) {
+        const uint8_t c = (uint8_t)text[k];
+        if (c >= 0xA1 && c <= 0xF7 && (k + 1) < len) {
+            const uint8_t lo = (uint8_t)text[k + 1];
+            if (lo >= 0xA1 && lo <= 0xFE) {
+                text_w += 16u;
+                k++;
+                continue;
+            }
+        }
+        if (c > ' ' && c < 127)
+            text_w += MENU_BIG_CHAR_PITCH;
+        else if (c == ' ')
+            text_w += MENU_BIG_CHAR_PITCH;
+    }
+    return text_w;
+}
+
 static void UI_MENU_PrintSmallAtY(const char *text, uint8_t x0, uint8_t x1, uint8_t y, uint8_t max_rows)
 {
     const size_t   len = strlen(text);
@@ -861,6 +887,99 @@ static void UI_MENU_PrintSmallRightAtY(const char *text, uint8_t y, uint8_t max_
         x = (uint8_t)(LCD_WIDTH - 2u - width);
 
     UI_MENU_PrintSmallAtY(text, x, 0, y, max_rows);
+}
+
+static void UI_MENU_PrintBigAtY(const char *text, uint8_t x0, uint8_t x1, uint8_t y, uint8_t max_rows)
+{
+    const size_t   len = strlen(text);
+    const unsigned text_w = UI_MENU_TextPixelWidthBig(text);
+    uint8_t        x = x0;
+    bool           has_cn = false;
+    uint8_t        ascii_dy = 0;
+
+    if (max_rows == 0 || max_rows > 16)
+        max_rows = 16;
+
+    /* Mixed CN + ASCII: drop Latin/digits 2px so they optically align with 16x16. */
+    for (size_t k = 0; k < len; k++) {
+        const uint8_t c = (uint8_t)text[k];
+        if (c >= 0xA1 && c <= 0xF7 && (k + 1) < len) {
+            const uint8_t lo = (uint8_t)text[k + 1];
+            if (lo >= 0xA1 && lo <= 0xFE) {
+                has_cn = true;
+                break;
+            }
+        }
+    }
+    if (has_cn)
+        ascii_dy = 2u;
+
+    if (x1 > x0 && text_w + 1u < (unsigned)(x1 - x0 + 1u))
+        x = (uint8_t)(x0 + ((x1 - x0 + 1u) - text_w) / 2u);
+
+    uint8_t cur_x = x;
+    for (size_t i = 0; i < len; i++) {
+        const uint8_t c = (uint8_t)text[i];
+
+        if (c >= 0xA1 && c <= 0xF7 && (i + 1) < len) {
+            const uint8_t lo = (uint8_t)text[i + 1];
+            if (lo >= 0xA1 && lo <= 0xFE) {
+                const uint32_t idx  = (uint32_t)(c - 0xA1) * 94u + (lo - 0xA1);
+                const uint32_t addr = FLASH_FONT16_BASE + idx * FONT16_SIZE;
+                uint8_t cnDot[FONT16_SIZE];
+                PY25Q16_ReadBuffer(addr, cnDot, FONT16_SIZE);
+
+                for (uint8_t col = 0; col < 16u; col++) {
+                    const uint8_t bits_lo = cnDot[col];
+                    const uint8_t bits_hi = cnDot[col + 16u];
+                    const uint8_t px      = (uint8_t)(cur_x + col);
+                    if (px >= LCD_WIDTH)
+                        break;
+                    for (uint8_t row = 0; row < max_rows; row++) {
+                        const uint8_t bits = (row < 8u) ? bits_lo : bits_hi;
+                        const uint8_t bit  = (uint8_t)(row & 7u);
+                        if (bits & (1u << bit)) {
+                            const uint8_t py = (uint8_t)(y + row);
+                            if (py < FRAME_LINES * 8)
+                                UI_DrawPixelBuffer(gFrameBuffer, px, py, true);
+                        }
+                    }
+                }
+                cur_x = (uint8_t)(cur_x + 16u);
+                i++;
+                continue;
+            }
+        }
+
+        if (c > ' ' && c < 127) {
+            const unsigned index = (unsigned)(c - ' ' - 1);
+
+            for (uint8_t col = 0; col < 7u; col++) {
+                const uint8_t bits_lo = gFontBig[index][col];
+                const uint8_t bits_hi = gFontBig[index][col + 7u];
+                const uint8_t px      = (uint8_t)(cur_x + col);
+
+                if (px >= LCD_WIDTH)
+                    break;
+
+                for (uint8_t row = 0; row < 16u; row++) {
+                    const uint8_t out_row = (uint8_t)(row + ascii_dy);
+                    if (out_row >= max_rows)
+                        break;
+                    const uint8_t bits = (row < 8u) ? bits_lo : bits_hi;
+                    const uint8_t bit  = (uint8_t)(row & 7u);
+                    if (bits & (1u << bit)) {
+                        const uint8_t py = (uint8_t)(y + out_row);
+                        if (py < FRAME_LINES * 8)
+                            UI_DrawPixelBuffer(gFrameBuffer, px, py, true);
+                    }
+                }
+            }
+            cur_x = (uint8_t)(cur_x + MENU_BIG_CHAR_PITCH);
+        } else if (c == ' ') {
+            cur_x = (uint8_t)(cur_x + MENU_BIG_CHAR_PITCH);
+        }
+    }
 }
 
 static void UI_MENU_InvertPixelsY(uint8_t y0, uint8_t y1)
@@ -1076,6 +1195,26 @@ static void UI_MENU_DrawListStyle(const char *current_value)
     if (first < 0)
         first = 0;
 
+    /*
+     * CN selected row is taller (2+16+2 pad). On the last menu item it sits
+     * in the bottom slot and would be clipped — pull first forward so fewer
+     * rows sit above and the big selection fully fits.
+     */
+    if (gUiLanguage == UI_LANGUAGE_CN && sel == count - 1) {
+        const uint8_t big_sel_h  = (uint8_t)(MENU_LIST_SEL_PAD + MENU_LIST_TEXT_H_BIG + MENU_LIST_SEL_PAD);
+        const uint8_t avail_list = (uint8_t)(MENU_FB_H - MENU_LIST_FIRST_Y);
+        uint8_t       max_vis    = 1u;
+
+        if (avail_list > big_sel_h)
+            max_vis = (uint8_t)(1u + (avail_list - big_sel_h) / MENU_LIST_PITCH);
+        if (max_vis > MENU_LIST_ROWS)
+            max_vis = MENU_LIST_ROWS;
+        if (count > (int)max_vis)
+            first = count - (int)max_vis;
+        else
+            first = 0;
+    }
+
     memset(vals, 0, sizeof(vals));
 
     /* Fill-only nested calls may scribble the FB; we clear before painting. */
@@ -1129,54 +1268,69 @@ static void UI_MENU_DrawListStyle(const char *current_value)
     /*
      * Title in status + fb line 0 (y0..7). Separator on y=7.
      * y=8 left blank; items from y=9: 8px row + 1px gap → five rows fit.
+     * CN selected row grows to 16px glyphs (+ pads); later rows shift down.
      */
     UI_DrawLineBuffer(gFrameBuffer, 0, 7, LCD_WIDTH - 1, 7, true);
 
-    for (row = 0; row < MENU_LIST_ROWS; row++) {
-        const int     idx   = first + (int)row;
-        const uint8_t y0    = (uint8_t)(MENU_LIST_FIRST_Y + row * MENU_LIST_PITCH);
-        uint8_t       avail;
-        uint8_t       item_h;
+    {
+        uint8_t y_cursor = MENU_LIST_FIRST_Y;
 
-        if (idx >= count || y0 >= MENU_FB_H)
-            break;
+        for (row = 0; row < MENU_LIST_ROWS; row++) {
+            const int     idx     = first + (int)row;
+            const bool    is_sel  = (idx == sel);
+            const bool    big_sel = is_sel && (gUiLanguage == UI_LANGUAGE_CN);
+            const uint8_t y0      = y_cursor;
+            uint8_t       avail;
+            uint8_t       item_h;
 
-        avail  = (uint8_t)(MENU_FB_H - y0);
-        item_h = (avail < MENU_LIST_ITEM_H) ? avail : (uint8_t)MENU_LIST_ITEM_H;
+            if (idx >= count || y0 >= MENU_FB_H)
+                break;
 
-        if (idx == sel) {
-            /*
-             * Selected: 1px black top + full glyph + 1px black bottom.
-             * Bottom pad uses the inter-row gap so text is not clipped
-             * (gFontSmall needs 7 rows; 8-2 would leave only 6).
-             */
-            const uint8_t sel_need = (uint8_t)(1u + MENU_LIST_TEXT_H + 1u);
-            const uint8_t sel_h    = (avail < sel_need) ? avail : sel_need;
+            avail  = (uint8_t)(MENU_FB_H - y0);
+            item_h = (avail < MENU_LIST_ITEM_H) ? avail : (uint8_t)MENU_LIST_ITEM_H;
 
-            UI_DrawLineBuffer(gFrameBuffer, 0, (int16_t)y0, LCD_WIDTH - 1, (int16_t)y0, true);
-            if (sel_h > 2u) {
-                const uint8_t text_y    = (uint8_t)(y0 + 1u);
-                const uint8_t text_rows = (uint8_t)(sel_h - 2u);
-                const uint8_t y_bot     = (uint8_t)(y0 + sel_h - 1u);
+            if (is_sel) {
+                /*
+                 * Selected: invert band with 2px pad above/below glyphs.
+                 * Same MENU_LIST_GAP after the band as between normal rows.
+                 */
+                const uint8_t text_h   = big_sel ? (uint8_t)MENU_LIST_TEXT_H_BIG
+                                                 : (uint8_t)MENU_LIST_TEXT_H;
+                const uint8_t sel_need = (uint8_t)(MENU_LIST_SEL_PAD + text_h + MENU_LIST_SEL_PAD);
+                const uint8_t sel_h    = (avail < sel_need) ? avail : sel_need;
 
-                UI_MENU_PrintSmallAtY(UI_MENU_GetMenuTitle(&MenuList[idx]), 2, 0, text_y, text_rows);
+                if (sel_h > (uint8_t)(MENU_LIST_SEL_PAD * 2u)) {
+                    const uint8_t text_y    = (uint8_t)(y0 + MENU_LIST_SEL_PAD);
+                    const uint8_t text_rows = (uint8_t)(sel_h - (MENU_LIST_SEL_PAD * 2u));
+
+                    if (big_sel) {
+                        /* Title only — hide value so long CN labels cannot collide. */
+                        UI_MENU_PrintBigAtY(UI_MENU_GetMenuTitle(&MenuList[idx]), 2, 0, text_y, text_rows);
+                    } else {
+                        UI_MENU_PrintSmallAtY(UI_MENU_GetMenuTitle(&MenuList[idx]), 2, 0, text_y, text_rows);
+                        if (vals[row][0] != '\0')
+                            UI_MENU_PrintSmallRightAtY(vals[row], text_y, text_rows);
+                    }
+                    UI_MENU_InvertPixelsY(y0, (uint8_t)(y0 + sel_h - 1u));
+                } else if (sel_h > 0u) {
+                    /* Heavily clipped: draw whatever fits, still invert the band. */
+                    if (big_sel) {
+                        UI_MENU_PrintBigAtY(UI_MENU_GetMenuTitle(&MenuList[idx]), 2, 0, y0, sel_h);
+                    } else {
+                        UI_MENU_PrintSmallAtY(UI_MENU_GetMenuTitle(&MenuList[idx]), 2, 0, y0, sel_h);
+                        if (vals[row][0] != '\0')
+                            UI_MENU_PrintSmallRightAtY(vals[row], y0, sel_h);
+                    }
+                    UI_MENU_InvertPixelsY(y0, (uint8_t)(y0 + sel_h - 1u));
+                }
+
+                y_cursor = (uint8_t)(y0 + sel_h + MENU_LIST_GAP);
+            } else {
+                UI_MENU_PrintSmallAtY(UI_MENU_GetMenuTitle(&MenuList[idx]), 2, 0, y0, item_h);
                 if (vals[row][0] != '\0')
-                    UI_MENU_PrintSmallRightAtY(vals[row], text_y, text_rows);
-                /* Invert only the glyph band; top/bottom bars stay solid black. */
-                UI_MENU_InvertPixelsY(text_y, (uint8_t)(y_bot - 1u));
-                UI_DrawLineBuffer(gFrameBuffer, 0, (int16_t)y_bot, LCD_WIDTH - 1, (int16_t)y_bot, true);
-            } else if (sel_h > 1u) {
-                /* Heavily clipped: keep top bar + whatever text fits. */
-                const uint8_t text_y = (uint8_t)(y0 + 1u);
-                UI_MENU_PrintSmallAtY(UI_MENU_GetMenuTitle(&MenuList[idx]), 2, 0, text_y, (uint8_t)(sel_h - 1u));
-                if (vals[row][0] != '\0')
-                    UI_MENU_PrintSmallRightAtY(vals[row], text_y, (uint8_t)(sel_h - 1u));
-                UI_MENU_InvertPixelsY(text_y, (uint8_t)(y0 + sel_h - 1u));
+                    UI_MENU_PrintSmallRightAtY(vals[row], y0, item_h);
+                y_cursor = (uint8_t)(y0 + MENU_LIST_PITCH);
             }
-        } else {
-            UI_MENU_PrintSmallAtY(UI_MENU_GetMenuTitle(&MenuList[idx]), 2, 0, y0, item_h);
-            if (vals[row][0] != '\0')
-                UI_MENU_PrintSmallRightAtY(vals[row], y0, item_h);
         }
     }
 
