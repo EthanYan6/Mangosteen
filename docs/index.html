@@ -97,6 +97,7 @@
                 <div class="tabs" role="tablist">
           <button class="tab active" type="button" data-tab="dump" id="tabDump" data-i18n="tabDump">备份校准</button>
           <button class="tab" type="button" data-tab="flash" id="tabFlash" data-i18n="tabFlash">刷固件</button>
+          <button class="tab" type="button" data-tab="font" id="tabFont" data-i18n="tabFont">刷字库</button>
           <button class="tab" type="button" data-tab="calibcheck" id="tabCalibCheck" data-i18n="tabCalibCheck">校验校准</button>
           <button class="tab" type="button" data-tab="restore" id="tabRestore" data-i18n="tabRestore">恢复校准</button>
           <button class="tab" type="button" data-tab="writefreq" id="tabWritefreq" data-i18n="tabWritefreq">写频</button>
@@ -138,6 +139,36 @@
             </p>
           </section>
           <button id="flashBtn" disabled data-i18n="flashFirmware">鍒峰叆鍥轰欢</button>
+        </div>
+
+        <!-- FONT (UV-K1 FontTool GB2312 @ 0xA0000 / 0xE0000) -->
+        <div class="tab-content" id="font-content">
+          <section class="section">
+            <p style="font-size:0.85em;color:var(--text-muted);margin-bottom:12px;" data-i18n="fontDesc1">
+              将字库刷入 SPI Flash：16×16 于 0xA0000，8×8 于 0xE0000。需固件自行按 GB2312 读取；本站仅负责写入。
+            </p>
+            <p style="font-size:0.85em;color:var(--accent);margin-bottom:12px;" data-i18n="fontWarning2">
+              ⚠️ 请先<strong>正常开机进入使用界面</strong>后再连接 USB 刷字库（与备份校准相同，无需 BOOT 模式）。
+            </p>
+            <label data-i18n="fontFile">字库文件 (.bin)</label>
+            <div class="file-input-wrapper file-input-wrapper--dual">
+              <div class="file-input-label" id="fontFileLabel">
+                <span class="file-name" id="fontFileName" data-i18n="noFileSelected">未选择文件</span>
+                <div class="file-input-actions">
+                  <button type="button" class="btn-fetch file-action-remote" id="fetchFontBtn" data-i18n="remoteFetch">远程获取</button>
+                  <div class="file-local-trigger">
+                    <input type="file" id="fontFile" accept=".bin" data-i18n-aria="selectLocalFont">
+                    <span class="file-button" data-i18n="localSelect">本地选择</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="fontInfo" class="fw-info" style="display:none"></div>
+            <p style="font-size:0.85em;color:var(--text-muted);margin-top:10px;" data-i18n="fontDownloadHint">
+              「远程获取」将加载本站默认合并字库 uvk1_gb2312_font.bin（约 320 KB）。
+            </p>
+          </section>
+          <button id="fontFlashBtn" disabled data-i18n="flashFont">刷入字库</button>
         </div>
 
         <!-- CALIB CHECK -->
@@ -420,8 +451,8 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@14.1.4/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
-  <script src="js/lang.js?v=20260720m"></script>
-  <script src="js/flash.js?v=20260720m"></script>
+  <script src="js/lang.js?v=20260722font"></script>
+  <script src="js/flash.js?v=20260722font"></script>
   <script>
   (function() {
     var coffeeBtn = document.getElementById('coffeeBtn');

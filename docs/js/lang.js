@@ -68,7 +68,7 @@
       'step3': '清除数据',
       'step3Tooltip': '初次刷入叮咚鸡固件后需要此步骤。建议先"备份配置"。关机后，同时按PTT键和紧挨着PTT键下方的侧键，一起按下后，再开机，解锁全部功能菜单。在"其它"中"恢复出厂"里选择全部。重置设备存储的信道与配置。之后可通过"恢复配置"还原设置项。',
       'step4': '刷字库',
-      'step4Tooltip': '如果版本更新日志中没有字库更改，那么无需此步骤。开机状态下刷入字库，每个版本的固件配合每个固件的中文字库，不要混用！',
+      'step4Tooltip': '开机状态下刷入 GB2312 合并字库（康体 16×16 @ 0xA0000 + 8×8 @ 0xE0000）。需固件支持从外挂 Flash 读取该分区。',
       'step5': '恢复校准',
       'step5Tooltip': '初次刷入叮咚鸡固件或初次升级V5.0.0以后版本需要此步骤。开机状态下进行，注意：只有本网站以及uvtools2网站的校准文件支持恢复，其它网站不支持。',
       'step6': '写频',
@@ -99,13 +99,14 @@
       'selectLocalFw': '选择本地固件文件',
       'flashFirmware': '刷入固件',
       
-      // Font tab
-      'fontDesc1': '将中文字库刷入 SPI Flash，支持 1412 个中文字符（省份、城市、姓氏、全国中继常用字等）。如果最新版本更新日志中，字库有变化，就需要重新刷入字库。',
-      'fontWarning1': '⚠️ 仅 V4.5.3 及以后支持中文信道的固件需要刷入字库。',
+      // Font tab (UV-K1 FontTool GB2312)
+      'fontDesc1': '将 UV-K1 FontTool 合并字库（康体 16×16 + 8×8）刷入 SPI Flash：16×16 于 0xA0000，8×8 于 0xE0000。需固件自行按 GB2312 读取；本站仅负责写入。',
+      'fontWarning1': '⚠️ 地址布局与 https://gitee.com/oldlicn/uv-k1_font-tool 一致。',
       'fontWarning2': '⚠️ 请先正常开机进入使用界面后再连接 USB 刷字库（与备份/恢复校准相同，无需 BOOT 模式）。',
       'fontFile': '字库文件 (.bin)',
       'selectLocalFont': '选择本地字库文件',
       'flashFont': '刷入字库',
+      'fontDownloadHint': '「远程获取」将加载本站默认合并字库 uvk1_gb2312_font.bin（约 320 KB）。',
       
       // Dump calibration tab
       'dumpWarning': '⚠️ 仅需原厂固件刷机前备份一次。先正常开机进入使用界面（能显示信道、菜单），再连接 USB 并导出。',
@@ -498,7 +499,7 @@
       'step3': 'Clear Data',
       'step3Tooltip': 'Required after first flashing Dondji firmware. Suggest "Backup Config" first. Power off, hold PTT and side key below PTT, then power on to unlock all menus. Select "All" in "Factory Reset" under "Other". Reset channel and config storage. Can restore via "Restore Config".',
       'step4': 'Flash Font',
-      'step4Tooltip': 'Not needed if update log shows no font changes. Flash font while powered on. Each firmware version has its own font file, do not mix!',
+      'step4Tooltip': 'Flash the GB2312 combined font while powered on (Kangti 16×16 @ 0xA0000 + 8×8 @ 0xE0000). Firmware must read these SPI regions.',
       'step5': 'Restore Calibration',
       'step5Tooltip': 'Required after first flashing Dondji or upgrading to V5.0.0+. Perform while powered on. Note: Only calibration files from this site and uvtools2 support restore.',
       'step6': 'Frequency Programming',
@@ -529,14 +530,14 @@
       'selectLocalFw': 'Select local firmware file',
       'flashFirmware': 'Flash Firmware',
       
-      // Font tab
-      'fontDesc1': 'Flash Chinese font to SPI Flash, supports 1412 Chinese characters (provinces, cities, surnames, relay common characters etc.). Re-flash if font changes in latest version update log.',
-      'fontWarning1': '⚠️ Only firmware V4.5.3+ supporting Chinese channels needs font flash.',
-      'fontWarning2': '⚠️ Please enter normal usage interface first before connecting USB to flash font (same as backup/restore calibration, no BOOT mode needed).',
+      // Font tab (UV-K1 FontTool GB2312)
+      'fontDesc1': 'Flash the UV-K1 FontTool combined font (Kangti 16×16 + 8×8) to SPI Flash: 16×16 at 0xA0000, 8×8 at 0xE0000. Firmware must read GB2312 lattices; this page only writes.',
+      'fontWarning1': '⚠️ Address layout matches https://gitee.com/oldlicn/uv-k1_font-tool.',
+      'fontWarning2': '⚠️ Enter normal usage UI first, then connect USB to flash font (same as calib backup/restore; no BOOT mode).',
       'fontFile': 'Font file (.bin)',
       'selectLocalFont': 'Select local font file',
       'flashFont': 'Flash Font',
-      
+      'fontDownloadHint': '"Remote Fetch" loads the site default combined font uvk1_gb2312_font.bin (~320 KB).',      
       // Dump calibration tab
       'dumpWarning': '⚠️ Only backup once before flashing from stock firmware. First enter normal usage interface (showing channels and menus), then connect USB to export.',
       'exportCalib': 'Export Calibration Data',

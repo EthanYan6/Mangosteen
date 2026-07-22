@@ -170,14 +170,21 @@ const OBFUS_TBL = new Uint8Array([
   0x21, 0x35, 0xd5, 0x40, 0x13, 0x03, 0xe9, 0x80
 ]);
 
-const CN_FONT_FLASH_BASE  = 0x024000;
-/** 与 App/settings.h、App/cn_font_data.h 中 CN_FONT_VERSION_OFFSET 一致（gen_cn_font.py 生成） */
-const CN_FONT_VERSION_OFFSET = 205366;
-/** 与 App/cn_font_data.h 一致；字库重生成后须同步 */
-const CN_FONT_BITMAP_SIZE = 162384;
-/** 与 App/cn_font_data.h 一致；字库重生成后须同步 */
-const CN_FONT_CHAR_COUNT = 6766;
-const CN_FONT_VERSION     = 2;
+/**
+ * UV-K1 FontTool GB2312 combined font (康体 16×16 + pad + 8×8).
+ * https://gitee.com/oldlicn/uv-k1_font-tool
+ *   16×16 @ 0xA0000..0xDFE3F (261696)
+ *   pad    @ 0xDFE40..0xDFFFF (448)
+ *   8×8    @ 0xE0000..0xEFF8F (65424)
+ */
+const UVK1_GB2312_FONT_FLASH_BASE = 0x0A0000;
+const UVK1_GB2312_FONT16_SIZE     = 261696; // 8178 * 32
+const UVK1_GB2312_FONT_GAP        = 448;
+const UVK1_GB2312_FONT8_SIZE      = 65424;  // 8178 * 8
+const UVK1_GB2312_FONT8_FLASH_BASE = 0x0E0000;
+const UVK1_GB2312_FONT_BIN_SIZE   =
+  UVK1_GB2312_FONT16_SIZE + UVK1_GB2312_FONT_GAP + UVK1_GB2312_FONT8_SIZE; // 327568
+const UVK1_GB2312_FONT_BIN_NAME   = 'uvk1_gb2312_font.bin';
 const SPI_CHUNK_SIZE      = 48;
 const CALIB_SIZE          = 512;
 /** App/ui/welcome.c LOGO_FLASH_ADDR — Mangosteen uses 0x011000 (not Dondji 0x1FF000) */
@@ -910,7 +917,7 @@ function firmwareCollectLocalMirrorCandidateUrls() {
     seenHref.add(urlHref);
     orderedUrls.push(urlHref);
   }
-  const flashJsUrl = cnFontGetFlashJsAbsoluteUrl();
+  const flashJsUrl = getFlashJsAbsoluteUrl();
   if (flashJsUrl) {
     pushUnique(new URL('../firmware/mangosteen.bin', flashJsUrl).href);
   }
@@ -991,19 +998,87 @@ on('fetchLatestBtn', 'click', async () => {
   }
 });
 
-// ========== FONT FLASH ==========
+// ========== FONT FLASH (UV-K1 FontTool GB2312 @ 0xA0000) ==========
+function getFlashJsAbsoluteUrl() {
+  const scriptElements = document.getElementsByTagName('script');
+  for (let scriptIndex = 0; scriptIndex < scriptElements.length; scriptIndex++) {
+    const srcAttr = scriptElements[scriptIndex].src;
+    if (srcAttr && srcAttr.indexOf('flash.js') >= 0) {
+      return srcAttr;
+    }
+  }
+  return '';
+}
+
+function gb2312FontCollectCandidateUrls() {
+  const seenHref = new Set();
+  const orderedUrls = [];
+  function pushUnique(urlHref) {
+    if (!urlHref || seenHref.has(urlHref)) return;
+    seenHref.add(urlHref);
+    orderedUrls.push(urlHref);
+  }
+  const flashJsUrl = getFlashJsAbsoluteUrl();
+  if (flashJsUrl) {
+    pushUnique(new URL('../font/' + UVK1_GB2312_FONT_BIN_NAME, flashJsUrl).href);
+  }
+  const docDirectoryBase = getDocumentDirectoryBaseUrlString();
+  pushUnique(new URL('font/' + UVK1_GB2312_FONT_BIN_NAME, docDirectoryBase).href);
+  return orderedUrls;
+}
+
+async function gb2312FontFetchArrayBuffer() {
+  const candidateUrls = gb2312FontCollectCandidateUrls();
+  let lastErr = null;
+  for (let i = 0; i < candidateUrls.length; i++) {
+    try {
+      const response = await fetch(candidateUrls[i]);
+      if (!response.ok) {
+        lastErr = new Error('HTTP ' + response.status + ' for ' + candidateUrls[i]);
+        continue;
+      }
+      return await response.arrayBuffer();
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('无法加载字库：已尝试 ' + candidateUrls.join(', '));
+}
+
+function gb2312FontSetUiLoaded(name, bytes) {
+  const info = $('fontInfo');
+  if (info) {
+    info.style.display = 'block';
+    info.innerHTML =
+      `<span class="fw-name">${name}</span> &middot; ` +
+      `<span class="fw-size">${(bytes.length / 1024).toFixed(1)} KB</span> &middot; ` +
+      `16×16 @ 0xA0000 + 8×8 @ 0xE0000`;
+  }
+  const nameEl = $('fontFileName');
+  if (nameEl) {
+    nameEl.textContent = name + ' (' + bytes.length + ' bytes)';
+    nameEl.classList.add('has-file');
+  }
+  const labelEl = $('fontFileLabel');
+  if (labelEl) labelEl.classList.add('has-file');
+  if ($('fontFlashBtn')) $('fontFlashBtn').disabled = false;
+}
+
 on('fontFile', 'change', e => {
   const file = e.target.files?.[0];
   if (!file) return;
   const fr = new FileReader();
   fr.onload = ev => {
     fontData = new Uint8Array(ev.target.result);
-    cnFontOnFontDataLoaded();
-    $('fontFileName').textContent = file.name + ' (' + fontData.length + ' bytes)';
-    $('fontFileName').classList.add('has-file');
-    $('fontFileLabel').classList.add('has-file');
+    if (fontData.length !== UVK1_GB2312_FONT_BIN_SIZE) {
+      log(
+        '警告：字库大小 ' + fontData.length + ' 字节，期望 ' + UVK1_GB2312_FONT_BIN_SIZE +
+          '（康体+填充+8×8）。仍可尝试写入，但地址布局可能不对。',
+        'warn'
+      );
+    }
+    gb2312FontSetUiLoaded(file.name, fontData);
     log(window.t ? window.t('logFontLoaded', {name: file.name, size: fontData.length}) : '字库已加载：' + file.name + ' (' + fontData.length + ' bytes)', 'success');
-    $('fontFlashBtn').disabled = false;
     e.target.value = '';
   };
   fr.readAsArrayBuffer(file);
@@ -1014,28 +1089,30 @@ on('fetchFontBtn', 'click', async () => {
   btn.disabled = true;
   btn.textContent = window.t ? window.t('loadingFile') : '正在加载...';
   try {
-    const buf = await cnFontFetchArrayBuffer();
+    const buf = await gb2312FontFetchArrayBuffer();
     fontData = new Uint8Array(buf);
-    cnFontOnFontDataLoaded();
-    $('fontInfo').style.display = 'block';
-    $('fontInfo').innerHTML = `<span class="fw-name">cn_font.bin</span> &middot; <span class="fw-size">${(fontData.length/1024).toFixed(1)} KB</span> &middot; ${CN_FONT_CHAR_COUNT} 字符`;
-    $('fontFileName').textContent = 'cn_font.bin (' + fontData.length + ' bytes)';
-    $('fontFileName').classList.add('has-file');
-    $('fontFileLabel').classList.add('has-file');
-    log(window.t ? window.t('logFontLoadedDefault', {name: 'cn_font.bin', size: fontData.length}) : '字库已加载: cn_font.bin (' + fontData.length + ' bytes)', 'success');
-    $('fontFlashBtn').disabled = false;
-  } catch(e) {
+    if (fontData.length !== UVK1_GB2312_FONT_BIN_SIZE) {
+      log('警告：默认字库大小 ' + fontData.length + ' ≠ ' + UVK1_GB2312_FONT_BIN_SIZE, 'warn');
+    }
+    gb2312FontSetUiLoaded(UVK1_GB2312_FONT_BIN_NAME, fontData);
+    log(
+      window.t
+        ? window.t('logFontLoadedDefault', {name: UVK1_GB2312_FONT_BIN_NAME, size: fontData.length})
+        : '字库已加载: ' + UVK1_GB2312_FONT_BIN_NAME + ' (' + fontData.length + ' bytes)',
+      'success'
+    );
+  } catch (e) {
     log(window.t ? window.t('logLoadFailed', {msg: e.message}) : '加载失败: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = '远程获取';
+    btn.textContent = window.t ? window.t('remoteFetch') : '远程获取';
   }
 });
 
 on('fontFlashBtn', 'click', async () => {
   if (!fontData || isFontFlashing) return;
   isFontFlashing = true;
-  if ($('fontFlashBtn')) if ($('fontFlashBtn')) $('fontFlashBtn').disabled = true;
+  if ($('fontFlashBtn')) $('fontFlashBtn').disabled = true;
   $('progressContainer').style.display = 'block';
   updateProgress(0);
   try {
@@ -1043,7 +1120,6 @@ on('fontFlashBtn', 'click', async () => {
     readBuffer = [];
     await sleep(1000);
 
-    // Detect device mode: send MSG_DEV_INFO_REQ and check response
     log(window.t ? window.t('logDetectDevice') : '检测设备模式...', 'info');
     const ts = Date.now() & 0xffffffff;
     const reqMsg = createMessage(MSG_DEV_INFO_REQ, 4);
@@ -1059,9 +1135,6 @@ on('fontFlashBtn', 'click', async () => {
         isFirmwareMode = true;
         break;
       }
-      if (msg.msgType === MSG_NOTIFY_DEV_INFO) {
-        // Bootloader mode - keep waiting for possible DEV_INFO_RESP
-      }
     }
 
     if (!isFirmwareMode) {
@@ -1069,14 +1142,16 @@ on('fontFlashBtn', 'click', async () => {
     }
 
     log(window.t ? window.t('logDeviceCustomFirmware') : '设备已运行自定义固件，开始刷入字库...', 'success');
+    log(
+      '写入基址 0x' + UVK1_GB2312_FONT_FLASH_BASE.toString(16).toUpperCase() +
+        '（16×16）… 0x' + UVK1_GB2312_FONT8_FLASH_BASE.toString(16).toUpperCase() + '（8×8）',
+      'info'
+    );
 
-    // Write font data in chunks via SPI Flash Write (0x0521)
-    const totalChunks = Math.ceil(fontData.length / SPI_CHUNK_SIZE);
     let written = 0;
-
     for (let i = 0; i < fontData.length; i += SPI_CHUNK_SIZE) {
       const chunkLen = Math.min(SPI_CHUNK_SIZE, fontData.length - i);
-      const addr = CN_FONT_FLASH_BASE + i;
+      const addr = UVK1_GB2312_FONT_FLASH_BASE + i;
       let ok = false;
 
       for (let retry = 0; retry < 3 && !ok; retry++) {
@@ -1089,9 +1164,9 @@ on('fontFlashBtn', 'click', async () => {
         const v = new DataView(msg.buffer);
         v.setUint32(4, addr, true);
         v.setUint16(8, chunkLen, true);
-        v.setUint16(10, 0, true); // padding
+        v.setUint16(10, 0, true);
         v.setUint32(12, ts, true);
-        for (let j = 0; j < chunkLen; j++) msg[16+j] = fontData[i+j];
+        for (let j = 0; j < chunkLen; j++) msg[16 + j] = fontData[i + j];
 
         await sendMessage(msg);
         const resp = await waitForMsg(MSG_SPI_FLASH_WRITE_RESP, 800);
@@ -1102,61 +1177,46 @@ on('fontFlashBtn', 'click', async () => {
 
       written += chunkLen;
       updateProgress((written / fontData.length) * 100);
-      if ((i / SPI_CHUNK_SIZE) % 10 === 0)
+      if ((i / SPI_CHUNK_SIZE) % 20 === 0) {
         log(window.t ? window.t('logWrittenBytes', {written: written, total: fontData.length}) : '已写入 ' + written + '/' + fontData.length + ' bytes', 'info');
-
-      // Delay to avoid overwhelming the firmware during SPI Flash erase
+      }
       await sleep(50);
     }
 
-    // 版本字节必须与 cn_font.bin 最后一字节同一地址。仅用 CN_FONT_VERSION_OFFSET 若与 bin 长度不一致，
-    // 会把 1 字节写到拼音表/索引区内，表现为拼音检索整体失效（如 zhong 无候选）。
-    const expectedFontByteLength = CN_FONT_VERSION_OFFSET + 1;
-    if (fontData.length !== expectedFontByteLength) {
-      log(
-        '警告：字库文件 ' + fontData.length + ' 字节，与 CN_FONT_VERSION_OFFSET+1=' +
-          expectedFontByteLength +
-          ' 不一致（多为浏览器缓存了旧 flash.js）。将以 bin 实际末尾地址写入版本字节。',
-        'warn'
-      );
-    }
-    const versionByteFlashAddr = CN_FONT_FLASH_BASE + fontData.length - 1;
-
-    // Write version marker（地址固定为当前加载的 bin 最后一字节，避免常量滞后破坏 Flash）
-    const verMsg = createMessage(MSG_SPI_FLASH_WRITE, 12 + 1);
-    const vv = new DataView(verMsg.buffer);
-    vv.setUint32(4, versionByteFlashAddr, true);
-    vv.setUint16(8, 1, true);
-    vv.setUint16(10, 0, true);
-    vv.setUint32(12, ts, true);
-    verMsg[16] = CN_FONT_VERSION;
-    await sendMessage(verMsg);
-    const verResp = await waitForMsg(MSG_SPI_FLASH_WRITE_RESP, 100);
-    if (!verResp) log(window.t ? window.t('logVersionWriteTimeout') : '版本标记写入超时（可能固件不支持 SPI Flash 写入）', 'error');
-    else log(window.t ? window.t('logVersionWritten') : '版本标记已写入', 'success');
-
-    // Verify: 与固件 SETTINGS_InitCNFont / menu 一致，读 Flash 基址首 4 字节（「的」前两行）
-    // 必须走 spiFlashReadChunk：0x0520 响应前 8 字节是 Address/Size/Padding，payload 从偏移 8 起
-    const probeBytes = await spiFlashReadChunk(ts, CN_FONT_FLASH_BASE, 4);
-    if (probeBytes) {
-      const probe = new DataView(probeBytes.buffer, probeBytes.byteOffset, probeBytes.byteLength);
-      const w0 = probe.getUint16(0, true);
-      const w1 = probe.getUint16(2, true);
-      if (w0 === 0x1100 && w1 === 0x2100)
-        log(window.t ? window.t('logVerifyPass') : '验证通过：字库数据正确', 'success');
-      else
-        log(window.t ? window.t('logVerifyWarning', {w0: w0.toString(16), w1: w1.toString(16)}) : '验证警告：首字节 0x' + w0.toString(16) + ' 0x' + w1.toString(16) + '（期望 0x1100 0x2100）', 'error');
+    const probe16 = await spiFlashReadChunk(ts, UVK1_GB2312_FONT_FLASH_BASE, 8);
+    const probe8 = await spiFlashReadChunk(ts, UVK1_GB2312_FONT8_FLASH_BASE, 8);
+    let verifyOk = true;
+    if (probe16 && fontData.length >= 8) {
+      for (let k = 0; k < 8; k++) {
+        if (probe16[k] !== fontData[k]) { verifyOk = false; break; }
+      }
     } else {
+      verifyOk = false;
+    }
+    const font8Off = UVK1_GB2312_FONT16_SIZE + UVK1_GB2312_FONT_GAP;
+    if (probe8 && fontData.length >= font8Off + 8) {
+      for (let k = 0; k < 8; k++) {
+        if (probe8[k] !== fontData[font8Off + k]) { verifyOk = false; break; }
+      }
+    } else {
+      verifyOk = false;
+    }
+
+    if (verifyOk) {
+      log(window.t ? window.t('logVerifyPass') : '验证通过：字库数据正确', 'success');
+    } else if (!probe16 || !probe8) {
       log(window.t ? window.t('logVerifySkip') : '验证跳过：读取超时', 'info');
+    } else {
+      log('验证警告：0xA0000 / 0xE0000 回读与写入数据不一致', 'error');
     }
 
     updateProgress(100);
     log(window.t ? window.t('logFontFlashComplete', {size: written}) : '字库刷入完成！共 ' + written + ' bytes', 'success');
-  } catch(e) {
+  } catch (e) {
     log(window.t ? window.t('logError', {msg: e.message}) : '错误: ' + e.message, 'error');
   } finally {
     isFontFlashing = false;
-    $('fontFlashBtn').disabled = !fontData;
+    if ($('fontFlashBtn')) $('fontFlashBtn').disabled = !fontData;
     if (port) await disconnect();
     setTimeout(() => { $('progressContainer').style.display = 'none'; updateProgress(0); }, 1000);
   }
@@ -2620,298 +2680,6 @@ function writefreqValidateChannelName(text) {
     problems.push('信道名最长 ' + WRITE_FREQ_CHANNEL_NAME_MAX_BYTES + ' 字符；当前 ' + raw.length + ' 字符');
   }
   return problems;
-}
-
-/** @type {Promise<Set<number>>|null} */
-let cnFontCodepointSetPromise = null;
-
-/**
- * 从 docs/font/cn_font.bin 解析 Unicode 码点集合（与固件字库索引区一致）。
- * @param {ArrayBuffer} arrayBuffer
- * @returns {Set<number>}
- */
-function cnFontParseCodepointsFromBin(arrayBuffer) {
-  const totalBytes = arrayBuffer.byteLength;
-  const minBytes = CN_FONT_BITMAP_SIZE + CN_FONT_CHAR_COUNT * 4;
-  if (totalBytes < minBytes) {
-    const errText = 'cn_font.bin 长度异常（' + totalBytes + ' < ' + minBytes + '）';
-    throw new Error(errText);
-  }
-  const dataView = new DataView(arrayBuffer);
-  const codepointSet = new Set();
-  let entryIndex = 0;
-  for (; entryIndex < CN_FONT_CHAR_COUNT; entryIndex++) {
-    const byteOffset = CN_FONT_BITMAP_SIZE + entryIndex * 4;
-    const entryValue = dataView.getUint32(byteOffset, true);
-    const unicodeVal = (entryValue >>> 16) & 0xFFFF;
-    codepointSet.add(unicodeVal);
-  }
-  return codepointSet;
-}
-
-/**
- * 从刷字库 tab 的 Uint8Array 得到独立 ArrayBuffer，供 cnFontParseCodepointsFromBin 使用。
- * @param {Uint8Array} uint8Array
- * @returns {ArrayBuffer}
- */
-function cnFontArrayBufferFromUint8(uint8Array) {
-  const sliceStart = uint8Array.byteOffset;
-  const sliceEnd = sliceStart + uint8Array.byteLength;
-  const slicedBuffer = uint8Array.buffer.slice(sliceStart, sliceEnd);
-  return slicedBuffer;
-}
-
-/**
- * 若全局 fontData（刷字库已加载）可用，则解析为码点 Set 并写入 cnFontCodepointSetPromise，避免写频再 fetch。
- */
-function cnFontTryFillCacheFromFontData() {
-  if (fontData === null || fontData === undefined) {
-    return;
-  }
-  const fontByteLength = fontData.length;
-  if (fontByteLength === 0) {
-    return;
-  }
-  try {
-    const fontBuffer = cnFontArrayBufferFromUint8(fontData);
-    const parsedSet = cnFontParseCodepointsFromBin(fontBuffer);
-    cnFontCodepointSetPromise = Promise.resolve(parsedSet);
-  } catch (parseErr) {
-    console.warn('刷字库已加载数据无法用于缺字码表解析（写频将仍尝试网络 fetch）', parseErr);
-  }
-}
-
-/**
- * 刷字库从网络或本地文件更新 fontData 后调用：清空旧缓存并用当前 fontData 重建码表。
- */
-function cnFontOnFontDataLoaded() {
-  cnFontCodepointSetPromise = null;
-  cnFontTryFillCacheFromFontData();
-}
-
-/**
- * 查找 flash.js 的绝对 URL（用于相对脚本路径解析；document.currentScript 在异步回调中不可用）。
- * @returns {string}
- */
-function cnFontGetFlashJsAbsoluteUrl() {
-  const scriptElements = document.getElementsByTagName('script');
-  let scriptIndex = 0;
-  for (; scriptIndex < scriptElements.length; scriptIndex++) {
-    const srcAttr = scriptElements[scriptIndex].src;
-    if (!srcAttr) {
-      continue;
-    }
-    const looksLikeFlashJs = srcAttr.indexOf('flash.js') >= 0;
-    if (looksLikeFlashJs) {
-      return srcAttr;
-    }
-  }
-  return '';
-}
-
-/**
- * 组装 cn_font.bin 的候选 URL：优先相对 flash.js（…/js → …/font），再相对当前页面（与 index 同级 font）。
- * 解决 Live Server 打开仓库根目录、或 baseURI 与静态文件实际路径不一致时仅页面相对路径 404 的问题。
- * @returns {string[]}
- */
-function cnFontCollectCnBinCandidateUrls() {
-  const seenHref = new Set();
-  const orderedUrls = [];
-
-  function pushUnique(urlHref) {
-    if (!urlHref) {
-      return;
-    }
-    const already = seenHref.has(urlHref);
-    if (already) {
-      return;
-    }
-    seenHref.add(urlHref);
-    orderedUrls.push(urlHref);
-  }
-
-  const flashJsUrl = cnFontGetFlashJsAbsoluteUrl();
-  const flashJsNonEmpty = flashJsUrl !== '';
-  if (flashJsNonEmpty) {
-    const fromJsFont = new URL('../font/cn_font.bin', flashJsUrl).href;
-    const fromJsFonts = new URL('../fonts/cn_font.bin', flashJsUrl).href;
-    pushUnique(fromJsFont);
-    pushUnique(fromJsFonts);
-  }
-
-  const docDirectoryBase = getDocumentDirectoryBaseUrlString();
-  const fromDocFont = new URL('font/cn_font.bin', docDirectoryBase).href;
-  const fromDocFonts = new URL('fonts/cn_font.bin', docDirectoryBase).href;
-  pushUnique(fromDocFont);
-  pushUnique(fromDocFonts);
-
-  return orderedUrls;
-}
-
-/**
- * 按候选 URL 依次拉取字库二进制。
- * @returns {Promise<ArrayBuffer>}
- */
-function cnFontFetchArrayBuffer() {
-  const candidateUrls = cnFontCollectCnBinCandidateUrls();
-  const totalCandidates = candidateUrls.length;
-  let attemptIndex = 0;
-
-  function attemptNextUrl() {
-    if (attemptIndex >= totalCandidates) {
-      const errText =
-        '无法加载字库：已尝试相对 js 与相对页面的 font/cn_font.bin、fonts/cn_font.bin（共 ' +
-        totalCandidates +
-        ' 个地址）';
-      return Promise.reject(new Error(errText));
-    }
-    const fullUrl = candidateUrls[attemptIndex];
-    attemptIndex = attemptIndex + 1;
-    const fetchPromise = fetch(fullUrl);
-    return fetchPromise.then(function onResponse(response) {
-      const responseOk = response.ok;
-      if (responseOk) {
-        return response.arrayBuffer();
-      }
-      return attemptNextUrl();
-    }).catch(function onFetchError() {
-      return attemptNextUrl();
-    });
-  }
-  return attemptNextUrl();
-}
-
-/**
- * 加载并缓存字库码点集：优先刷字库 tab 已载入的 fontData；否则 fetch 同源 cn_font.bin。
- * @returns {Promise<Set<number>>}
- */
-function cnFontGetCodepointSet() {
-  if (cnFontCodepointSetPromise !== null) {
-    return cnFontCodepointSetPromise;
-  }
-  cnFontTryFillCacheFromFontData();
-  if (cnFontCodepointSetPromise !== null) {
-    return cnFontCodepointSetPromise;
-  }
-  const fetchPromise = cnFontFetchArrayBuffer();
-  const parsedPromise = fetchPromise.then(function onFontBufOk(arrayBuffer) {
-    const codepointSet = cnFontParseCodepointsFromBin(arrayBuffer);
-    return codepointSet;
-  });
-  cnFontCodepointSetPromise = parsedPromise.catch(function onFontLoadFail(loadErr) {
-    cnFontCodepointSetPromise = null;
-    return Promise.reject(loadErr);
-  });
-  return cnFontCodepointSetPromise;
-}
-
-/**
- * @param {string} text
- * @param {Set<number>} codepointSet
- * @returns {string[]}
- */
-function writefreqFindCharsMissingFromCnFont(text, codepointSet) {
-  const missingList = [];
-  const seenChar = new Set();
-  for (const ch of text) {
-    const codePoint = ch.codePointAt(0);
-    const isAscii = codePoint < 0x80;
-    if (isAscii) {
-      continue;
-    }
-    const inFont = codepointSet.has(codePoint);
-    if (inFont) {
-      continue;
-    }
-    const alreadyListed = seenChar.has(ch);
-    if (alreadyListed) {
-      continue;
-    }
-    seenChar.add(ch);
-    missingList.push(ch);
-  }
-  return missingList;
-}
-
-/**
- * @param {HTMLInputElement} channelNameInput
- * @returns {string}
- */
-function writefreqGetChannelLabelForToast(channelNameInput) {
-  const rowEl = channelNameInput.closest('tr');
-  let channelLabelForMsg = '';
-  if (!rowEl) {
-    return channelLabelForMsg;
-  }
-  const chIdxRaw = rowEl.dataset.writefreqChIdx;
-  const chIdxParsed = Number.parseInt(chIdxRaw, 10);
-  const chIdxOk =
-    Number.isFinite(chIdxParsed) &&
-    chIdxParsed >= 0 &&
-    chIdxParsed < WRITE_FREQ_MR_MAX;
-  if (!chIdxOk) {
-    return channelLabelForMsg;
-  }
-  const baseChannel = writefreqGetBaseChannel();
-  const channelNumber = baseChannel + chIdxParsed;
-  channelLabelForMsg = '第 ' + channelNumber + ' 信道';
-  return channelLabelForMsg;
-}
-
-/**
- * @param {HTMLInputElement} channelNameInput
- * @param {string} finalText
- * @param {Set<number>} codepointSet
- * @returns {string}
- */
-function writefreqBuildMissingCnFontToastMessage(channelNameInput, finalText, codepointSet) {
-  const missingChars = writefreqFindCharsMissingFromCnFont(finalText, codepointSet);
-  const hasMissing = missingChars.length > 0;
-  if (!hasMissing) {
-    return '';
-  }
-  const channelLabel = writefreqGetChannelLabelForToast(channelNameInput);
-  const missingJoined = missingChars.join('、');
-  const labelNonEmpty = channelLabel !== '';
-  let bodyText = '';
-  if (labelNonEmpty) {
-    bodyText =
-      channelLabel +
-      '：以下字符不在当前字库（共 ' +
-      CN_FONT_CHAR_COUNT +
-      ' 字）中：' +
-      missingJoined;
-  } else {
-    bodyText =
-      '以下字符不在当前字库（共 ' +
-      CN_FONT_CHAR_COUNT +
-      ' 字）中：' +
-      missingJoined;
-  }
-  const douyinPrivateMsgHint = '\n\n如需补充上述汉字，请在写频页面，填写补充表单。';
-  const fullText = bodyText + douyinPrivateMsgHint;
-  return fullText;
-}
-
-/**
- * @param {string} truncateMsg
- * @param {string} fontMsg
- * @returns {string}
- */
-function writefreqCombineTruncateAndFontWarnings(truncateMsg, fontMsg) {
-  const truncateNonEmpty = truncateMsg !== '';
-  const fontNonEmpty = fontMsg !== '';
-  if (truncateNonEmpty && fontNonEmpty) {
-    const combined = truncateMsg + '\n\n' + fontMsg;
-    return combined;
-  }
-  if (truncateNonEmpty) {
-    return truncateMsg;
-  }
-  if (fontNonEmpty) {
-    return fontMsg;
-  }
-  return '';
 }
 
 function writefreqApplyChannelNameBlur(channelNameInput) {
