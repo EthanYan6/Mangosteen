@@ -753,18 +753,36 @@ void SETTINGS_FetchChannelName(char *s, const uint16_t channel)
     if (!RADIO_CheckValidChannel(channel, false, 0))
         return;
 
-    // 0x0F50
+    // 0x0F50 — 10-byte name (ASCII and/or GB2312)
     PY25Q16_ReadBuffer(0x004000 + (channel * 16), s, 10);
 
     int i;
-    for (i = 0; i < 10; i++)
-        if (s[i] < 32 || s[i] > 127)
-            break;                // invalid char
+    for (i = 0; i < 10; )
+    {
+        uint8_t c = (uint8_t)s[i];
 
-    s[i--] = 0;                   // null term
+        /* ASCII printable */
+        if (c >= 32 && c <= 127) {
+            i++;
+            continue;
+        }
 
-    while (i >= 0 && s[i] == 32)  // trim trailing spaces
-        s[i--] = 0;               // null term
+        /* GB2312 double-byte */
+        if (c >= 0xA1 && c <= 0xF7 && i + 1 < 10) {
+            uint8_t lo = (uint8_t)s[i + 1];
+            if (lo >= 0xA1 && lo <= 0xFE) {
+                i += 2;
+                continue;
+            }
+        }
+
+        break;
+    }
+
+    s[i] = 0;
+
+    while (i > 0 && s[i - 1] == 32)
+        s[--i] = 0;
 }
 
 void SETTINGS_FactoryReset(bool bIsAll)

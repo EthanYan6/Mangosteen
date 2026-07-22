@@ -242,8 +242,7 @@
         <div class="tab-content" id="writefreq-content">
           <section class="section">
             <p class="writefreq-lead">
-              <span class="writefreq-scope-note" data-i18n="writefreqNote">
-                鎻愮ず锛氫粎閫傞厤 Mangosteen 鍥轰欢銆備俊閬撳悕浠呰嫳鏂囷紙鏈€闀?10 瀛楃锛夛紝涓嶆敮鎸佷腑鏂囷紱璋冨埗鍚?WFM銆</span>
+              <span class="writefreq-scope-note" data-i18n="writefreqNote">提示：仅适配 Mangosteen 固件。信道名支持英文与中文（GB2312，最长 10 字节，约 5 个汉字）；调制含 WFM。</span>
             </p>
             <div id="logDockWritefreq" class="writefreq-log-dock"></div>
           </section>
@@ -252,19 +251,19 @@
             <div class="writefreq-toolbar-head">
               <div class="writefreq-actions-split">
                 <div class="writefreq-actions-left">
-                  <button type="button" class="btn-inline btn-with-icon" id="writefreqReadBtn" title="浠庤澶囪鍙?" data-i18n-title="readFromDevice">
-                    <span data-i18n="readFromDevice">浠庤澶囪鍙</span>
+                  <button type="button" class="btn-inline btn-with-icon" id="writefreqReadBtn" title="从设备读取" data-i18n-title="readFromDevice">
+                    <span data-i18n="readFromDevice">从设备读取</span>
                   </button>
-                  <button type="button" class="btn-inline btn-with-icon" id="writefreqWriteBtn" title="鍐欏叆璁惧" data-i18n-title="writeToDevice">
-                    <span data-i18n="writeToDevice">鍐欏叆璁惧</span>
+                  <button type="button" class="btn-inline btn-with-icon" id="writefreqWriteBtn" title="写入设备" data-i18n-title="writeToDevice">
+                    <span data-i18n="writeToDevice">写入设备</span>
                   </button>
                 </div>
                 <div class="writefreq-actions-right">
-                  <button type="button" class="btn-inline btn-secondary btn-with-icon" id="writefreqExportBtn" title="瀵煎嚭 Excel" data-i18n-title="exportExcel">
-                    <span data-i18n="exportExcel">瀵煎嚭 Excel</span>
+                  <button type="button" class="btn-inline btn-secondary btn-with-icon" id="writefreqExportBtn" title="导出 Excel" data-i18n-title="exportExcel">
+                    <span data-i18n="exportExcel">导出 Excel</span>
                   </button>
-                  <button type="button" class="btn-inline btn-secondary btn-with-icon" id="writefreqImportBtn" title="瀵煎叆 Excel" data-i18n-title="importExcel">
-                    <span data-i18n="importExcel">瀵煎叆 Excel</span>
+                  <button type="button" class="btn-inline btn-secondary btn-with-icon" id="writefreqImportBtn" title="导入 Excel" data-i18n-title="importExcel">
+                    <span data-i18n="importExcel">导入 Excel</span>
                   </button>
                 </div>
               </div>
@@ -277,29 +276,29 @@
               <thead>
                 <tr>
                   <th class="wf-drag-th" title="拖动排序" data-i18n-title="dragSort">⠿</th>
-                  <th data-i18n="freqChannel">淇￠亾鍙?/th>
-                  <th data-i18n="freqName">淇￠亾鍚?br><span class="th-sub" data-i18n="freqNameSub">浠呰嫳鏂囷紝鏈€闀?10 瀛楃</span></th>
-                  <th data-i18n="freqReceive">鎺ユ敹棰戠巼<br><span class="th-sub" data-i18n="freqMHz">MHz</span></th>
-                  <th data-i18n="freqPower">鍔熺巼<br><span class="th-sub" data-i18n="freqPowerSub">锛堟帓闄?USER锛</span></th>
-                  <th data-i18n="freqRxDCS">鎺ユ敹鏁板瓧浜氶煶<br><span class="th-sub" data-i18n="freqDCS">DCS</span></th>
-                  <th data-i18n="freqRxCTCSS">鎺ユ敹妯℃嫙浜氶煶<br><span class="th-sub" data-i18n="freqCTCSS">CTCSS</span></th>
-                  <th data-i18n="freqTxDCS">鍙戝皠鏁板瓧浜氶煶<br><span class="th-sub" data-i18n="freqDCS">DCS</span></th>
-                  <th data-i18n="freqTxCTCSS">鍙戝皠妯℃嫙浜氶煶<br><span class="th-sub" data-i18n="freqCTCSS">CTCSS</span></th>
-                  <th data-i18n="freqOffsetDir">棰戝樊鏂瑰悜</th>
-                  <th data-i18n="freqOffset">棰戝樊棰戠巼<br><span class="th-sub" data-i18n="freqMHz">MHz</span></th>
-                  <th data-i18n="freqMode">璋冨埗妯″紡<br><span class="th-sub" data-i18n="freqModeSub">FM/AM/USB/WFM</span></th>
-                  <th data-i18n="freqStep">姝ヨ繘<br><span class="th-sub" data-i18n="freqkHz">kHz</span></th>
-                  <th data-i18n="freqList">淇￠亾鍒楄〃</th>
-                  <th class="wf-delete-th" scope="col" aria-label="娓呯┖鏈" data-i18n-aria="clearRow"></th>
-                </tr>
+                  <th><span data-i18n="freqChannel">信道号</span></th>
+                  <th><span data-i18n="freqName">信道名</span><br><span class="th-sub" data-i18n="freqNameSub">英文/中文，最长 10 字节</span></th>
+                  <th><span data-i18n="freqReceive">接收频率</span><br><span class="th-sub" data-i18n="freqMHz">MHz</span></th>
+                  <th><span data-i18n="freqPower">功率</span><br><span class="th-sub" data-i18n="freqPowerSub">（排除 USER）</span></th>
+                  <th><span data-i18n="freqRxDCS">接收数字亚音</span><br><span class="th-sub" data-i18n="freqDCS">DCS</span></th>
+                  <th><span data-i18n="freqRxCTCSS">接收模拟亚音</span><br><span class="th-sub" data-i18n="freqCTCSS">CTCSS</span></th>
+                  <th><span data-i18n="freqTxDCS">发射数字亚音</span><br><span class="th-sub" data-i18n="freqDCS">DCS</span></th>
+                  <th><span data-i18n="freqTxCTCSS">发射模拟亚音</span><br><span class="th-sub" data-i18n="freqCTCSS">CTCSS</span></th>
+                  <th><span data-i18n="freqOffsetDir">频差方向</span></th>
+                  <th><span data-i18n="freqOffset">频差频率</span><br><span class="th-sub" data-i18n="freqMHz">MHz</span></th>
+                  <th><span data-i18n="freqMode">调制模式</span><br><span class="th-sub" data-i18n="freqModeSub">FM/AM/USB/WFM</span></th>
+                  <th><span data-i18n="freqStep">步进</span><br><span class="th-sub" data-i18n="freqkHz">kHz</span></th>
+                  <th><span data-i18n="freqList">信道列表</span></th>
+                  <th class="wf-delete-th" scope="col" aria-label="清空本行" data-i18n-aria="clearRow"></th>
+</tr>
               </thead>
               <tbody id="writefreqTbody"></tbody>
             </table>
           </div>
-          <div class="writefreq-pagination" id="writefreqPagination" aria-label="鍐欓鍒嗛〉">
-            <button type="button" class="btn-inline btn-secondary" id="writefreqPagePrev" data-i18n="prevPage">涓婁竴椤</button>
-            <span class="writefreq-page-info" id="writefreqPageInfo" aria-live="polite" data-i18n="freqPageInfo">鍏?1024 鏉?路 绗?1 椤</span>
-            <button type="button" class="btn-inline btn-secondary" id="writefreqPageNext" data-i18n="nextPage">涓嬩竴椤</button>
+          <div class="writefreq-pagination" id="writefreqPagination" aria-label="写频分页">
+            <button type="button" class="btn-inline btn-secondary" id="writefreqPagePrev" data-i18n="prevPage">上一页</button>
+            <span class="writefreq-page-info" id="writefreqPageInfo" aria-live="polite">共 1024 条 · 第 1 页</span>
+            <button type="button" class="btn-inline btn-secondary" id="writefreqPageNext" data-i18n="nextPage">下一页</button>
           </div>
           <p id="writefreqValidation" class="writefreq-validation" style="display:none;"></p>
         </div>
@@ -451,8 +450,9 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@14.1.4/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
-  <script src="js/lang.js?v=20260722font"></script>
-  <script src="js/flash.js?v=20260722font"></script>
+  <script src="js/lang.js?v=20260722cnfix"></script>
+  <script src="js/gb2312_codec.js?v=20260722cnfix"></script>
+  <script src="js/flash.js?v=20260722cnfix"></script>
   <script>
   (function() {
     var coffeeBtn = document.getElementById('coffeeBtn');

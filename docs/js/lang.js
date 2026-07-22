@@ -160,26 +160,26 @@
       'langSwitchLabel': 'EN',
       
       // Write frequency
-      'freqChannel': '信道',
+      'freqChannel': '信道号',
       'freqReceive': '接收频率',
       'freqTransmit': '发射频率',
-      'freqOffset': '频差',
-      'freqMode': '模式',
-      'freqName': '名称',
+      'freqOffset': '频差频率',
+      'freqMode': '调制模式',
+      'freqName': '信道名',
       'freqPower': '功率',
       'freqBandwidth': '带宽',
       'freqAdd': '添加',
       'freqRead': '读取',
       'freqWrite': '写入',
       'freqClear': '清空',
-      'writefreqNote': '提示：仅适配 Mangosteen 固件。信道名仅英文（最长 10 字符），不支持中文；调制含 WFM。',
+      'writefreqNote': '提示：仅适配 Mangosteen 固件。信道名支持英文与中文（GB2312，最长 10 字节，约 5 个汉字）；调制含 WFM。',
       'clickSupplement': '点击补充',
       'readFromDevice': '从设备读取',
       'writeToDevice': '写入设备',
       'exportExcel': '导出 Excel',
       'importExcel': '导入 Excel',
       'dragSort': '拖动排序',
-      'freqNameSub': '仅英文，最长 10 字符',
+      'freqNameSub': '英文/中文，最长 10 字节',
       'freqMHz': 'MHz',
       'freqPowerSub': '（排除 USER）',
       'freqRxDCS': '接收数字亚音',
@@ -258,7 +258,7 @@
     'logWebSerialUnsupported': '浏览器不支持 Web Serial API，请使用 Chrome/Edge/Opera',
     'logWritefreqReadFailed': '写频读取失败: {msg}',
     'logWritefreqReadSuccess': '表格已清空后，已从设备填入 {count} 条（已跳过未使用槽，以及不符合完整校验的槽：RX 范围、有效功率、属性 band 与频率一致、亚音可解析）；已扫描 {scanned} 槽',
-    'logChannelNameTruncate': '信道名截断提示（仅英文，最长 10 字符）：\n{warn}',
+    'logChannelNameTruncate': '信道名截断提示（GB2312，最长 10 字节）：\n{warn}',
     'logValidationFailed': '校验未通过，未写入设备',
     'logWritefreqSuccess': '写入成功 {count} 个已填写信道；其余 {empty} 个已擦除为未使用',
     'logRebootingDevice': '正在重启设备以加载新信道数据…',
@@ -310,7 +310,7 @@
       'exportExcelSucc': '已导出 Excel（仅已填写接收频率的信道，共 {count} 行）',
       
       // Writefreq table placeholders and options
-      'freqNamePlaceholder': '仅英文，最长 10 字符',
+      'freqNamePlaceholder': '英文/中文，最长 10 字节',
       'freqRxPlaceholder': '例 438.500000',
       'freqOffsetPlaceholder': '例 5.000000',
       'freqSelectPower': '请选择功率',
@@ -602,14 +602,14 @@
       'freqRead': 'Read',
       'freqWrite': 'Write',
       'freqClear': 'Clear',
-      'writefreqNote': 'Tip: Mangosteen only. Channel name: English only (max 10 chars), no Chinese; includes WFM.',
+      'writefreqNote': 'Tip: Mangosteen only. Channel name: English/Chinese GB2312 (max 10 bytes, ~5 Chinese chars); includes WFM.',
       'clickSupplement': 'Click to submit',
       'readFromDevice': 'Read from Device',
       'writeToDevice': 'Write to Device',
       'exportExcel': 'Export Excel',
       'importExcel': 'Import Excel',
       'dragSort': 'Drag to sort',
-      'freqNameSub': 'English only, max 10 chars',
+      'freqNameSub': 'EN/CN, max 10 bytes',
       'freqMHz': 'MHz',
       'freqPowerSub': '(Exclude USER)',
       'freqRxDCS': 'RX DCS',
@@ -691,7 +691,7 @@
     'logWebSerialUnsupported': 'Browser does not support Web Serial API, please use Chrome/Edge/Opera',
     'logWritefreqReadFailed': 'Writefreq read failed: {msg}',
     'logWritefreqReadSuccess': 'Table cleared and filled {count} channels from device (skipped unused slots and invalid slots: RX range, valid power, band matches frequency, parseable tones); scanned {scanned} slots',
-    'logChannelNameTruncate': 'Channel name truncate warning (English only, max 10 chars):\n{warn}',
+    'logChannelNameTruncate': 'Channel name truncate warning (GB2312, max 10 bytes):\n{warn}',
     'logValidationFailed': 'Validation failed, not written to device',
     'logWritefreqSuccess': 'Successfully written {count} filled channels; remaining {empty} erased as unused',
     'logRebootingDevice': 'Rebooting device to load new channel data...',
@@ -743,7 +743,7 @@
       'exportExcelSucc': 'Excel exported (filled channels only, {count} rows)',
       
       // Writefreq table placeholders and options
-      'freqNamePlaceholder': 'English only, max 10 chars',
+      'freqNamePlaceholder': 'EN/CN, max 10 bytes',
       'freqRxPlaceholder': 'Ex: 438.500000',
       'freqOffsetPlaceholder': 'Ex: 5.000000',
       'freqSelectPower': 'Select Power',
@@ -910,6 +910,11 @@
   function applyTranslations() {
     document.querySelectorAll('[data-i18n]').forEach(function(el) {
       try {
+        // Parents that wrap nested data-i18n (e.g. table headers with <br>+subtitle)
+        // must not use textContent — that would wipe the children.
+        if (el.querySelector('[data-i18n]')) {
+          return;
+        }
         const key = el.getAttribute('data-i18n');
         if (!key) return;
         const params = el.getAttribute('data-i18n-params');

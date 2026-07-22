@@ -20,6 +20,7 @@
 #include "driver/bk1080.h"
 #endif
 #include "driver/st7565.h"
+#include "driver/py25q16.h"
 #include "external/printf/printf.h"
 #include "functions.h"
 #include "helper/battery.h"
@@ -43,10 +44,19 @@
 #define FRONT_X0        2
 #define FRONT_Y0        1
 #define FRONT_X1        119
-#define FRONT_Y1        54
+#define FRONT_Y1        52   /* was 54; bottom edge up 2px */
+#define FRONT_INFO_Y    46   /* front card bottom info row (was 48) */
 
 #define BACK_OX         6
 #define BACK_OY         8
+/* Back-peek outer frame still keyed off original front bottom (54) so border does not move */
+#define BACK_FRAME_Y1   54
+#define BACK_TEXT_Y     54   /* back-peek text row (was 56) */
+
+#ifndef FLASH_FONT8_BASE
+#define FLASH_FONT8_BASE  0x0E0000u
+#define FONT8_SIZE        8u
+#endif
 
 /* Ellipse: +5px wider to the left (left rim 10→5), height unchanged.
  * Wider RX corrects the tall-looking circle on the ST7565 aspect. */
@@ -139,9 +149,10 @@ static void HC_DrawBackPeekFrame(void)
 	const uint8_t bx0 = (uint8_t)(FRONT_X0 + BACK_OX);
 	const uint8_t by0 = (uint8_t)(FRONT_Y0 + BACK_OY);
 	const uint8_t bx1 = (uint8_t)(FRONT_X1 + BACK_OX);
-	const uint8_t by1 = (uint8_t)(FRONT_Y1 + BACK_OY);
+	/* Outer back border stays at original position (keyed off BACK_FRAME_Y1) */
+	const uint8_t by1 = (uint8_t)(BACK_FRAME_Y1 + BACK_OY);
 
-	/* Left edge of bottom strip → up to front's bottom edge */
+	/* Left edge of bottom strip → from current front bottom down to back bottom */
 	for (uint8_t y = (uint8_t)(FRONT_Y1 + 1); y <= by1; y += 2)
 		HC_Pixel(bx0, y, true);
 
@@ -174,6 +185,91 @@ static void HC_Small(const char *s, uint8_t x, uint8_t y)
 		HomeCardFont_DrawSmallTextStatus(s, (uint8_t)px, (uint8_t)py, true);
 	else
 		HomeCardFont_DrawSmallText(s, (uint8_t)px, (uint8_t)(py - 8), true);
+}
+
+/** Draw name only: 8×8 GB2312 + smallest font for ASCII in name. Returns next X. */
+static uint8_t HC_PrintName8(const char *s, uint8_t x, uint8_t abs_y)
+{
+	uint8_t cur = x;
+	const size_t len = strlen(s);
+	/* 5px ASCII optically centered in the 8px CN band */
+	const uint8_t ascii_y = (uint8_t)(abs_y + 1u);
+	bool prev_cn = false;
+	bool prev_ascii = false;
+	size_t i = 0;
+
+	while (i < len) {
+		const uint8_t c = (uint8_t)s[i];
+
+		if (c >= 0xA1 && c <= 0xF7 && (i + 1) < len) {
+			const uint8_t lo = (uint8_t)s[i + 1];
+			if (lo >= 0xA1 && lo <= 0xFE) {
+				const uint32_t idx = (uint32_t)(c - 0xA1) * 94u + (lo - 0xA1);
+				uint8_t cnDot[FONT8_SIZE];
+				uint8_t col;
+
+				/* 1px gap between ASCII run and following Chinese */
+				if (prev_ascii)
+					cur = (uint8_t)(cur + 1u);
+
+				PY25Q16_ReadBuffer(FLASH_FONT8_BASE + idx * FONT8_SIZE, cnDot, FONT8_SIZE);
+				for (col = 0; col < FONT8_SIZE; col++) {
+					const uint8_t bits = cnDot[col];
+					uint8_t row;
+					for (row = 0; row < 8u; row++) {
+						if (bits & (uint8_t)(1u << row))
+							HC_Pixel((uint8_t)(cur + col), (uint8_t)(abs_y + row), true);
+					}
+				}
+				cur = (uint8_t)(cur + FONT8_SIZE);
+				prev_cn = true;
+				prev_ascii = false;
+				i += 2;
+				continue;
+			}
+		}
+
+		if (c >= 32 && c < 127) {
+			/* Draw consecutive ASCII as one string so digit spacing stays natural */
+			size_t j = i;
+			char run[12];
+			size_t run_len;
+			uint8_t w;
+
+			while (j < len) {
+				const uint8_t cj = (uint8_t)s[j];
+				if (cj >= 0xA1 && cj <= 0xF7 && (j + 1) < len &&
+				    (uint8_t)s[j + 1] >= 0xA1 && (uint8_t)s[j + 1] <= 0xFE)
+					break;
+				if (cj < 32 || cj >= 127)
+					break;
+				j++;
+			}
+
+			run_len = j - i;
+			if (run_len >= sizeof(run))
+				run_len = sizeof(run) - 1u;
+			memcpy(run, s + i, run_len);
+			run[run_len] = '\0';
+
+			/* 1px gap between Chinese and following ASCII */
+			if (prev_cn)
+				cur = (uint8_t)(cur + 1u);
+
+			w = HomeCardFont_GetSmallTextWidth(run);
+			if (w == 0)
+				w = (uint8_t)(run_len * 4u);
+			HC_Small(run, cur, ascii_y);
+			cur = (uint8_t)(cur + w);
+			prev_ascii = true;
+			prev_cn = false;
+			i = j;
+			continue;
+		}
+
+		i++;
+	}
+	return cur;
 }
 
 static void HC_Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
@@ -622,20 +718,28 @@ static void HC_FillDtmf(char *out, uint8_t out_len)
 static void HC_DrawBackPeek(uint8_t vfo_num)
 {
 	char name[12];
-	char line[28];
+	char rest[24];
+	uint8_t x = 10;
 	const VFO_Info_t *vfo = &gEeprom.VfoInfo[vfo_num];
 	const uint32_t freq = vfo->freq_config_RX.Frequency;
 
 	HC_DrawBackPeekFrame();
 
 	HC_GetName(vfo_num, name, sizeof(name));
-	/* keep name short for one line */
-	name[8] = 0;
-	sprintf(line, "%s %u.%05u %s",
-		name,
+	name[10] = 0;
+
+	/* Name (8×8 if CN) and freq/mod drawn separately.
+	 * Pure English name and freq/mod share BACK_TEXT_Y + 1. */
+	if (UI_StringHasGb2312(name)) {
+		x = HC_PrintName8(name, 10, BACK_TEXT_Y);
+	} else {
+		HC_Small(name, 10, (uint8_t)(BACK_TEXT_Y + 1u));
+		x = (uint8_t)(10u + HomeCardFont_GetSmallTextWidth(name));
+	}
+	sprintf(rest, " %u.%05u %s",
 		freq / 100000u, freq % 100000u,
 		gModulationStr[vfo->Modulation]);
-	HC_Small(line, 10, 56);
+	HC_Small(rest, x, (uint8_t)(BACK_TEXT_Y + 1u));
 }
 
 static void HC_DrawFront(uint8_t vfo_num)
@@ -715,11 +819,43 @@ static void HC_DrawFront(uint8_t vfo_num)
 	if (str[0])
 		HC_SmallFit(str, HC_DTMF_X, 10);
 
-	/* channel name / VFO — half of big font (gFontSmall); offset path uses small font */
+	/* channel name / VFO — ASCII: small bold; CN: 16×16 (nudge up 3px) */
 	HC_GetName(vfo_num, str, sizeof(str));
 	str[10] = 0;
 	if (hc_ox != 0 || hc_oy != 0) {
+		/* Swap animation: fall back to small font with offset */
 		HC_Small(str, 48, 16);
+	} else if (UI_StringHasGb2312(str)) {
+		UI_PrintString(str, 48, 0, 1, 8);
+		{
+			unsigned name_w = 0;
+			const size_t nlen = strlen(str);
+			size_t ni;
+			for (ni = 0; ni < nlen; ) {
+				const uint8_t c = (uint8_t)str[ni];
+				if (c >= 0xA1 && c <= 0xF7 && (ni + 1) < nlen &&
+				    (uint8_t)str[ni + 1] >= 0xA1 && (uint8_t)str[ni + 1] <= 0xFE) {
+					name_w += 16u;
+					ni += 2;
+				} else {
+					name_w += 8u;
+					ni++;
+				}
+			}
+			if (name_w > (unsigned)(LCD_WIDTH - 48))
+				name_w = (unsigned)(LCD_WIDTH - 48);
+			for (uint8_t x = 48; x < (uint8_t)(48u + name_w); x++) {
+				const uint16_t glyph =
+					(uint16_t)gFrameBuffer[1][x] |
+					((uint16_t)gFrameBuffer[2][x] << 8);
+				gFrameBuffer[1][x] = 0;
+				gFrameBuffer[2][x] = 0;
+				for (uint8_t row = 0; row < 16u; row++) {
+					if (glyph & (uint16_t)(1u << row))
+						PutPixel(x, (uint8_t)(8u - 3u + row), true);
+				}
+			}
+		}
 	} else {
 #ifdef ENABLE_SMALL_BOLD
 		UI_PrintStringSmallBold(str, 48, 0, 1);
@@ -755,7 +891,7 @@ static void HC_DrawFront(uint8_t vfo_num)
 		sprintf(p, " %s SQL%u %s",
 			gModulationStr[vfo->Modulation],
 			gEeprom.SQUELCH_LEVEL, bw);
-		HC_Small(str, 6, 48);
+		HC_Small(str, 6, FRONT_INFO_Y);
 	}
 }
 

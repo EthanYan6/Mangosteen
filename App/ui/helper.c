@@ -107,11 +107,28 @@ void UI_PrintStringBuffer(const char *pString, uint8_t * buffer, uint32_t char_w
     }
 }
 
+bool UI_StringHasGb2312(const char *pString)
+{
+    const size_t Length = strlen(pString);
+
+    for (size_t i = 0; i < Length; i++) {
+        const uint8_t c = (uint8_t)pString[i];
+        if (c >= 0xA1 && c <= 0xF7 && (i + 1) < Length) {
+            const uint8_t lo = (uint8_t)pString[i + 1];
+            if (lo >= 0xA1 && lo <= 0xFE)
+                return true;
+        }
+    }
+    return false;
+}
+
 void UI_PrintString(const char *pString, uint8_t Start, uint8_t End, uint8_t Line, uint8_t Width)
 {
     size_t i;
     size_t Length = strlen(pString);
     uint8_t cur = Start;
+    /* Mixed CN + ASCII: drop Latin/digits 2px so they optically center with 16×16. */
+    const uint8_t ascii_dy = UI_StringHasGb2312(pString) ? 2u : 0u;
 
     /* Approximate center using ASCII-width units (CN counts as 2 Width units). */
     if (End > Start) {
@@ -152,8 +169,19 @@ void UI_PrintString(const char *pString, uint8_t Start, uint8_t End, uint8_t Lin
         if (c > ' ' && c < 127)
         {
             const unsigned int index = c - ' ' - 1;
-            memcpy(gFrameBuffer[Line + 0] + cur, &gFontBig[index][0], 7);
-            memcpy(gFrameBuffer[Line + 1] + cur, &gFontBig[index][7], 7);
+            if (ascii_dy == 0u) {
+                memcpy(gFrameBuffer[Line + 0] + cur, &gFontBig[index][0], 7);
+                memcpy(gFrameBuffer[Line + 1] + cur, &gFontBig[index][7], 7);
+            } else {
+                uint8_t col;
+                for (col = 0; col < 7u; col++) {
+                    uint16_t v = (uint16_t)gFontBig[index][col]
+                               | ((uint16_t)gFontBig[index][col + 7u] << 8);
+                    v <<= ascii_dy;
+                    gFrameBuffer[Line + 0][cur + col] = (uint8_t)(v & 0xFFu);
+                    gFrameBuffer[Line + 1][cur + col] = (uint8_t)((v >> 8) & 0xFFu);
+                }
+            }
             cur = (uint8_t)(cur + Width);
         } else if (c == ' ') {
             cur = (uint8_t)(cur + Width);

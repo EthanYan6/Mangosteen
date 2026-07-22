@@ -5,11 +5,20 @@
 #include "app/messenger_rf.h"
 #include "app/messenger_packet.h"
 #include "driver/st7565.h"
+#include "driver/py25q16.h"
 #include "external/printf/printf.h"
+#include "settings.h"
 #include "ui/helper.h"
 #include "ui/ui.h"
 #include "misc.h"
 #include "font.h"
+
+#ifndef FLASH_FONT16_BASE
+#define FLASH_FONT16_BASE  0x0A0000u
+#define FLASH_FONT8_BASE   0x0E0000u
+#define FONT16_SIZE        32u
+#define FONT8_SIZE         8u
+#endif
 
 extern uint8_t gMsgHomeCursor;
 extern uint8_t gMsgCursor;
@@ -39,6 +48,42 @@ extern uint16_t gMsgRangeSession;
 #define MSG_RANGE_MAX_FOUND 6u
 
 enum { MSG_SCREEN_HOME = 0, MSG_SCREEN_INBOX, MSG_SCREEN_OUTBOX, MSG_SCREEN_DRAFTS, MSG_SCREEN_COMPOSE, MSG_SCREEN_READ, MSG_SCREEN_SETTINGS, MSG_SCREEN_CALLSIGN, MSG_SCREEN_RANGE };
+
+static bool msg_lang_cn(void)
+{
+	return gUiLanguage == UI_LANGUAGE_CN;
+}
+
+/** English UI key → GB2312 label when language is Chinese. */
+static const char *msg_label(const char *en)
+{
+	if (!msg_lang_cn() || en == NULL)
+		return en;
+	if (strcmp(en, "MESSENGER") == 0) return "\xD0\xC5\xCF\xA2";                 /* 信息 */
+	if (strcmp(en, "INBOX") == 0)     return "\xCA\xD5\xBC\xFE\xCF\xE4";         /* 收件箱 */
+	if (strcmp(en, "COMPOSE") == 0)   return "\xB1\xE0\xBC\xAD\xD0\xC5\xCF\xA2"; /* 编辑信息 */
+	if (strcmp(en, "SENT") == 0)      return "\xB7\xA2\xBC\xFE\xCF\xE4";         /* 发件箱 */
+	if (strcmp(en, "DRAFTS") == 0)    return "\xB2\xDD\xB8\xE5\xCF\xE4";         /* 草稿箱 */
+	return en;
+}
+
+static unsigned msg_text_width8(const char *s)
+{
+	unsigned w = 0;
+	const size_t len = strlen(s);
+	for (size_t i = 0; i < len; ) {
+		const uint8_t c = (uint8_t)s[i];
+		if (c >= 0xA1 && c <= 0xF7 && (i + 1) < len &&
+		    (uint8_t)s[i + 1] >= 0xA1 && (uint8_t)s[i + 1] <= 0xFE) {
+			w += FONT8_SIZE;
+			i += 2;
+		} else {
+			w += 7u;
+			i++;
+		}
+	}
+	return w;
+}
 
 
 static void format_age(uint16_t seconds, char *buf, uint8_t len)
@@ -88,12 +133,78 @@ static void print_right_small(const char *s, uint8_t line)
 static void draw_title(const char *s)
 {
     memset(gFrameBuffer, 0, sizeof(gFrameBuffer));
-    uint8_t len = (uint8_t)strlen(s);
-    /* SmallBold is visually closer to a 7 px pitch on the UV-K1 LCD.
-     * The previous 6 px estimate placed MESSENGER/INBOX/SENT titles
-     * slightly right of center. */
-    uint8_t x = (len >= 18) ? 0 : (uint8_t)((128U - (len * 7U)) / 2U);
-    UI_PrintStringSmallBold(s, x, 0, 0);
+    const char *t = msg_label(s);
+
+    /* Home title「信息」: 16×16 centered, up 4px into status band (screen y=4). */
+    if (msg_lang_cn() && s != NULL && strcmp(s, "MESSENGER") == 0) {
+        const size_t len = strlen(t);
+        unsigned units = 0;
+        size_t i;
+        uint8_t cur;
+
+        for (i = 0; i < len; ) {
+            const uint8_t c = (uint8_t)t[i];
+            if (c >= 0xA1 && c <= 0xF7 && (i + 1) < len &&
+                (uint8_t)t[i + 1] >= 0xA1 && (uint8_t)t[i + 1] <= 0xFE) {
+                units += 2u;
+                i += 2;
+            } else {
+                units += 1u;
+                i++;
+            }
+        }
+        cur = (uint8_t)((128u - (units * 8u)) / 2u);
+
+        for (i = 0; i < len; ) {
+            const uint8_t c = (uint8_t)t[i];
+            if (c >= 0xA1 && c <= 0xF7 && (i + 1) < len) {
+                const uint8_t lo = (uint8_t)t[i + 1];
+                if (lo >= 0xA1 && lo <= 0xFE) {
+                    const uint32_t idx = (uint32_t)(c - 0xA1) * 94u + (lo - 0xA1);
+                    uint8_t cnDot[FONT16_SIZE];
+                    uint8_t col;
+                    PY25Q16_ReadBuffer(FLASH_FONT16_BASE + idx * FONT16_SIZE, cnDot, FONT16_SIZE);
+                    for (col = 0; col < 16u; col++) {
+                        const uint8_t bits_lo = cnDot[col];
+                        const uint8_t bits_hi = cnDot[col + 16u];
+                        uint8_t row;
+                        for (row = 0; row < 16u; row++) {
+                            const uint8_t bits = (row < 8u) ? bits_lo : bits_hi;
+                            const uint8_t bit = (uint8_t)(row & 7u);
+                            if (bits & (uint8_t)(1u << bit)) {
+                                const uint8_t ay = (uint8_t)(4u + row); /* up 4px vs fb-only title */
+                                const uint8_t px = (uint8_t)(cur + col);
+                                if (ay < 8u)
+                                    PutPixelStatus(px, ay, true);
+                                else
+                                    PutPixel(px, (uint8_t)(ay - 8u), true);
+                            }
+                        }
+                    }
+                    cur = (uint8_t)(cur + 16u);
+                    i += 2;
+                    continue;
+                }
+            }
+            i++;
+        }
+        return;
+    }
+
+    /* Other titles (INBOX/COMPOSE/SENT/DRAFTS): 8×8 when Chinese */
+    if (msg_lang_cn() && UI_StringHasGb2312(t)) {
+        const unsigned w = msg_text_width8(t);
+        const uint8_t x = (w >= 128u) ? 0u : (uint8_t)((128u - w) / 2u);
+        UI_PrintStringSmallBold(t, x, 0, 0);
+        return;
+    }
+
+    {
+        uint8_t len = (uint8_t)strlen(t);
+        /* SmallBold is visually closer to a 7 px pitch on the UV-K1 LCD. */
+        uint8_t x = (len >= 18) ? 0 : (uint8_t)((128U - (len * 7U)) / 2U);
+        UI_PrintStringSmallBold(t, x, 0, 0);
+    }
 }
 
 static void draw_dotted_separator(uint8_t y)
@@ -198,6 +309,66 @@ static void print_line_y(const char *s, uint8_t y, bool sel)
     strncpy(safe, s, sizeof(safe) - 1U);
     safe[sizeof(safe) - 1U] = 0;
     msg_draw_small_at_y(safe, 1, y, sel);
+}
+
+/** 8×8 GB2312 (and ASCII) at arbitrary framebuffer pixel Y — for CN home menu. */
+static void msg_draw_cn8_at_y(const char *s, uint8_t x, uint8_t y, bool inverted)
+{
+	const unsigned w = msg_text_width8(s);
+	uint8_t cur = x;
+	const size_t len = strlen(s);
+
+	if (inverted) {
+		msg_fill_rect(x ? (uint8_t)(x - 1U) : 0U, y ? (uint8_t)(y - 1U) : 0U,
+		              (uint8_t)(x + w), (uint8_t)(y + 7U), true);
+	}
+
+	for (size_t i = 0; i < len && cur < 128U; ) {
+		const uint8_t c = (uint8_t)s[i];
+
+		if (c >= 0xA1 && c <= 0xF7 && (i + 1) < len) {
+			const uint8_t lo = (uint8_t)s[i + 1];
+			if (lo >= 0xA1 && lo <= 0xFE) {
+				const uint32_t idx = (uint32_t)(c - 0xA1) * 94u + (lo - 0xA1);
+				uint8_t cnDot[FONT8_SIZE];
+				uint8_t col;
+				PY25Q16_ReadBuffer(FLASH_FONT8_BASE + idx * FONT8_SIZE, cnDot, FONT8_SIZE);
+				for (col = 0; col < FONT8_SIZE && (uint8_t)(cur + col) < 128U; col++) {
+					const uint8_t bits = cnDot[col];
+					uint8_t row;
+					for (row = 0; row < 8u; row++) {
+						if (bits & (uint8_t)(1u << row))
+							msg_set_pixel((uint8_t)(cur + col), (uint8_t)(y + row), !inverted);
+					}
+				}
+				cur = (uint8_t)(cur + FONT8_SIZE);
+				i += 2;
+				continue;
+			}
+		}
+
+		if (c > ' ' && c < 127) {
+			const uint8_t *glyph = gFontSmall[(uint8_t)c - ' ' - 1U];
+			for (uint8_t col = 0; col < 6U && (uint8_t)(cur + col) < 128U; col++) {
+				const uint8_t bits = glyph[col];
+				for (uint8_t row = 0; row < 7U; row++) {
+					if (bits & (uint8_t)(1U << row))
+						msg_set_pixel((uint8_t)(cur + col), (uint8_t)(y + row), !inverted);
+				}
+			}
+			cur = (uint8_t)(cur + 7U);
+		}
+		i++;
+	}
+}
+
+static void print_home_item(const char *en_label, uint8_t y, bool sel)
+{
+	const char *t = msg_label(en_label);
+	if (msg_lang_cn() && UI_StringHasGb2312(t))
+		msg_draw_cn8_at_y(t, 1, y, sel);
+	else
+		print_line_y(t, y, sel);
 }
 
 static void print_wrapped_small_y(const char *s, uint8_t y, uint8_t max_lines)
@@ -327,12 +498,14 @@ static void draw_icon_floppy(uint8_t x, uint8_t y)
 static void draw_home_icon(uint8_t idx)
 {
     /* Icons share one center point in the right side, midway between the
-     * INBOX and DRAFTS rows.  They are not tied to the bottom separator. */
+     * INBOX and DRAFTS rows.  They are not tied to the bottom separator.
+     * CN: list up 3px vs prior CN layout → icon dy 6-3=3. */
+    const uint8_t dy = msg_lang_cn() ? 1U : 0U;
     switch (idx) {
-        case 0: draw_icon_envelope(88U, 17U); break;  /* 30x18, center y~26 */
-        case 1: draw_icon_pencil(89U, 13U); break;    /* 30x28, center y~27 */
-        case 2: draw_icon_up_arrow(88U, 14U); break;  /* 31x27, center y~27 */
-        default: draw_icon_floppy(86U, 15U); break;   /* 34x24, visual center y~27 */
+        case 0: draw_icon_envelope(88U, (uint8_t)(17U + dy)); break;  /* 30x18, center y~26 */
+        case 1: draw_icon_pencil(89U, (uint8_t)(13U + dy)); break;    /* 30x28, center y~27 */
+        case 2: draw_icon_up_arrow(88U, (uint8_t)(14U + dy)); break;  /* 31x27, center y~27 */
+        default: draw_icon_floppy(86U, (uint8_t)(15U + dy)); break;   /* 34x24, visual center y~27 */
     }
 }
 
@@ -340,16 +513,24 @@ static void draw_home(void)
 {
     static const char *items[] = { "INBOX", "COMPOSE", "SENT", "DRAFTS" };
     char buf[24];
+    /* CN: list/sep/SELECT block up 2px (row0 14→12, sep 49→47, sel 52→50). */
+    const uint8_t row0 = msg_lang_cn() ? 12U : 10U;
+    const uint8_t row_step = 9U;
+
     draw_title("MESSENGER");
     /* 0.3.0: HOME list shifted 1 px up so SELECT keeps 2 px bottom
      * clearance; right-side icon uses a fixed center shared by all states. */
     for (uint8_t i = 0; i < 4; i++) {
-        print_line_y(items[i], (uint8_t)(10U + (i * 9U)), gMsgHomeCursor == i);
+        print_home_item(items[i], (uint8_t)(row0 + (i * row_step)), gMsgHomeCursor == i);
     }
     draw_home_icon(gMsgHomeCursor);
 
-    draw_dotted_separator(46);
-    GUI_DisplaySmallest("SELECT", 0, 49, false, true);
+    {
+        const uint8_t sep_y = msg_lang_cn() ? 47U : 46U;
+        const uint8_t sel_y = msg_lang_cn() ? 50U : 49U;
+        draw_dotted_separator(sep_y);
+        GUI_DisplaySmallest("SELECT", 0, sel_y, false, true);
+    }
 
     if (gMessengerConfig.msg_debug) {
         /* RF22 ACK debug replaces old RF counter debug to save screen space.
@@ -637,6 +818,7 @@ static void draw_settings(void)
 
 void UI_DisplayMessenger(void)
 {
+    UI_StatusClear();
     switch (gMsgScreen) {
         case MSG_SCREEN_HOME: draw_home(); break;
         case MSG_SCREEN_INBOX:
@@ -650,4 +832,5 @@ void UI_DisplayMessenger(void)
         default: draw_home(); break;
     }
     ST7565_BlitFullScreen();
+    ST7565_BlitStatusLine();
 }

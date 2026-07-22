@@ -1937,7 +1937,7 @@ function timelineReleaseMarkdownToSafeHtml(rawMarkdown) {
 // ========== WRITE FREQUENCY (MR CHANNELS, SPI FLASH) ==========
 // Mangosteen 固件布局（勿与叮咚鸡混淆）：
 //   MR 数据块：channel * 16（settings.c / radio.c）
-//   信道名：  0x004000 + channel * 16，最多 10 字节 ASCII（SETTINGS_Save/FetchChannelName）
+//   信道名：  0x004000 + channel * 16，最多 10 字节（ASCII 或 GB2312，SETTINGS_Save/FetchChannelName）
 //   信道属性：0x008000 + channel * 2，ChannelAttributes_t（misc.c FLASH_CHANNEL_ATTR_BASE）
 //   本固件不使用 0x020000 中文名区（叮咚鸡专用），读写均不得触碰该地址。
 // 读取：属性 0xFFFF 为未使用；有效槽须通过 writefreqMrSlotPassesReadQualityGate。
@@ -1954,7 +1954,7 @@ let writefreqPageIndex = 0;
 let writefreqRowsData = null;
 /** SortableJS 实例（写频表格行拖拽） */
 let writefreqSortableInstance = null;
-/** 与 Mangosteen SETTINGS_Fetch/SaveChannelName 一致：最多 10 字节 ASCII（32–127） */
+/** 与 Mangosteen SETTINGS_Fetch/SaveChannelName 一致：最多 10 字节（ASCII / GB2312） */
 const WRITE_FREQ_CHANNEL_NAME_MAX_BYTES = 10;
 const WRITE_FREQ_SPI_MAX_CHUNK = 120;
 /** waitForMsg 循环次数，×10ms 为大约最长等待（例 120 ≈ 1.2s） */
@@ -1963,7 +1963,7 @@ const WRITE_FREQ_SPI_READ_RETRIES = 5;
 /** SPI 写扇区/整片编程时固件可能阻塞较久，需明显大于读（例 1500 ≈ 15s） */
 const WRITE_FREQ_SPI_WRITE_WAIT_ITERATIONS = 1500;
 
-/** settings.c：信道名 @ 0x004000 + ch*16，最多 10 ASCII 字节，整槽写 16 字节（其余 0） */
+/** settings.c：信道名 @ 0x004000 + ch*16，最多 10 字节 GB2312/ASCII，整槽写 16 字节（其余 0） */
 const WRITE_FREQ_ADDR_NAME_BASE = 0x004000;
 /** misc.c FLASH_CHANNEL_ATTR_BASE：每信道 2 字节；擦除态 0xFFFF 表示未使用 */
 const WRITE_FREQ_ATTR_BASE = 0x008000;
@@ -2484,9 +2484,9 @@ async function spiFlashWriteChunk(sessionTs, flashAddress, payload) {
   return ok;
 }
 
-/** 解码 0x004000 名区：遇 0x00/0xFF 截断；Mangosteen 实为 ASCII */
+/** 解码 0x004000 名区：遇 0x00/0xFF 截断；ASCII + GB2312（与 SETTINGS_FetchChannelName 一致） */
 function writefreqDecodeCnNameUtf8(bytes) {
-  const len = Math.min(16, bytes.length);
+  const len = Math.min(10, bytes ? bytes.length : 0);
   let end = 0;
   let ei = 0;
   for (; ei < len; ei++) {
@@ -2500,28 +2500,35 @@ function writefreqDecodeCnNameUtf8(bytes) {
     return '';
   }
   const slice = bytes.subarray(0, end);
+  if (typeof Gb2312Codec !== 'undefined' && Gb2312Codec.decodeBytes) {
+    return Gb2312Codec.decodeBytes(slice);
+  }
   try {
-    const text = new TextDecoder('utf-8', { fatal: true }).decode(slice);
-    return text;
+    return new TextDecoder('gbk').decode(slice);
   } catch (e) {
-    return '';
+    let ascii = '';
+    for (let i = 0; i < slice.length; i++) {
+      const c = slice[i];
+      if (c >= 32 && c <= 126) ascii += String.fromCharCode(c);
+      else break;
+    }
+    return ascii;
   }
 }
 
-/** Mangosteen 仅使用 0x004000 ASCII 名；导入旧表时优先「信道名/英文信道名」，忽略中文列。 */
-function writefreqAsciiChannelNameFromImport(primaryText, englishFallbackText) {
+/**
+ * 导入信道名：优先「信道名」，其次「中文信道名」，再次「英文信道名」；
+ * 按 GB2312 截断到最多 10 字节。
+ */
+function writefreqAsciiChannelNameFromImport(primaryText, englishFallbackText, chineseFallbackText) {
   const primary = String(primaryText || '').trim();
+  const chinese = String(chineseFallbackText || '').trim();
   const english = String(englishFallbackText || '').trim();
-  const raw = primary !== '' ? primary : english;
-  let asciiOnly = '';
-  for (let ai = 0; ai < raw.length; ai++) {
-    const code = raw.charCodeAt(ai);
-    if (code >= 32 && code <= 126) asciiOnly += raw.charAt(ai);
+  const raw = primary !== '' ? primary : (chinese !== '' ? chinese : english);
+  if (typeof Gb2312Codec === 'undefined' || !Gb2312Codec.truncateText) {
+    return raw.slice(0, WRITE_FREQ_CHANNEL_NAME_MAX_BYTES);
   }
-  if (asciiOnly.length > WRITE_FREQ_CHANNEL_NAME_MAX_BYTES) {
-    asciiOnly = asciiOnly.slice(0, WRITE_FREQ_CHANNEL_NAME_MAX_BYTES);
-  }
-  return asciiOnly;
+  return Gb2312Codec.truncateText(raw, WRITE_FREQ_CHANNEL_NAME_MAX_BYTES).text;
 }
 
 /** 返回与 Flash 一致的 uint32：步长为 WRITE_FREQ_STORE_STEP_HZ（10 Hz），非标准 Hz */
@@ -2631,7 +2638,7 @@ function writefreqTruncateUtf8ToMaxBytes(text, maxBytes) {
   return resultTrunc;
 }
 
-/** 有接收频率的信道：统一信道名按 15 字节（UTF-8）截断并写回 model */
+/** 有接收频率的信道：统一信道名按 10 字节 GB2312/ASCII 截断并写回 model */
 function writefreqApplyAllChannelNameTruncations() {
   writefreqEnsureModelInit();
   const truncationWarnings = [];
@@ -2646,20 +2653,17 @@ function writefreqApplyAllChannelNameTruncations() {
     const channelNumber = startCh + rowIndex;
     const rowLabel = '第 ' + channelNumber + ' 信道';
     const raw = String(fields.channelNameText || '');
-    let asciiOnly = '';
-    for (let ai = 0; ai < raw.length; ai++) {
-      const code = raw.charCodeAt(ai);
-      if (code >= 32 && code <= 126) asciiOnly += raw.charAt(ai);
+    if (typeof Gb2312Codec === 'undefined' || !Gb2312Codec.truncateText) {
+      continue;
     }
-    let changed = asciiOnly !== raw;
-    if (asciiOnly.length > WRITE_FREQ_CHANNEL_NAME_MAX_BYTES) {
-      asciiOnly = asciiOnly.slice(0, WRITE_FREQ_CHANNEL_NAME_MAX_BYTES);
-      changed = true;
-    }
-    if (changed) {
-      fields.channelNameText = asciiOnly;
+    const result = Gb2312Codec.truncateText(raw, WRITE_FREQ_CHANNEL_NAME_MAX_BYTES);
+    if (result.text !== raw) {
+      fields.channelNameText = result.text;
       truncationWarnings.push(
-        rowLabel + '：信道名已规范为英文 ASCII（最长 ' + WRITE_FREQ_CHANNEL_NAME_MAX_BYTES + ' 字符）'
+        rowLabel +
+          '：信道名已按 GB2312 规范为最长 ' +
+          WRITE_FREQ_CHANNEL_NAME_MAX_BYTES +
+          ' 字节（约 5 个汉字）'
       );
     }
   }
@@ -2669,15 +2673,24 @@ function writefreqApplyAllChannelNameTruncations() {
 function writefreqValidateChannelName(text) {
   const problems = [];
   const raw = String(text || '');
-  for (let i = 0; i < raw.length; i++) {
-    const code = raw.charCodeAt(i);
-    if (code < 32 || code > 126) {
-      problems.push('信道名仅支持英文 ASCII（32–126），不支持中文或特殊字符');
+  if (typeof Gb2312Codec === 'undefined' || !Gb2312Codec.encodeToBytes) {
+    return problems;
+  }
+  for (const ch of raw) {
+    if (!Gb2312Codec.hasChar(ch)) {
+      problems.push('信道名含无法用 GB2312 编码的字符：「' + ch + '」');
       break;
     }
   }
-  if (raw.length > WRITE_FREQ_CHANNEL_NAME_MAX_BYTES) {
-    problems.push('信道名最长 ' + WRITE_FREQ_CHANNEL_NAME_MAX_BYTES + ' 字符；当前 ' + raw.length + ' 字符');
+  const bytes = Gb2312Codec.encodeToBytes(raw, 1e9);
+  if (bytes.length > WRITE_FREQ_CHANNEL_NAME_MAX_BYTES) {
+    problems.push(
+      '信道名最长 ' +
+        WRITE_FREQ_CHANNEL_NAME_MAX_BYTES +
+        ' 字节（约 5 个汉字）；当前 ' +
+        bytes.length +
+        ' 字节'
+    );
   }
   return problems;
 }
@@ -2686,40 +2699,32 @@ function writefreqApplyChannelNameBlur(channelNameInput) {
   if (!channelNameInput) {
     return;
   }
-  // settings.c SETTINGS_FetchChannelName：仅保留 ASCII 32–127，最长 10 字节
   const raw = String(channelNameInput.value || '');
-  let asciiOnly = '';
-  for (let ai = 0; ai < raw.length; ai++) {
-    const code = raw.charCodeAt(ai);
-    if (code >= 32 && code <= 126) asciiOnly += raw.charAt(ai);
+  if (typeof Gb2312Codec === 'undefined' || !Gb2312Codec.truncateText) {
+    writefreqFlushDomToModel();
+    return;
   }
-  if (asciiOnly.length > WRITE_FREQ_CHANNEL_NAME_MAX_BYTES) {
-    asciiOnly = asciiOnly.slice(0, WRITE_FREQ_CHANNEL_NAME_MAX_BYTES);
-  }
-  if (asciiOnly !== raw) {
-    channelNameInput.value = asciiOnly;
+  const result = Gb2312Codec.truncateText(raw, WRITE_FREQ_CHANNEL_NAME_MAX_BYTES);
+  if (result.text !== raw) {
+    channelNameInput.value = result.text;
     if (typeof showAppToast === 'function') {
-      showAppToast('信道名仅英文，最长 ' + WRITE_FREQ_CHANNEL_NAME_MAX_BYTES + ' 字符，不支持中文', 'warn');
+      showAppToast(
+        '信道名已截断为最长 ' + WRITE_FREQ_CHANNEL_NAME_MAX_BYTES + ' 字节（ASCII/GB2312，约 5 汉字）',
+        'warn'
+      );
     }
   }
   writefreqFlushDomToModel();
 }
 
 function writefreqBuildChannelName16(text) {
-  // SETTINGS_SaveChannelName：memset 0 后 memcpy 最多 10 字节 ASCII
-  const raw = String(text || '');
-  let asciiOnly = '';
-  for (let ai = 0; ai < raw.length; ai++) {
-    const code = raw.charCodeAt(ai);
-    if (code >= 32 && code <= 126) asciiOnly += raw.charAt(ai);
-  }
-  if (asciiOnly.length > WRITE_FREQ_CHANNEL_NAME_MAX_BYTES) {
-    asciiOnly = asciiOnly.slice(0, WRITE_FREQ_CHANNEL_NAME_MAX_BYTES);
-  }
+  // SETTINGS_SaveChannelName：memset 0 后 memcpy 最多 10 字节（ASCII / GB2312）
   const buf = new Uint8Array(16);
-  for (let j = 0; j < asciiOnly.length; j++) {
-    buf[j] = asciiOnly.charCodeAt(j);
+  if (typeof Gb2312Codec === 'undefined' || !Gb2312Codec.encodeToBytes) {
+    return buf;
   }
+  const encoded = Gb2312Codec.encodeToBytes(String(text || ''), WRITE_FREQ_CHANNEL_NAME_MAX_BYTES);
+  buf.set(encoded.subarray(0, Math.min(encoded.length, WRITE_FREQ_CHANNEL_NAME_MAX_BYTES)));
   return buf;
 }
 
@@ -3229,7 +3234,7 @@ function writefreqRebuildRows() {
   tbody.innerHTML = '';
   const tFunc = window.t || ((key) => {
     const fallback = {
-      'freqNamePlaceholder': '仅英文，最长 10 字符',
+      'freqNamePlaceholder': '英文/中文，最长 10 字节',
       'freqRxPlaceholder': '例 438.500000',
       'freqOffsetPlaceholder': '例 5.000000',
       'freqSelectPower': '请选择功率',
@@ -3488,7 +3493,7 @@ async function writefreqReadFromDevice() {
         const enHex = enAddr.toString(16);
         throw new Error('读取信道名区失败 @ CH ' + (chIndex0 + 1) + '（SPI 0x' + enHex + '）');
       }
-      // Mangosteen：仅 0x004000 ASCII 名；不读 0x020000（与叮咚鸡中文名区/字库相邻，固件未使用）
+      // Mangosteen：0x004000 信道名（ASCII/GB2312）；不读 0x020000（叮咚鸡中文名区，本固件未使用）
       const mergedNameText = writefreqDecodeCnNameUtf8(enRaw);
       const rowFields = wfBlock16ToRowFields(block);
       rowFields.channelNameText = mergedNameText;
@@ -3537,7 +3542,7 @@ async function writefreqWriteToDevice() {
   if (nameTruncationWarnings.length > 0) {
     writefreqShowCurrentPage();
     const warnJoined = nameTruncationWarnings.join('\n');
-    log(window.t ? window.t('logChannelNameTruncate', {warn: warnJoined}) : '信道名截断提示（仅英文，最长 10 字符）：\n' + warnJoined, 'warning');
+    log(window.t ? window.t('logChannelNameTruncate', {warn: warnJoined}) : '信道名截断提示（GB2312，最长 10 字节）：\n' + warnJoined, 'warning');
   }
   const messages = [];
   const startCh = writefreqGetBaseChannel();
@@ -4131,7 +4136,7 @@ function writefreqImportSheet(rowsAoA) {
   const hasLegacy = idxRx >= 0 && legacyTx >= 0 && legacyEn >= 0 && legacyCn >= 0;
   if (!hasNew && !hasLegacy) {
     log(
-      '表头不匹配：请使用本站导出列名（含「信道号」「接收频率_MHz」「频差方向」「频差频率_MHz」「信道名」）。信道名仅为英文 ASCII（最长 10 字符）',
+      '表头不匹配：请使用本站导出列名（含「信道号」「接收频率_MHz」「频差方向」「频差频率_MHz」「信道名」）。信道名支持英文/中文 GB2312（最长 10 字节）',
       'error'
     );
     return;
@@ -4220,10 +4225,11 @@ function writefreqImportSheet(rowsAoA) {
       if (idxScanlist >= 0) {
         merged.scanlistVal = writefreqSheetLabelToScanlistVal(cellStr(idxScanlist));
       }
-      // Mangosteen：只认 ASCII「信道名」；兼容旧表「英文信道名」，忽略「中文信道名」列
+      // Mangosteen：信道名 GB2312/ASCII（≤10 字节）；兼容旧表「中文信道名」「英文信道名」
       merged.channelNameText = writefreqAsciiChannelNameFromImport(
         idxName >= 0 ? cellStr(idxName) : '',
-        idxEn >= 0 ? cellStr(idxEn) : ''
+        idxEn >= 0 ? cellStr(idxEn) : '',
+        idxCn >= 0 ? cellStr(idxCn) : ''
       );
     }
     if (hasLegacy && !hasNew) {
@@ -4232,7 +4238,11 @@ function writefreqImportSheet(rowsAoA) {
       merged.sftVal = '0';
       merged.modVal = '0';
       merged.powerVal = '1';
-      merged.channelNameText = writefreqAsciiChannelNameFromImport('', cellStr(legacyEn));
+      merged.channelNameText = writefreqAsciiChannelNameFromImport(
+        '',
+        cellStr(legacyEn),
+        legacyCn >= 0 ? cellStr(legacyCn) : ''
+      );
       const rxTxt = cellStr(idxRx);
       const txTxt = cellStr(legacyTx);
       const rxHzTry = Number.parseFloat(rxTxt) * 1e6;

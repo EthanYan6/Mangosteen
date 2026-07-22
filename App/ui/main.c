@@ -1788,6 +1788,7 @@ void UI_DisplayMain(void)
                             }
                             else
                             {
+                                /* Dual-VFO name+freq: keep 8×8 so name fits above frequency */
                                 if(activeTxVFO == vfo_num) {
                                     UI_PrintStringSmallBold(String, 32 + 4, 0, line);
                                 }
