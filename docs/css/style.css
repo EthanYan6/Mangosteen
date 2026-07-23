@@ -1103,6 +1103,7 @@ html.theme-light .theme-toggle__icon--moon {
 .help-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 0 14px;
   height: 42px;
@@ -1116,6 +1117,36 @@ html.theme-light .theme-toggle__icon--moon {
   text-decoration: none;
   font-size: 0.9em;
   font-weight: 500;
+  font-family: inherit;
+  line-height: 1;
+  box-sizing: border-box;
+  width: auto;
+  margin: 0;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* Override global `button { width:100%; margin-bottom; padding… }` */
+button.help-btn {
+  width: auto;
+  margin: 0;
+  padding: 0 14px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+}
+
+button.help-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+button.help-btn:disabled {
+  background: var(--bg-elevated);
+  color: var(--text-disabled);
+  cursor: not-allowed;
 }
 
 .help-btn:hover {
@@ -1147,10 +1178,11 @@ html.theme-light .theme-toggle__icon--moon {
 .lang-switch {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 0 12px;
   height: 42px;
-  margin-bottom: 0;
+  margin: 0;
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   background: var(--bg-elevated);
@@ -1160,7 +1192,18 @@ html.theme-light .theme-toggle__icon--moon {
   transition: color 0.2s, border-color 0.2s, background 0.2s;
   font-size: 0.9em;
   font-weight: 500;
+  font-family: inherit;
+  line-height: 1;
+  box-sizing: border-box;
   width: auto;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+button.lang-switch:hover {
+  background: var(--bg-elevated);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .lang-switch:hover {
@@ -2577,6 +2620,7 @@ body.help-page {
 
 .help-top-actions {
   top: calc(12px + env(safe-area-inset-top, 0px));
+  align-items: center;
 }
 
 .help-hero {

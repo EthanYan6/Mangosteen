@@ -26,10 +26,9 @@ Especially for the first Mangosteen install:
 1. **Backup calibration** (stock firmware, normal UI)
 2. **Flash firmware** (BOOT mode)
 3. **Flash font** (normal UI; needed for Chinese UI / channel names)
-4. **Flash pinyin table** (if you use pinyin for channel naming; see site/Releases)
-5. **Check calibration** (optional)
-6. **Restore calibration** (normal UI, using your backup)
-7. **Freq programming / boot logo** (as needed)
+4. **Check calibration** (optional)
+5. **Restore calibration** (normal UI, using your backup)
+6. **Freq programming / boot logo** (as needed)
 
 ## 1.3 Backup Calibration
 
@@ -251,7 +250,7 @@ You can also bulk-import channels from the website **Freq Program** tab.
 3. Short **MENU** advances the cursor; at the end, confirm **SURE?** to save.
 4. Names are up to about **10 bytes** (ASCII characters, or GB2312 pairs ≈ 5 Chinese characters).
 
-> Chinese display needs the font flash. Pinyin selection needs the pinyin table flash.
+> Chinese display needs the font flash.
 
 ### Input modes (ChName only)
 
@@ -273,10 +272,31 @@ Notes:
 ### Pinyin tips
 
 1. Short `#` until `pinyin`.
-2. Enter T9 digits with **2–9** (e.g. `ni` ≈ `64`).
+2. Enter T9 digits with **2–9** using the letter map below (e.g. `ni` → `64`, `hao` → `426`).
 3. **1** enters syllable/candidate confirm; **↑/↓** page or move candidates.
 4. Pick by number; **MENU** confirms depending on compose state.
-5. Backspace with **`*`**.
+5. Backspace with **`*`**; **0** inserts a space.
+
+#### Pinyin keypad letter map
+
+In pinyin mode, letters follow the standard phone T9 layout:
+
+| Key | Letters |
+|-----|---------|
+| **1** | Confirm / pick (then press a number to choose a character) |
+| **2** | A B C |
+| **3** | D E F |
+| **4** | G H I |
+| **5** | J K L |
+| **6** | M N O |
+| **7** | P Q R S |
+| **8** | T U V |
+| **9** | W X Y Z |
+| **0** | Space |
+| **\*** | Backspace |
+| **↑ / ↓** | Next syllable / candidate page |
+
+Example: for “山竹”, type `shan` = `7426`, `zhu` = `948`, then pick from candidates.
 
 Callsign / MsgCsg / DTMF editors generally **do not** support pinyin — ASCII/digit style only.
 
@@ -329,7 +349,7 @@ Short **`*`** cycles:
 | `B` | Uppercase multitap |
 | `b` | Lowercase multitap |
 | `2` | Numeric |
-| `pinyin` | Same pinyin engine as ChName |
+| `pinyin` | Same pinyin engine as ChName (see **2.4 Pinyin keypad letter map**) |
 
 - Backspace: **`#` (F)**.
 - In letter modes, long-press a digit to insert that digit.
@@ -355,6 +375,6 @@ Short **`*`** cycles:
 ## 2.6 Usage Notes
 
 1. **MAIN ONLY** disables A/B switching.
-2. Chinese display needs the font; pinyin needs the pinyin table — see Chapter 1.
+2. Chinese display needs the font — flash it as described in Chapter 1.
 3. While scanning, dual-watch UI may temporarily behave as single-VFO scan until you stop.
 4. Inbox content may be lost on power-off; set your local name before messaging.
