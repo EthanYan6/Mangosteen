@@ -4,6 +4,7 @@
 #include "app/messenger_t9.h"
 #include "app/messenger_rf.h"
 #include "app/messenger_packet.h"
+#include "app/pinyin_ime.h"
 #include "audio.h"
 #include "ui/ui.h"
 #include "misc.h"
@@ -287,7 +288,8 @@ static void read_move(int8_t dir)
 void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 {
     if (bKeyHeld) {
-        if (bKeyPressed && gMsgScreen == MSG_SCREEN_COMPOSE && Key >= KEY_0 && Key <= KEY_9) {
+        if (bKeyPressed && gMsgScreen == MSG_SCREEN_COMPOSE && Key >= KEY_0 && Key <= KEY_9
+            && gMsgEditor.mode != 3U) {
             MSG_T9_HandleLongKey(&gMsgEditor, Key);
             gUpdateDisplay = true;
         }
@@ -357,7 +359,13 @@ void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 
         case MSG_SCREEN_COMPOSE:
             if (Key == KEY_MENU) {
+                if (gMsgEditor.mode == 3U && PY_HandleConfirm()) {
+                    gMsgEditor.len = (uint8_t)strlen(gMsgComposeBuf);
+                    break;
+                }
                 MSG_T9_Commit(&gMsgEditor);
+                if (PY_IsActive())
+                    PY_Stop();
                 if (gMsgComposeIsDraftEdit) {
                     /* Drafts are quick-message templates: MENU saves the edited
                      * draft persistently and immediately sends the same text.
@@ -373,8 +381,34 @@ void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
                     open_sent_after_send();
                 }
             }
-            else if (Key == KEY_EXIT) { MSG_T9_Commit(&gMsgEditor); go_home(); }
-            else MSG_T9_HandleKey(&gMsgEditor, Key);
+            else if (Key == KEY_EXIT) {
+                MSG_T9_Commit(&gMsgEditor);
+                if (PY_IsActive())
+                    PY_Stop();
+                go_home();
+            }
+            else if (Key == KEY_STAR) {
+                uint8_t prev = gMsgEditor.mode;
+                MSG_T9_HandleKey(&gMsgEditor, Key);
+                if (gMsgEditor.mode == 3U && prev != 3U)
+                    PY_Start(gMsgComposeBuf, MSG_TEXT_LEN, (uint8_t)sizeof(gMsgComposeBuf),
+                             false, false, PY_PAGE_COMPOSE);
+                else if (prev == 3U && gMsgEditor.mode != 3U) {
+                    PY_Stop();
+                    gMsgEditor.len = (uint8_t)strlen(gMsgComposeBuf);
+                }
+            }
+            else if (gMsgEditor.mode == 3U) {
+                if (Key == KEY_F) {
+                    PY_Backspace();
+                    gMsgEditor.len = (uint8_t)strlen(gMsgComposeBuf);
+                } else if (PY_ProcessKey(Key, true, false)) {
+                    gMsgEditor.len = (uint8_t)strlen(gMsgComposeBuf);
+                }
+            }
+            else {
+                MSG_T9_HandleKey(&gMsgEditor, Key);
+            }
             break;
 
         case MSG_SCREEN_RANGE:

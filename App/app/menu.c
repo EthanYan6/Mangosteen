@@ -46,6 +46,7 @@
 #include "ui/inputbox.h"
 #include "ui/menu.h"
 #include "ui/ui.h"
+#include "app/pinyin_ime.h"
 
 
 uint8_t gUnlockAllTxConfCnt;
@@ -1793,6 +1794,19 @@ static void MENU_Key_0_to_9(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
     if (MENU_IsTextEditMenuItemId(UI_MENU_GetCurrentMenuId()) && edit_index >= 0)
     {   // currently editing channel name / callsign / DTMF code
         const uint8_t edit_max_len = MENU_TextEditMaxLen();
+        if (edit_index >= edit_max_len && UI_MENU_GetCurrentMenuId() != MENU_MEM_NAME)
+            return;
+
+        if (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME && edit_text_mode == 3u) {
+            if (PY_ProcessKey(Key, true, bKeyHeld)) {
+                edit_index = PY_GetCursor();
+                if (edit_index >= edit_max_len)
+                    edit_index = edit_max_len > 0 ? (int)edit_max_len - 1 : 0;
+                gRequestDisplayScreen = DISPLAY_MENU;
+            }
+            return;
+        }
+
         if (edit_index >= edit_max_len)
             return;
 
@@ -1801,6 +1815,13 @@ static void MENU_Key_0_to_9(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
         if (MENU_IsDtmfCodeEditMenuItemId(UI_MENU_GetCurrentMenuId()))
         {
             /* Digits only — no multi-tap IME. */
+            edit[edit_index] = (char)('0' + key_idx);
+            edit_last_key = 255;
+            gRequestDisplayScreen = DISPLAY_MENU;
+            return;
+        }
+
+        if (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME && edit_text_mode == 2u) {
             edit[edit_index] = (char)('0' + key_idx);
             edit_last_key = 255;
             gRequestDisplayScreen = DISPLAY_MENU;
@@ -1996,6 +2017,15 @@ static void MENU_Key_EXIT(bool bKeyPressed, bool bKeyHeld)
             if (bKeyHeld)
                 return; // release after a long press, keep editing
 
+            if (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME && edit_text_mode == 3u) {
+                PY_Backspace();
+                edit_index = PY_GetCursor();
+                edit_last_key = 255;
+                gAskForConfirmation = 0;
+                gRequestDisplayScreen = DISPLAY_MENU;
+                return;
+            }
+
             if (edit_index == 0)
                 goto Skip;
 
@@ -2021,6 +2051,10 @@ Skip:
         /* Backlight related menus set full brightness. Set it back to the configured value,
            just in case we are editing from one of them. */
         BACKLIGHT_TurnOn();
+
+        if (PY_IsActive())
+            PY_Stop();
+        edit_text_mode = 0;
 
         gAskForConfirmation = 0;
         gIsInSubMenu        = false;
@@ -2176,6 +2210,9 @@ static void MENU_Key_MENU(const bool bKeyPressed, const bool bKeyHeld)
             edit_last_key = 255;
             edit_char_index = 0;
             edit_is_uppercase = false;
+            edit_text_mode = 0;
+            if (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME && PY_IsActive())
+                PY_Stop();
 
             // make a copy so we can test for change when exiting the menu item
             memcpy(edit_original, edit, sizeof(edit_original));
@@ -2187,7 +2224,19 @@ static void MENU_Key_MENU(const bool bKeyPressed, const bool bKeyHeld)
         {   // editing text characters
             edit_last_key = 255;
 
-            if (bKeyHeld) {
+            if (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME && edit_text_mode == 3u) {
+                /* MENU while composing/picking commits a hanzi; idle → save. */
+                if (PY_HandleConfirm()) {
+                    edit_index = PY_GetCursor();
+                    gRequestDisplayScreen = DISPLAY_MENU;
+                    return;
+                }
+                if (PY_IsActive())
+                    PY_Stop();
+                edit_text_mode = 0;
+                edit_index = edit_max_len;
+            }
+            else if (bKeyHeld) {
                 edit_index = edit_max_len;
             }
             else if (++edit_index < edit_max_len) {
@@ -2278,6 +2327,13 @@ static void MENU_Key_STAR(const bool bKeyPressed, const bool bKeyHeld)
     if (MENU_IsTextEditMenuItemId(UI_MENU_GetCurrentMenuId()) && edit_index >= 0)
     {   // currently editing channel name / callsign / DTMF code
 
+        if (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME && edit_text_mode == 3u) {
+            PY_Backspace();
+            edit_index = PY_GetCursor();
+            gRequestDisplayScreen = DISPLAY_MENU;
+            return;
+        }
+
         if (edit_index < MENU_TextEditMaxLen())
         {
             if (MENU_IsDtmfCodeEditMenuItemId(UI_MENU_GetCurrentMenuId()))
@@ -2324,6 +2380,7 @@ static void MENU_Key_UP_DOWN(bool bKeyPressed, bool bKeyHeld, int8_t Direction)
     uint8_t VFO;
     uint16_t Channel;
     bool    bCheckScanList;
+    const int8_t physical_dir = Direction;
 
     if (!bKeyPressed)
         return;
@@ -2339,6 +2396,14 @@ static void MENU_Key_UP_DOWN(bool bKeyPressed, bool bKeyHeld, int8_t Direction)
 
     if (MENU_IsTextEditMenuItemId(UI_MENU_GetCurrentMenuId()) && gIsInSubMenu && edit_index >= 0)
     {   // change the character
+        if (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME && edit_text_mode == 3u) {
+            if (PY_ProcessKey(physical_dir > 0 ? KEY_UP : KEY_DOWN, true, false)) {
+                edit_index = PY_GetCursor();
+                gRequestDisplayScreen = DISPLAY_MENU;
+            }
+            return;
+        }
+
         if (edit_index < MENU_TextEditMaxLen() && Direction != 0)
         {
             if (MENU_IsDtmfCodeEditMenuItemId(UI_MENU_GetCurrentMenuId()))
@@ -2502,12 +2567,34 @@ void MENU_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 
                 gBeepToPlay = BEEP_1KHZ_60MS_OPTIONAL;
 
-                if (edit_index < MENU_TextEditMaxLen())
+                if (edit_index < MENU_TextEditMaxLen() ||
+                    (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME && edit_text_mode == 3u))
                 {
                     if (MENU_IsDtmfCodeEditMenuItemId(UI_MENU_GetCurrentMenuId()))
                     {
                         /* Short press writes '#' — no case toggle. */
                         edit[edit_index] = '#';
+                    }
+                    else if (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME)
+                    {
+                        if (bKeyHeld) {
+                            if (edit_text_mode != 3u && edit_index < MENU_TextEditMaxLen())
+                                edit[edit_index] = '#';
+                        } else {
+                            uint8_t prev = edit_text_mode;
+                            edit_text_mode = (uint8_t)((edit_text_mode + 1u) % 4u);
+                            edit_is_uppercase = (edit_text_mode == 1u);
+                            if (edit_text_mode == 3u && prev != 3u)
+                                PY_Start(edit, 10, 17, true, true, PY_PAGE_CHNAME);
+                            else if (prev == 3u && edit_text_mode != 3u) {
+                                PY_Stop();
+                                edit_index = 0;
+                                for (uint8_t i = 0; i < 10; i++) {
+                                    if (edit[i] != ' ' && edit[i] != '\0')
+                                        edit_index = (int)i;
+                                }
+                            }
+                        }
                     }
                     else
                     {

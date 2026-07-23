@@ -4,6 +4,7 @@
 #include "app/messenger_t9.h"
 #include "app/messenger_rf.h"
 #include "app/messenger_packet.h"
+#include "app/pinyin_ime.h"
 #include "driver/st7565.h"
 #include "driver/py25q16.h"
 #include "external/printf/printf.h"
@@ -373,19 +374,48 @@ static void print_home_item(const char *en_label, uint8_t y, bool sel)
 
 static void print_wrapped_small_y(const char *s, uint8_t y, uint8_t max_lines)
 {
-    char linebuf[18];
-    uint8_t line = 0;
-    while (*s && line < max_lines) {
-        uint8_t n = 0;
-        while (s[n] && n < 17U) {
-            linebuf[n] = s[n];
-            n++;
-        }
-        linebuf[n] = 0;
-        msg_draw_small_at_y(linebuf, 0, (uint8_t)(y + (line * 8U)), false);
-        s += n;
-        line++;
-    }
+	char linebuf[40];
+	uint8_t line = 0;
+	const size_t len = strlen(s);
+	size_t i = 0;
+
+	while (i < len && line < max_lines) {
+		unsigned w = 0;
+		size_t start = i;
+		size_t n = 0;
+
+		while (i < len) {
+			const uint8_t c = (uint8_t)s[i];
+			unsigned cw;
+			size_t step = 1;
+
+			if (c >= 0xA1 && c <= 0xF7 && (i + 1) < len &&
+			    (uint8_t)s[i + 1] >= 0xA1 && (uint8_t)s[i + 1] <= 0xFE) {
+				cw = FONT8_SIZE;
+				step = 2;
+			} else {
+				cw = 7u;
+			}
+			if (w + cw > 126u && n > 0)
+				break;
+			w += cw;
+			i += step;
+			n += step;
+			if (n >= sizeof(linebuf) - 1u)
+				break;
+		}
+		if (n == 0) {
+			/* Single glyph wider than line — force one unit. */
+			n = ((uint8_t)s[i] >= 0xA1 && (i + 1) < len) ? 2u : 1u;
+			i += n;
+		}
+		if (n >= sizeof(linebuf))
+			n = sizeof(linebuf) - 1u;
+		memcpy(linebuf, s + start, n);
+		linebuf[n] = 0;
+		msg_draw_cn8_at_y(linebuf, 0, (uint8_t)(y + (line * 8U)), false);
+		line++;
+	}
 }
 
 
@@ -641,11 +671,12 @@ static void draw_read(void)
 static void draw_compose(void)
 {
     char buf[12];
+    uint8_t body_lines = 3;
+    PY_CandView_t cand;
+    const bool py = (gMsgEditor.mode == 3U);
+
     draw_title("COMPOSE");
 
-    /* Keep the compose title clean.  The message type and character counter
-     * use the same metadata row style as the READ/SENT screens: directly
-     * above the dotted top separator, in the 3x5 font. */
     GUI_DisplaySmallest("NEW MESSAGE", 0, 10, false, true);
     snprintf(buf, sizeof(buf), "%u/%u", (uint8_t)strlen(gMsgComposeBuf), (uint8_t)MSG_TEXT_LEN);
     {
@@ -655,10 +686,46 @@ static void draw_compose(void)
     }
 
     draw_dotted_separator(17);
-    print_wrapped_small_y(gMsgComposeBuf, 20, 3);
+
+    memset(&cand, 0, sizeof(cand));
+    if (py) {
+        PY_GetCandView(&cand);
+        if (cand.phase == 2u) body_lines = 1u;
+        else if (cand.phase == 1u) body_lines = 2u;
+    }
+
+    print_wrapped_small_y(gMsgComposeBuf, 20, body_lines);
+
+    if (py && cand.phase >= 1u) {
+        const uint8_t cy = (uint8_t)(20u + body_lines * 8u);
+        msg_draw_cn8_at_y(cand.pinyin, 0, cy, false);
+        if (cand.phase == 2u && cand.count > 0u) {
+            /* One row, 8 slots evenly across 128 px. */
+            const uint8_t y = (uint8_t)(cy + 8u);
+            const uint8_t slots = cand.page_size ? cand.page_size : PY_PAGE_COMPOSE;
+            const uint8_t slot_w = (uint8_t)(128u / slots);
+            uint8_t i;
+            for (i = 0; i < cand.count && i < slots; i++) {
+                char cell[4];
+                const uint8_t cell_w = 15u; /* digit(~7) + GB2312(8) */
+                uint8_t cx = (uint8_t)(i * slot_w);
+                if (slot_w > cell_w)
+                    cx = (uint8_t)(cx + (slot_w - cell_w) / 2u);
+                cell[0] = (char)('1' + i);
+                cell[1] = cand.hanzi[i * 2u];
+                cell[2] = cand.hanzi[i * 2u + 1u];
+                cell[3] = '\0';
+                msg_draw_cn8_at_y(cell, cx, y, false);
+            }
+        }
+    }
+
     draw_dotted_separator(46);
     GUI_DisplaySmallest("SEND", 0, 49, false, true);
-    GUI_DisplaySmallest((gMsgEditor.mode == 2U) ? "2" : (gMsgEditor.upper ? "B" : "b"), 120, 49, false, true);
+    if (py)
+        GUI_DisplaySmallest("pinyin", 92, 49, false, true);
+    else
+        GUI_DisplaySmallest((gMsgEditor.mode == 2U) ? "2" : (gMsgEditor.upper ? "B" : "b"), 120, 49, false, true);
 }
 
 static void draw_range(void)
@@ -818,7 +885,9 @@ static void draw_settings(void)
 
 void UI_DisplayMessenger(void)
 {
-    UI_StatusClear();
+    /* Do not clear/blit the status line here — that blanks battery/icons on
+     * every key redraw (especially noticeable in pinyin compose). Status is
+     * owned by UI_DisplayStatus via gUpdateStatus. */
     switch (gMsgScreen) {
         case MSG_SCREEN_HOME: draw_home(); break;
         case MSG_SCREEN_INBOX:
@@ -832,5 +901,5 @@ void UI_DisplayMessenger(void)
         default: draw_home(); break;
     }
     ST7565_BlitFullScreen();
-    ST7565_BlitStatusLine();
+    gUpdateStatus = true;
 }

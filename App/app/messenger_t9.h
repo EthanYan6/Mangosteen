@@ -9,7 +9,7 @@ typedef struct {
     uint8_t max_len;
     uint8_t len;
     bool upper;
-    uint8_t mode; /* 0=upper(B), 1=lower(b), 2=numeric(2) */
+    uint8_t mode; /* 0=upper(B), 1=lower(b), 2=numeric(2), 3=pinyin */
     KEY_Code_t pending_key;
     uint8_t cycle_index;
     uint16_t pending_ticks;

@@ -63,10 +63,14 @@ bool MSG_T9_HandleKey(MSG_T9Editor_t *ed, KEY_Code_t key)
 
     if (key == KEY_STAR) {
         MSG_T9_Commit(ed);
-        ed->mode = (uint8_t)((ed->mode + 1U) % 3U);
+        ed->mode = (uint8_t)((ed->mode + 1U) % 4U);
         ed->upper = (ed->mode == 0U);
         return true;
     }
+
+    /* Pinyin mode is handled by pinyin_ime in the host. */
+    if (ed->mode == 3U)
+        return false;
 
     if (key == KEY_F || key == KEY_EXIT) {
         if (ed->len > 0) ed->buffer[--ed->len] = 0;
@@ -78,7 +82,7 @@ bool MSG_T9_HandleKey(MSG_T9Editor_t *ed, KEY_Code_t key)
     uint8_t n = (uint8_t)strlen(chars);
     if (n == 0) return false;
 
-    /* Numeric mode: STAR cycles B -> b -> 2.  In mode 2, each keypad
+    /* Numeric mode: STAR cycles B -> b -> 2 -> pinyin.  In mode 2, each keypad
      * press inserts the digit immediately; no multi-tap pending state. */
     if (ed->mode == 2U) {
         MSG_T9_Commit(ed);

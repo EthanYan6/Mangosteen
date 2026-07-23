@@ -35,6 +35,7 @@
 #ifdef ENABLE_MESSENGER
     #include "app/messenger_store.h"
 #endif
+#include "app/pinyin_ime.h"
 
 #ifdef ENABLE_FEAT_F4HWN
     #include "../version.h"
@@ -590,6 +591,7 @@ char    edit_original[17]; // a copy of the text before editing so that we can e
 char    edit[17];
 int     edit_index;
 bool    edit_is_uppercase = false;
+uint8_t edit_text_mode    = 0;
 
 #ifndef ENABLE_CUSTOM_MENU_LAYOUT
 static void UI_MENU_DrawTopRightRoundedBadge(const char *text, const uint8_t line, const bool center_in_area, const uint8_t area_x1, const uint8_t area_x2)
@@ -1034,7 +1036,19 @@ static void UI_MENU_DrawEditCard(const char *title, const char *value, bool text
     }
 
     if (text_edit && edit_len > 0) {
-        const uint8_t edit_body_h = 18; /* name + caret pad + ABC */
+        PY_CandView_t cand_h;
+        uint8_t       cand_extra = 0;
+        uint8_t       edit_body_h;
+
+        memset(&cand_h, 0, sizeof(cand_h));
+        if (UI_MENU_GetCurrentMenuId() == MENU_MEM_NAME && edit_text_mode == 3u && edit_index >= 0) {
+            PY_GetCandView(&cand_h);
+            if (cand_h.phase == 1u)
+                cand_extra = 8u;
+            else if (cand_h.phase == 2u)
+                cand_extra = 16u; /* pinyin + one cand row */
+        }
+        edit_body_h = (uint8_t)(18u + cand_extra); /* name + caret + mode + cands */
         content_h = (uint8_t)(top_bar_h + title_h + gap_h + edit_body_h + (confirm ? 8u : 0u));
     } else {
         content_h = (uint8_t)(top_bar_h + title_h + gap_h + body_lines * 8u);
@@ -1080,7 +1094,7 @@ static void UI_MENU_DrawEditCard(const char *title, const char *value, bool text
     /* 3px gap under the title, then value lines. */
     val_y = (uint8_t)(y1 + top_bar_h + title_h + gap_h);
 
-    if (text_edit && edit_len > 0 && edit_index >= 0 && (unsigned)edit_index < edit_len) {
+    if (text_edit && edit_len > 0 && edit_index >= 0) {
         const unsigned pitch  = MENU_SMALL_CHAR_PITCH;
         const unsigned text_w = (unsigned)edit_len * pitch;
         const uint8_t  area_x1 = (uint8_t)(x1 + 2);
@@ -1088,6 +1102,9 @@ static void UI_MENU_DrawEditCard(const char *title, const char *value, bool text
         uint8_t        tx      = area_x1;
         char           name_line[17];
         unsigned       nlen;
+        const uint8_t  caret_i = ((unsigned)edit_index < edit_len)
+            ? (uint8_t)edit_index
+            : (uint8_t)(edit_len > 0u ? edit_len - 1u : 0u);
 
         nlen = strlen(buf);
         if (nlen > edit_len)
@@ -1107,7 +1124,7 @@ static void UI_MENU_DrawEditCard(const char *title, const char *value, bool text
             const uint8_t cx = (uint8_t)(tx + ci * pitch);
             const uint8_t glyph_w = (uint8_t)(ARRAY_SIZE(gFontSmall[0]));
 
-            if (ci != (uint8_t)edit_index) {
+            if (ci != caret_i) {
                 if (edit[ci] != 'g' && edit[ci] != 'j')
                     UI_DrawLineBuffer(gFrameBuffer, cx, (int16_t)(val_y + 7),
                                       (int16_t)(cx + glyph_w - 1), (int16_t)(val_y + 7), true);
@@ -1122,10 +1139,60 @@ static void UI_MENU_DrawEditCard(const char *title, const char *value, bool text
         {
             const int  mid       = UI_MENU_GetCurrentMenuId();
             const bool hide_case = (mid == MENU_UPCODE || mid == MENU_DWCODE);
+            const bool chname    = (mid == MENU_MEM_NAME);
+            PY_CandView_t cand;
+            uint8_t cand_extra = 0;
+            uint8_t mode_y = (uint8_t)(val_y + 10u);
+            const char *mode_label;
+
+            memset(&cand, 0, sizeof(cand));
+            if (chname && edit_text_mode == 3u) {
+                PY_GetCandView(&cand);
+                if (cand.phase == 1u)
+                    cand_extra = 8u;
+                else if (cand.phase == 2u)
+                    cand_extra = 16u;
+            }
+
             if (!hide_case) {
-                UI_MENU_PrintSmallAtY(edit_is_uppercase ? "ABC" : "abc",
+                if (chname) {
+                    switch (edit_text_mode) {
+                        case 1:  mode_label = "ABC"; break;
+                        case 2:  mode_label = "123"; break;
+                        case 3:  mode_label = "pinyin"; break;
+                        default: mode_label = "abc"; break;
+                    }
+                } else {
+                    mode_label = edit_is_uppercase ? "ABC" : "abc";
+                }
+                UI_MENU_PrintSmallAtY(mode_label,
                                       (uint8_t)(x1 + 2), (uint8_t)(x2 - 1),
-                                      (uint8_t)(val_y + 10u), 8);
+                                      mode_y, 8);
+            }
+            if (chname && cand.phase >= 1u) {
+                uint8_t cy = (uint8_t)(mode_y + 8u);
+                UI_MENU_PrintSmallAtY(cand.pinyin, (uint8_t)(x1 + 2), 0, cy, 8);
+                if (cand.phase == 2u && cand.count > 0u) {
+                    const uint8_t y = (uint8_t)(cy + 8u);
+                    const uint8_t x0 = (uint8_t)(x1 + 2);
+                    const uint8_t x1i = (uint8_t)(x2 - 1);
+                    const uint8_t span = (uint8_t)(x1i - x0 + 1u);
+                    const uint8_t slots = cand.page_size ? cand.page_size : PY_PAGE_CHNAME;
+                    const uint8_t slot_w = (uint8_t)(span / slots);
+                    uint8_t i;
+                    for (i = 0; i < cand.count && i < slots; i++) {
+                        char cell[4];
+                        const uint8_t cell_w = 15u;
+                        uint8_t cx = (uint8_t)(x0 + i * slot_w);
+                        if (slot_w > cell_w)
+                            cx = (uint8_t)(cx + (slot_w - cell_w) / 2u);
+                        cell[0] = (char)('1' + i);
+                        cell[1] = cand.hanzi[i * 2u];
+                        cell[2] = cand.hanzi[i * 2u + 1u];
+                        cell[3] = '\0';
+                        UI_MENU_PrintSmallAtY(cell, cx, 0, y, 8);
+                    }
+                }
             }
             shown = 0; /* confirm uses absolute offset below */
             if (confirm) {
@@ -1133,7 +1200,7 @@ static void UI_MENU_DrawEditCard(const char *title, const char *value, bool text
                     ? SUBV("SURE?", gSubMenu_SURE_CN)
                     : SUBV("WAIT!", gSubMenu_WAIT_CN);
                 UI_MENU_PrintSmallAtY(msg, (uint8_t)(x1 + 2), (uint8_t)(x2 - 1),
-                                      (uint8_t)(val_y + (hide_case ? 10u : 18u)), 8);
+                                      (uint8_t)(val_y + (hide_case ? 10u : (18u + cand_extra))), 8);
             }
         }
         return;

@@ -269,6 +269,8 @@ extern char              edit_original[17];
 extern char              edit[17];
 extern int               edit_index;
 extern bool              edit_is_uppercase;
+/* ChName text modes: 0=abc 1=ABC 2=123 3=pinyin. Other text editors ignore. */
+extern uint8_t           edit_text_mode;
 
 const char *UI_MENU_GetMenuTitle(const t_menu_item *item);
 const char *UI_MENU_GetHeaderTitle(void);
