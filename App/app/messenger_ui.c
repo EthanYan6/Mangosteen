@@ -312,6 +312,113 @@ static void print_line_y(const char *s, uint8_t y, bool sel)
     msg_draw_small_at_y(safe, 1, y, sel);
 }
 
+/** 16×16 GB2312 glyph at pixel Y (one character = 2 bytes). */
+static void msg_draw_cn16_char_at_y(const char hz[2], uint8_t x, uint8_t y)
+{
+	const uint8_t c = (uint8_t)hz[0];
+	const uint8_t lo = (uint8_t)hz[1];
+	uint8_t cnDot[FONT16_SIZE];
+	uint8_t col;
+
+	if (c < 0xA1u || c > 0xF7u || lo < 0xA1u || lo > 0xFEu)
+		return;
+	PY25Q16_ReadBuffer(FLASH_FONT16_BASE + ((uint32_t)(c - 0xA1u) * 94u + (lo - 0xA1u)) * FONT16_SIZE,
+	                   cnDot, FONT16_SIZE);
+	for (col = 0; col < 16u && (uint8_t)(x + col) < 128u; col++) {
+		const uint8_t bits_lo = cnDot[col];
+		const uint8_t bits_hi = cnDot[col + 16u];
+		uint8_t row;
+		for (row = 0; row < 16u; row++) {
+			const uint8_t bits = (row < 8u) ? bits_lo : bits_hi;
+			if (bits & (uint8_t)(1u << (row & 7u)))
+				msg_set_pixel((uint8_t)(x + col), (uint8_t)(y + row), true);
+		}
+	}
+}
+
+/** Digit (small) + 16×16 hanzi, evenly spaced with gaps in [x0,x1]. */
+static void msg_draw_py_cands16(uint8_t x0, uint8_t x1, uint8_t y, const PY_CandView_t *cand)
+{
+	const uint8_t dig_w = 6u;
+	const uint8_t gap_dh = 2u; /* gap between digit and hanzi */
+	const uint8_t hz_w = 16u;
+	const uint8_t unit = (uint8_t)(dig_w + gap_dh + hz_w); /* 24 */
+	uint8_t n, span, i, gap, extra, x;
+
+	if (!cand || cand->count == 0u)
+		return;
+	n = cand->count;
+	if (n > 7u)
+		n = 7u;
+	span = (uint8_t)(x1 - x0 + 1u);
+
+	if ((uint16_t)n * unit + (n + 1u) <= span) {
+		uint8_t rem = (uint8_t)(span - n * unit);
+		gap = (uint8_t)(rem / (n + 1u));
+		extra = (uint8_t)(rem % (n + 1u));
+		x = (uint8_t)(x0 + gap);
+		for (i = 0; i < n; i++) {
+			char dig[2];
+			char hz[2];
+			dig[0] = (char)('1' + i);
+			dig[1] = '\0';
+			hz[0] = cand->hanzi[i * 2u];
+			hz[1] = cand->hanzi[i * 2u + 1u];
+			/* Hanzi first, digit on top so "1" stays visible. */
+			msg_draw_cn16_char_at_y(hz, (uint8_t)(x + dig_w + gap_dh), y);
+			msg_draw_small_at_y(dig, x, (uint8_t)(y + 4u), false);
+			x = (uint8_t)(x + unit + gap + (i < extra ? 1u : 0u));
+		}
+		return;
+	}
+
+	/* Narrow: even gaps between 16×16; digit painted after, to the left. */
+	{
+		uint8_t rem = (span > (uint8_t)(n * hz_w)) ? (uint8_t)(span - n * hz_w) : 0u;
+		gap = (uint8_t)(rem / (n + 1u));
+		extra = (uint8_t)(rem % (n + 1u));
+		x = (uint8_t)(x0 + gap);
+		for (i = 0; i < n; i++) {
+			char dig[2];
+			char hz[2];
+			uint8_t dx;
+			dig[0] = (char)('1' + i);
+			dig[1] = '\0';
+			hz[0] = cand->hanzi[i * 2u];
+			hz[1] = cand->hanzi[i * 2u + 1u];
+			msg_draw_cn16_char_at_y(hz, x, y);
+			dx = (x > x0 + dig_w) ? (uint8_t)(x - dig_w) : x0;
+			msg_draw_small_at_y(dig, dx, (uint8_t)(y + 4u), false);
+			x = (uint8_t)(x + hz_w + gap + (i < extra ? 1u : 0u));
+		}
+	}
+}
+
+/** Pinyin syllables left-aligned with 1px gap between items. */
+static void msg_draw_py_sylls(uint8_t x0, uint8_t x1, uint8_t y, const PY_CandView_t *cand)
+{
+	uint8_t n, i, x;
+
+	if (!cand || cand->syll_n == 0u)
+		return;
+	n = cand->syll_n;
+	if (n > PY_SYLL_MAX)
+		n = PY_SYLL_MAX;
+	x = x0;
+	for (i = 0; i < n && x <= x1; i++) {
+		char buf[10];
+		uint8_t p = 0;
+		uint8_t w;
+		if (i == cand->syll_sel)
+			buf[p++] = '>';
+		strncpy(buf + p, cand->syll[i], sizeof(buf) - p - 1u);
+		buf[sizeof(buf) - 1u] = '\0';
+		msg_draw_small_at_y(buf, x, y, false);
+		w = (uint8_t)(strlen(buf) * 7u);
+		x = (uint8_t)(x + w + 1u); /* 1px gap between syllables */
+	}
+}
+
 /** 8×8 GB2312 (and ASCII) at arbitrary framebuffer pixel Y — for CN home menu. */
 static void msg_draw_cn8_at_y(const char *s, uint8_t x, uint8_t y, bool inverted)
 {
@@ -415,6 +522,67 @@ static void print_wrapped_small_y(const char *s, uint8_t y, uint8_t max_lines)
 		linebuf[n] = 0;
 		msg_draw_cn8_at_y(linebuf, 0, (uint8_t)(y + (line * 8U)), false);
 		line++;
+	}
+}
+
+/* Like print_wrapped_small_y, but shows the last max_lines (tail) so the
+ * caret / newest text stays visible when the body area is shrunk for IME. */
+static void print_wrapped_small_y_tail(const char *s, uint8_t y, uint8_t max_lines)
+{
+	size_t starts[12];
+	uint8_t nlines = 0;
+	const size_t len = strlen(s);
+	size_t i = 0;
+	uint8_t first;
+	uint8_t row;
+	char linebuf[40];
+
+	if (max_lines == 0)
+		return;
+	if (len == 0)
+		return;
+
+	while (i < len && nlines < (uint8_t)ARRAY_SIZE(starts)) {
+		unsigned w = 0;
+		size_t n = 0;
+
+		starts[nlines++] = i;
+		while (i < len) {
+			const uint8_t c = (uint8_t)s[i];
+			unsigned cw;
+			size_t step = 1;
+
+			if (c >= 0xA1 && c <= 0xF7 && (i + 1) < len &&
+			    (uint8_t)s[i + 1] >= 0xA1 && (uint8_t)s[i + 1] <= 0xFE) {
+				cw = FONT8_SIZE;
+				step = 2;
+			} else {
+				cw = 7u;
+			}
+			if (w + cw > 126u && n > 0)
+				break;
+			w += cw;
+			i += step;
+			n += step;
+			if (n >= sizeof(linebuf) - 1u)
+				break;
+		}
+		if (n == 0) {
+			n = ((uint8_t)s[i] >= 0xA1 && (i + 1) < len) ? 2u : 1u;
+			i += n;
+		}
+	}
+
+	first = (nlines > max_lines) ? (uint8_t)(nlines - max_lines) : 0u;
+	for (row = 0; first + row < nlines && row < max_lines; row++) {
+		size_t start = starts[first + row];
+		size_t end = (first + row + 1u < nlines) ? starts[first + row + 1u] : len;
+		size_t n = end - start;
+		if (n >= sizeof(linebuf))
+			n = sizeof(linebuf) - 1u;
+		memcpy(linebuf, s + start, n);
+		linebuf[n] = 0;
+		msg_draw_cn8_at_y(linebuf, 0, (uint8_t)(y + (row * 8U)), false);
 	}
 }
 
@@ -694,29 +862,20 @@ static void draw_compose(void)
         else if (cand.phase == 1u) body_lines = 2u;
     }
 
-    print_wrapped_small_y(gMsgComposeBuf, 20, body_lines);
+    print_wrapped_small_y_tail(gMsgComposeBuf, 20, body_lines);
 
     if (py && cand.phase >= 1u) {
-        const uint8_t cy = (uint8_t)(20u + body_lines * 8u);
-        msg_draw_cn8_at_y(cand.pinyin, 0, cy, false);
-        if (cand.phase == 2u && cand.count > 0u) {
-            /* One row, 8 slots evenly across 128 px. */
-            const uint8_t y = (uint8_t)(cy + 8u);
-            const uint8_t slots = cand.page_size ? cand.page_size : PY_PAGE_COMPOSE;
-            const uint8_t slot_w = (uint8_t)(128u / slots);
-            uint8_t i;
-            for (i = 0; i < cand.count && i < slots; i++) {
-                char cell[4];
-                const uint8_t cell_w = 15u; /* digit(~7) + GB2312(8) */
-                uint8_t cx = (uint8_t)(i * slot_w);
-                if (slot_w > cell_w)
-                    cx = (uint8_t)(cx + (slot_w - cell_w) / 2u);
-                cell[0] = (char)('1' + i);
-                cell[1] = cand.hanzi[i * 2u];
-                cell[2] = cand.hanzi[i * 2u + 1u];
-                cell[3] = '\0';
-                msg_draw_cn8_at_y(cell, cx, y, false);
-            }
+        if (cand.phase == 2u) {
+            /* Pinyin strip + 16×16 candidates above footer (fb y ends at 55). */
+            msg_draw_py_sylls(0, 127, 27, &cand);
+            msg_draw_py_cands16(0, 127, 34, &cand);
+            GUI_DisplaySmallest("SEND", 0, 51, false, true);
+            GUI_DisplaySmallest("pinyin", 92, 51, false, true);
+            return;
+        }
+        {
+            const uint8_t cy = (uint8_t)(20u + body_lines * 8u);
+            msg_draw_py_sylls(0, 127, cy, &cand);
         }
     }
 

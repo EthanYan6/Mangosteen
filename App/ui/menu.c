@@ -891,6 +891,114 @@ static void UI_MENU_PrintSmallRightAtY(const char *text, uint8_t y, uint8_t max_
     UI_MENU_PrintSmallAtY(text, x, 0, y, max_rows);
 }
 
+static void UI_MENU_DrawGb2312_16(const char hz[2], uint8_t x, uint8_t y)
+{
+    const uint8_t c = (uint8_t)hz[0];
+    const uint8_t lo = (uint8_t)hz[1];
+    uint8_t cnDot[FONT16_SIZE];
+    uint8_t col;
+
+    if (c < 0xA1u || c > 0xF7u || lo < 0xA1u || lo > 0xFEu)
+        return;
+    PY25Q16_ReadBuffer(FLASH_FONT16_BASE + ((uint32_t)(c - 0xA1u) * 94u + (lo - 0xA1u)) * FONT16_SIZE,
+                       cnDot, FONT16_SIZE);
+    for (col = 0; col < 16u; col++) {
+        const uint8_t bits_lo = cnDot[col];
+        const uint8_t bits_hi = cnDot[col + 16u];
+        const uint8_t px = (uint8_t)(x + col);
+        uint8_t row;
+        if (px >= LCD_WIDTH)
+            break;
+        for (row = 0; row < 16u; row++) {
+            const uint8_t bits = (row < 8u) ? bits_lo : bits_hi;
+            if (bits & (uint8_t)(1u << (row & 7u))) {
+                const uint8_t py = (uint8_t)(y + row);
+                if (py < FRAME_LINES * 8)
+                    UI_DrawPixelBuffer(gFrameBuffer, px, py, true);
+            }
+        }
+    }
+}
+
+static void UI_MENU_DrawPyCands16(uint8_t x0, uint8_t x1, uint8_t y, const PY_CandView_t *cand)
+{
+    const uint8_t dig_w = 6u;
+    const uint8_t gap_dh = 2u;
+    const uint8_t hz_w = 16u;
+    const uint8_t unit = (uint8_t)(dig_w + gap_dh + hz_w);
+    uint8_t n, span, i, gap, extra, x;
+
+    if (!cand || cand->count == 0u)
+        return;
+    n = cand->count;
+    if (n > PY_HANZI_MAX)
+        n = PY_HANZI_MAX;
+    span = (uint8_t)(x1 - x0 + 1u);
+
+    if ((uint16_t)n * unit + (n + 1u) <= span) {
+        uint8_t rem = (uint8_t)(span - n * unit);
+        gap = (uint8_t)(rem / (n + 1u));
+        extra = (uint8_t)(rem % (n + 1u));
+        x = (uint8_t)(x0 + gap);
+        for (i = 0; i < n; i++) {
+            char dig[2];
+            char hz[2];
+            dig[0] = (char)('1' + i);
+            dig[1] = '\0';
+            hz[0] = cand->hanzi[i * 2u];
+            hz[1] = cand->hanzi[i * 2u + 1u];
+            UI_MENU_DrawGb2312_16(hz, (uint8_t)(x + dig_w + gap_dh), y);
+            UI_MENU_PrintSmallAtY(dig, x, 0, (uint8_t)(y + 4u), 8);
+            x = (uint8_t)(x + unit + gap + (i < extra ? 1u : 0u));
+        }
+        return;
+    }
+
+    {
+        uint8_t rem = (span > (uint8_t)(n * hz_w)) ? (uint8_t)(span - n * hz_w) : 0u;
+        gap = (uint8_t)(rem / (n + 1u));
+        extra = (uint8_t)(rem % (n + 1u));
+        x = (uint8_t)(x0 + gap);
+        for (i = 0; i < n; i++) {
+            char dig[2];
+            char hz[2];
+            uint8_t dx;
+            dig[0] = (char)('1' + i);
+            dig[1] = '\0';
+            hz[0] = cand->hanzi[i * 2u];
+            hz[1] = cand->hanzi[i * 2u + 1u];
+            UI_MENU_DrawGb2312_16(hz, x, y);
+            dx = (x > x0 + dig_w) ? (uint8_t)(x - dig_w) : x0;
+            UI_MENU_PrintSmallAtY(dig, dx, 0, (uint8_t)(y + 4u), 8);
+            x = (uint8_t)(x + hz_w + gap + (i < extra ? 1u : 0u));
+        }
+    }
+}
+
+static void UI_MENU_DrawPySylls(uint8_t x0, uint8_t x1, uint8_t y, const PY_CandView_t *cand)
+{
+    uint8_t n, i, x;
+
+    if (!cand || cand->syll_n == 0u)
+        return;
+    n = cand->syll_n;
+    if (n > PY_SYLL_MAX)
+        n = PY_SYLL_MAX;
+    x = x0;
+    for (i = 0; i < n && x <= x1; i++) {
+        char buf[10];
+        uint8_t p = 0;
+        uint8_t w;
+        if (i == cand->syll_sel)
+            buf[p++] = '>';
+        strncpy(buf + p, cand->syll[i], sizeof(buf) - p - 1u);
+        buf[sizeof(buf) - 1u] = '\0';
+        UI_MENU_PrintSmallAtY(buf, x, 0, y, 8);
+        w = (uint8_t)(strlen(buf) * MENU_SMALL_CHAR_PITCH);
+        x = (uint8_t)(x + w + 1u); /* 1px gap between syllables */
+    }
+}
+
 static void UI_MENU_PrintBigAtY(const char *text, uint8_t x0, uint8_t x1, uint8_t y, uint8_t max_rows)
 {
     const size_t   len = strlen(text);
@@ -1046,7 +1154,7 @@ static void UI_MENU_DrawEditCard(const char *title, const char *value, bool text
             if (cand_h.phase == 1u)
                 cand_extra = 8u;
             else if (cand_h.phase == 2u)
-                cand_extra = 16u; /* pinyin + one cand row */
+                cand_extra = 24u; /* pinyin 8 + 16×16 cand row */
         }
         edit_body_h = (uint8_t)(18u + cand_extra); /* name + caret + mode + cands */
         content_h = (uint8_t)(top_bar_h + title_h + gap_h + edit_body_h + (confirm ? 8u : 0u));
@@ -1151,7 +1259,7 @@ static void UI_MENU_DrawEditCard(const char *title, const char *value, bool text
                 if (cand.phase == 1u)
                     cand_extra = 8u;
                 else if (cand.phase == 2u)
-                    cand_extra = 16u;
+                    cand_extra = 24u;
             }
 
             if (!hide_case) {
@@ -1171,27 +1279,10 @@ static void UI_MENU_DrawEditCard(const char *title, const char *value, bool text
             }
             if (chname && cand.phase >= 1u) {
                 uint8_t cy = (uint8_t)(mode_y + 8u);
-                UI_MENU_PrintSmallAtY(cand.pinyin, (uint8_t)(x1 + 2), 0, cy, 8);
+                UI_MENU_DrawPySylls((uint8_t)(x1 + 2), (uint8_t)(x2 - 1), cy, &cand);
                 if (cand.phase == 2u && cand.count > 0u) {
-                    const uint8_t y = (uint8_t)(cy + 8u);
-                    const uint8_t x0 = (uint8_t)(x1 + 2);
-                    const uint8_t x1i = (uint8_t)(x2 - 1);
-                    const uint8_t span = (uint8_t)(x1i - x0 + 1u);
-                    const uint8_t slots = cand.page_size ? cand.page_size : PY_PAGE_CHNAME;
-                    const uint8_t slot_w = (uint8_t)(span / slots);
-                    uint8_t i;
-                    for (i = 0; i < cand.count && i < slots; i++) {
-                        char cell[4];
-                        const uint8_t cell_w = 15u;
-                        uint8_t cx = (uint8_t)(x0 + i * slot_w);
-                        if (slot_w > cell_w)
-                            cx = (uint8_t)(cx + (slot_w - cell_w) / 2u);
-                        cell[0] = (char)('1' + i);
-                        cell[1] = cand.hanzi[i * 2u];
-                        cell[2] = cand.hanzi[i * 2u + 1u];
-                        cell[3] = '\0';
-                        UI_MENU_PrintSmallAtY(cell, cx, 0, y, 8);
-                    }
+                    UI_MENU_DrawPyCands16((uint8_t)(x1 + 2), (uint8_t)(x2 - 1),
+                                         (uint8_t)(cy + 8u), &cand);
                 }
             }
             shown = 0; /* confirm uses absolute offset below */

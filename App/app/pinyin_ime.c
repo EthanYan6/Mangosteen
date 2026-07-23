@@ -297,7 +297,7 @@ int PY_GetCursor(void)
 
 void PY_GetCandView(PY_CandView_t *out)
 {
-	uint8_t i, pos;
+	uint8_t i;
 
 	if (!out)
 		return;
@@ -307,33 +307,23 @@ void PY_GetCandView(PY_CandView_t *out)
 		return;
 
 	out->phase = f;
+	out->syll_sel = p;
 
 	if (f == 2u) {
-		readPy(p, out->pinyin, sizeof(out->pinyin));
+		readPy(p, out->syll[0], sizeof(out->syll[0]));
+		out->syll_n = 1u;
 		out->count = candTotal;
 		if (candTotal)
 			memcpy(out->hanzi, hanziBuf, (size_t)candTotal * 2u);
 		return;
 	}
 
-	/* phase 1: syllable list only — ↑↓ to choose, MENU to pick hanzi */
-	pos = 0;
-	out->pinyin[pos++] = '>';
-	for (i = p; i < matchCnt; i++) {
-		char tmp[9];
-		uint8_t L;
-		readPy(i, tmp, sizeof(tmp));
-		L = (uint8_t)strlen(tmp);
-		if (L == 0u)
-			continue;
-		if (pos + L + (i > p ? 1u : 0u) >= sizeof(out->pinyin))
-			break;
-		if (i > p)
-			out->pinyin[pos++] = ' ';
-		memcpy(out->pinyin + pos, tmp, L);
-		pos = (uint8_t)(pos + L);
-	}
-	out->pinyin[pos] = '\0';
+	/* phase 1: all matched syllables; host draws with gaps */
+	out->syll_n = matchCnt;
+	if (out->syll_n > PY_SYLL_MAX)
+		out->syll_n = PY_SYLL_MAX;
+	for (i = 0; i < out->syll_n; i++)
+		readPy(i, out->syll[i], sizeof(out->syll[i]));
 }
 
 bool PY_IsComposing(void)
