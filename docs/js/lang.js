@@ -19,7 +19,7 @@
       'fwDownloadHint': '「远程获取」将从 GitHub Releases 下载最新 Mangosteen 固件。',
       'calibCheckDescCol': '校准解读',
 
-      'pageTitleHelp': '帮助文档 - 叮咚鸡（Dondji）',
+      'pageTitleHelp': '使用手册 · 山竹刷机网站',
       
       // Loading overlay
       'loadingNetworkPoor': '兄弟，你的网有些差呀~',
@@ -30,8 +30,8 @@
       'marqueeText': '🍇 共有 {uv} 位 Ham 访问过本网站，今日与你一起刷机的有 {today_uv} 人 🍇',
       
       // Header buttons
-      'helpDoc': '帮助文档',
-      'helpDocTitle': '帮助文档',
+      'helpDoc': '使用手册',
+      'helpDocTitle': '使用手册',
       'themeToggleTitle': '切换浅色主题',
       
       // Social chips
@@ -143,14 +143,19 @@
       // Snow screen warning HTML
       'snowScreenWarningHtml': '哪个小倒霉蛋刷了V5.0.0后，变雪花屏了，肯定是校准有问题。下载刷入校准即可',
       
-      // Help page
-      'helpBack': '返回',
-      'helpTitle': '帮助文档',
+      // Help / manual page
+      'helpBack': '返回刷机',
+      'helpBackTitle': '返回刷机页面',
+      'helpTitle': '使用手册',
+      'helpHeroDesc': '刷机、校准、字库与写频操作说明',
+      'helpTocTitle': '目录',
+      'helpPdf': '下载 PDF',
+      'helpPdfTitle': '下载为 PDF（打印另存）',
       'helpTocLoading': '加载中...',
       'helpContentLoading': '正在加载文档...',
       'helpTocEmpty': '暂无目录',
       'helpContentError': '加载文档失败',
-      'helpContentErrorHint': '请确保 data/help.md 文件存在。',
+      'helpContentErrorHint': '请确保 data/manual.zh.md 或 data/manual.en.md 文件存在。',
       'helpTocError': '加载失败',
       
       // Language switcher
@@ -450,7 +455,7 @@
       'fwDownloadHint': 'Remote fetch downloads the latest Mangosteen firmware from GitHub Releases.',
       'calibCheckDescCol': 'Meaning',
 
-      'pageTitleHelp': 'Help Documentation - Dondji',
+      'pageTitleHelp': 'User Manual · Mangosteen Flasher',
       
       // Loading overlay
       'loadingNetworkPoor': 'Buddy, your network seems slow~',
@@ -461,8 +466,8 @@
       'marqueeText': '🍇 Total {uv} Hams visited this site, {today_uv} flashing with you today 🍇',
       
       // Header buttons
-      'helpDoc': 'Help',
-      'helpDocTitle': 'Help Documentation',
+      'helpDoc': 'Manual',
+      'helpDocTitle': 'User Manual',
       'themeToggleTitle': 'Toggle light theme',
       
       // Social chips
@@ -574,13 +579,18 @@
       'snowScreenWarningHtml': 'If you see snow screen after flashing V5.0.0, calibration is the issue. Download and flash calibration',
       
       // Help page
-      'helpBack': 'Back',
-      'helpTitle': 'Help Documentation',
+      'helpBack': 'Back to Flasher',
+      'helpBackTitle': 'Back to flasher page',
+      'helpTitle': 'User Manual',
+      'helpHeroDesc': 'Flashing, calibration, font, and frequency programming',
+      'helpTocTitle': 'Contents',
+      'helpPdf': 'Download PDF',
+      'helpPdfTitle': 'Download as PDF (print / save)',
       'helpTocLoading': 'Loading...',
       'helpContentLoading': 'Loading documentation...',
       'helpTocEmpty': 'No TOC',
       'helpContentError': 'Failed to load document',
-      'helpContentErrorHint': 'Please ensure data/help.md file exists.',
+      'helpContentErrorHint': 'Please ensure data/manual.zh.md or data/manual.en.md exists.',
       'helpTocError': 'Load failed',
       
       // Language switcher

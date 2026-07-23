@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh" class="theme-light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>使用手册 · 山竹刷机网站</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Nunito:wght@400;600;700&family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=20260723manual">
+</head>
+<body class="help-page">
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="icon-mango" viewBox="0 0 120 120">
+      <ellipse class="leaf" cx="78" cy="22" rx="18" ry="10" fill="#3d7a5c" transform="rotate(-28 78 22)"/>
+      <path d="M72 18c8-10 22-8 26 2" fill="none" stroke="#2f5f47" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="60" cy="68" rx="38" ry="40" fill="#4a2040"/>
+      <ellipse cx="60" cy="70" rx="30" ry="32" fill="#6b2d52"/>
+      <ellipse cx="48" cy="58" rx="10" ry="14" fill="#843a66" opacity="0.55"/>
+      <path d="M42 55c8 4 14 18 10 30" fill="none" stroke="#f5c6ce" stroke-width="2" opacity="0.35" stroke-linecap="round"/>
+      <circle cx="48" cy="62" r="3.2" fill="#fff6f2"/>
+      <circle cx="68" cy="62" r="3.2" fill="#fff6f2"/>
+      <circle cx="49" cy="61" r="1.1" fill="#4a2040"/>
+      <circle cx="69" cy="61" r="1.1" fill="#4a2040"/>
+      <path d="M52 74c4 5 12 5 16 0" fill="none" stroke="#f5c6ce" stroke-width="2.5" stroke-linecap="round"/>
+      <ellipse cx="60" cy="88" rx="14" ry="8" fill="#fff6f2" opacity="0.2"/>
+    </symbol>
+  </svg>
+
+  <div class="top-right-buttons help-top-actions">
+    <a href="index.html" class="help-btn" id="helpBackBtn" title="返回刷机页面" aria-label="返回刷机页面" data-i18n-title="helpBackTitle" data-i18n-aria="helpBackTitle">
+      <svg class="help-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M15 18l-6-6 6-6"/>
+      </svg>
+      <span class="help-btn__text" data-i18n="helpBack">返回刷机</span>
+    </a>
+    <button type="button" class="help-btn" id="helpPdfBtn" title="下载为 PDF" aria-label="下载为 PDF" data-i18n-title="helpPdfTitle" data-i18n-aria="helpPdfTitle">
+      <svg class="help-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <path d="M14 2v6h6"/>
+        <path d="M12 18v-6"/>
+        <path d="M9 15l3 3 3-3"/>
+      </svg>
+      <span class="help-btn__text" data-i18n="helpPdf">下载 PDF</span>
+    </button>
+    <button type="button" id="langSwitchBtn" class="lang-switch" title="切换语言" aria-label="切换语言" data-i18n-title="langSwitchTitle" data-i18n-aria="langSwitchTitle">
+      <span class="lang-switch__text" id="langSwitchLabel">EN</span>
+    </button>
+  </div>
+
+  <header class="help-hero">
+    <svg class="help-hero__mango" aria-hidden="true"><use href="#icon-mango"></use></svg>
+    <div class="help-hero__copy">
+      <p class="help-hero__eyebrow" data-i18n="brandTagline">Mangosteen · Quansheng UV-K1 / K5V3</p>
+      <h1 class="help-hero__title" data-i18n="helpTitle">使用手册</h1>
+      <p class="help-hero__desc" data-i18n="helpHeroDesc">刷机、校准、字库与写频操作说明</p>
+    </div>
+  </header>
+
+  <div class="help-layout">
+    <aside class="help-toc" id="helpToc" aria-label="目录">
+      <h2 class="help-toc__title" data-i18n="helpTocTitle">目录</h2>
+      <nav class="help-toc__nav" id="helpTocNav">
+        <div class="help-toc__loading" data-i18n="helpTocLoading">加载中...</div>
+      </nav>
+    </aside>
+    <main class="help-main" id="helpMain">
+      <article class="help-article" id="helpArticle">
+        <div class="help-content-loading" data-i18n="helpContentLoading">正在加载文档...</div>
+      </article>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked@14.1.4/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
+  <script src="js/lang.js?v=20260723manual"></script>
+  <script src="js/manual.js?v=20260723manual"></script>
+</body>
+</html>
