@@ -667,20 +667,6 @@ static void HC_FillDtmf(char *out, uint8_t out_len)
 	if (out_len == 0)
 		return;
 
-	/* Yan ID CALL SIGN takes priority over live DTMF / call status. */
-	if (gYanId_RX[0] != 0 && gYanId_RX_timeout > 0) {
-		const uint8_t max_w = (FRONT_X1 > HC_DTMF_X) ? (uint8_t)(FRONT_X1 - HC_DTMF_X) : 0;
-		const char *id = gYanId_RX;
-
-		for (;;) {
-			snprintf(out, out_len, "CALL SIGN:%s", id);
-			if (HomeCardFont_GetSmallTextWidth(out) <= max_w || id[0] == 0)
-				break;
-			id++;
-		}
-		return;
-	}
-
 #ifdef ENABLE_DTMF_CALLING
 	char Contact[16];
 	if (gDTMF_InputMode) {

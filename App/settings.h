@@ -174,6 +174,7 @@ enum ROGER_Mode_t {
 typedef enum ROGER_Mode_t ROGER_Mode_t;
 
 #define YAN_ID_LEN 6
+#define YAN_ID_NAME "Yan ID"
 
 enum CHANNEL_DisplayMode_t {
     MDF_FREQUENCY = 0,

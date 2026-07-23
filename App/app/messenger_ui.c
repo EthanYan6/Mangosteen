@@ -712,7 +712,7 @@ static void draw_list(void)
     for (uint8_t row = 0; row < 6; row++) {
         uint8_t idx = gMsgScroll + row;
         if (idx >= count) break;
-        if (gMsgScreen == MSG_SCREEN_DRAFTS) snprintf(buf, sizeof(buf), "%u %.18s", idx + 1, gMessengerConfig.drafts[idx]);
+        if (gMsgScreen == MSG_SCREEN_DRAFTS) snprintf(buf, sizeof(buf), "%u %.18s", idx + 1, MSG_STORE_GetDraft(idx));
         else if (gMsgScreen == MSG_SCREEN_OUTBOX) {
             char st = '?';
             char age[5];

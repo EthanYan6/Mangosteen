@@ -31,7 +31,7 @@ const uint8_t     menu_timeout_500ms               =  20000 / 500;  // 20 second
 const uint16_t    menu_timeout_long_500ms          = 120000 / 500;  // 2 minutes
 
 const uint8_t     DTMF_RX_live_timeout_500ms       =  6000 / 500;  // 6 seconds live decoder on screen
-const uint8_t     YanId_RX_timeout_500ms           =  6000 / 500;  // 6 seconds CALL SIGN on screen
+const uint8_t     YanId_RX_timeout_500ms           =  6000 / 500;  // 6 seconds callsign popup
 char              gYanId_RX[YAN_ID_LEN + 1];
 uint8_t           gYanId_RX_timeout = 0;
 #ifdef ENABLE_DTMF_CALLING

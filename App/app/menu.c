@@ -623,6 +623,10 @@ void MENU_AcceptSetting(void)
         case MENU_LANGUAGE:
             gUiLanguage = (uint8_t)gSubMenuSelection & 1u;
             gRequestSaveSettings = 1;
+#ifdef ENABLE_MESSENGER
+            /* Only language menu drives draft presets (CN/EN), no other heuristics. */
+            MSG_STORE_ApplyDefaultDrafts();
+#endif
             break;
 
         case MENU_SQL:

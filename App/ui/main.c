@@ -2273,31 +2273,7 @@ void UI_DisplayMain(void)
         if (rx || gCurrentFunction == FUNCTION_FOREGROUND || gCurrentFunction == FUNCTION_POWER_SAVE)
         {
             #if 1
-                if (gYanId_RX[0] != 0 && gYanId_RX_timeout > 0 && gKeypadLocked == 0)
-                {
-                    if (gScreenToDisplay != DISPLAY_MAIN
-#ifdef ENABLE_DTMF_CALLING
-                        || gDTMF_CallState != DTMF_CALL_STATE_NONE
-#endif
-                        )
-                        return;
-
-                    center_line = CENTER_LINE_DTMF_DEC;
-                    sprintf(String, "CALL SIGN:%s", gYanId_RX);
-#ifdef ENABLE_FEAT_F4HWN
-                    if (isMainOnly())
-                    {
-                        UI_PrintStringSmallNormal(String, 2, 0, 5);
-                    }
-                    else
-                    {
-                        UI_PrintStringSmallNormal(String, 2, 0, 3);
-                    }
-#else
-                    UI_PrintStringSmallNormal(String, 2, 0, 3);
-#endif
-                }
-                else if (gSetting_live_DTMF_decoder && gDTMF_RX_live[0] != 0 && gKeypadLocked == 0)
+                if (gSetting_live_DTMF_decoder && gDTMF_RX_live[0] != 0 && gKeypadLocked == 0)
                 {   // show live DTMF decode
                     const unsigned int len = strlen(gDTMF_RX_live);
                     const unsigned int idx = (len > (17 - 5)) ? len - (17 - 5) : 0;  // limit to last 'n' chars

@@ -86,6 +86,12 @@ void GUI_DisplayScreen(void)
     if (gMessageBoxCountdown > 0) {
         UI_DrawMessageBox();
         ST7565_BlitFullScreen();
+    } else if (gScreenToDisplay == DISPLAY_MAIN
+               && gYanId_RX[0] != 0
+               && gYanId_RX_timeout > 0
+               && gKeypadLocked == 0) {
+        UI_DrawCallSignPopup();
+        ST7565_BlitFullScreen();
     }
 }
 

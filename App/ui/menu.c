@@ -118,7 +118,7 @@ const t_menu_item MenuList[] =
     {"Voice",       MENU_VOICE         },
 #endif
     {"Roger",       MENU_ROGER         },
-    {"Yan ID",      MENU_YAN_ID        },
+    {YAN_ID_NAME,   MENU_YAN_ID        },
     {"STE",         MENU_STE           },
     {"RP STE",      MENU_RP_STE        },
     {"1 Call",      MENU_1_CALL        },
@@ -348,7 +348,7 @@ const char* const gSubMenu_ROGER[] =
     "OFF",
     "ROGER",
     "MDC",
-    "YAN ID"
+    YAN_ID_NAME
 };
 
 const char* const gSubMenu_RESET[] =

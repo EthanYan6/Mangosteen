@@ -16,6 +16,7 @@
 
 #include <string.h>
 
+#include "bitmaps.h"
 #include "driver/st7565.h"
 #include "driver/py25q16.h"
 #include "external/printf/printf.h"
@@ -505,6 +506,24 @@ void UI_ShowMessageBox(const char *text)
     gUpdateDisplay = true;
 }
 
+static void UI_ClearPopupArea(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
+{
+	/* Clear whole framebuffer pages covering the box (slightly tall/wide OK). */
+	const uint8_t line0 = (uint8_t)((uint16_t)y1 >> 3);
+	const uint8_t line1 = (uint8_t)(((uint16_t)y2 + 1u) >> 3);
+	const uint8_t width = (uint8_t)(x2 - x1 + 2);
+
+	for (uint8_t line = line0; line <= line1 && line < FRAME_LINES; line++)
+		memset(gFrameBuffer[line] + x1, 0, width);
+}
+
+static void UI_StrokePopupFrame(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
+{
+    UI_DrawRectangleBuffer(gFrameBuffer, x1, y1, x2, y2, true);
+    UI_DrawLineBuffer(gFrameBuffer, x2 + 1, y1 + 1, x2 + 1, y2 + 1, true);
+    UI_DrawLineBuffer(gFrameBuffer, x1 + 1, y2 + 1, x2 + 1, y2 + 1, true);
+}
+
 void UI_DrawMessageBox(void)
 {
     if (gMessageBoxCountdown == 0 || gMessageBoxText == NULL)
@@ -515,10 +534,7 @@ void UI_DrawMessageBox(void)
     const int16_t x2 = x1 + 89;
     const int16_t y2 = y1 + 19;
 
-    for (int16_t y = y1; y <= y2 + 1; y++) {
-        for (int16_t x = x1; x <= x2 + 1; x++)
-            UI_DrawPixelBuffer(gFrameBuffer, (uint8_t)x, (uint8_t)y, false);
-    }
+    UI_ClearPopupArea(x1, y1, x2, y2);
 
     if (gUiLanguage == UI_LANGUAGE_CN) {
         /* 16×16；当前文案均为 4 字=64px，下移 4px 在 20 高框内居中 */
@@ -537,9 +553,52 @@ void UI_DrawMessageBox(void)
         UI_PrintStringSmallNormal(gMessageBoxText, (uint8_t)(x1 + 2), (uint8_t)(x2 - 1), 3);
     }
 
-    UI_DrawRectangleBuffer(gFrameBuffer, x1, y1, x2, y2, true);
-    UI_DrawLineBuffer(gFrameBuffer, x2 + 1, y1 + 1, x2 + 1, y2 + 1, true);
-    UI_DrawLineBuffer(gFrameBuffer, x1 + 1, y2 + 1, x2 + 1, y2 + 1, true);
+    UI_StrokePopupFrame(x1, y1, x2, y2);
+}
+
+/* Yan ID: phone icon left, callsign right — one landscape row. */
+void UI_DrawCallSignPopup(void)
+{
+    if (gYanId_RX[0] == 0 || gYanId_RX_timeout == 0)
+        return;
+
+    const int16_t box_w = 90;
+    const int16_t box_h = 20;
+    const int16_t x1 = (LCD_WIDTH - box_w) / 2;
+    const int16_t y1 = ((FRAME_LINES * 8) - box_h) / 2; /* 18 */
+    const int16_t x2 = x1 + box_w - 1;
+    const int16_t y2 = y1 + box_h - 1;
+    const uint8_t gap = 4;
+#ifdef ENABLE_SMALL_BOLD
+    const uint8_t pitch = (uint8_t)(ARRAY_SIZE(gFontSmallBold[0]) + 1u);
+#else
+    const uint8_t pitch = (uint8_t)(ARRAY_SIZE(gFontSmall[0]) + 1u);
+#endif
+    const uint8_t text_w = (uint8_t)(strlen(gYanId_RX) * pitch);
+    const uint8_t content_w = (uint8_t)(BITMAP_CALL_PHONE_WIDTH + gap + text_w);
+    const uint8_t icon_x = (uint8_t)(x1 + ((uint8_t)box_w - content_w) / 2u);
+    const uint8_t text_x = (uint8_t)(icon_x + BITMAP_CALL_PHONE_WIDTH + gap);
+
+    UI_ClearPopupArea(x1, y1, x2, y2);
+
+    /* Blit at line 2 (y=16), then ↓4px → y=20 (vertically centered in box). */
+    for (uint8_t page = 0; page < BITMAP_CALL_PHONE_PAGES; page++) {
+        memcpy(gFrameBuffer[2 + page] + icon_x,
+               &BITMAP_CALL_PHONE[(uint16_t)page * BITMAP_CALL_PHONE_WIDTH],
+               BITMAP_CALL_PHONE_WIDTH);
+    }
+    for (uint8_t x = icon_x; x < icon_x + BITMAP_CALL_PHONE_WIDTH; x++) {
+        uint32_t v = (uint32_t)gFrameBuffer[2][x]
+                   | ((uint32_t)gFrameBuffer[3][x] << 8)
+                   | ((uint32_t)gFrameBuffer[4][x] << 16);
+        v <<= 4;
+        gFrameBuffer[2][x] = (uint8_t)v;
+        gFrameBuffer[3][x] = (uint8_t)(v >> 8);
+        gFrameBuffer[4][x] = (uint8_t)(v >> 16);
+    }
+
+    UI_PrintStringSmallBold(gYanId_RX, text_x, 0, 3);
+    UI_StrokePopupFrame(x1, y1, x2, y2);
 }
 
 void UI_DisplayClear()

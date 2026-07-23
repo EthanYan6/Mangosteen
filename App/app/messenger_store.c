@@ -4,6 +4,7 @@
 #include "driver/py25q16.h"
 #include "audio.h"
 #include "misc.h"
+#include "settings.h"
 
 #define MSG_CFG_MAGIC 0x47u
 #define MSG_CFG_VERSION 7u
@@ -13,6 +14,54 @@
 MSG_Config_t gMessengerConfig;
 MSG_Message_t gMessengerInbox[MSG_INBOX_CAPACITY];
 MSG_Message_t gMessengerOutbox[MSG_OUTBOX_CAPACITY];
+
+static const char * const kDraftsEn[MSG_DRAFT_CAPACITY] = {
+    "OK", "NEED HELP", "WHERE ARE YOU?", "ON THE WAY",
+    "ARRIVED SAFE", "CALL ME", "NEGATIVE", "BATTERY LOW"
+};
+
+/* GB2312 Chinese presets (5 used; rest stay empty). */
+static const char * const kDraftsCn[] = {
+    "\xD3\xD0\xC4\xDA\xB9\xED,\xD6\xD5\xD6\xB9\xBD\xBB\xD2\xD7", /* 有内鬼,终止交易 */
+    "\xC7\xEB\xB5\xB3\xB7\xC5\xD0\xC4,\xC7\xBF\xB9\xFA\xD3\xD0\xCE\xD2", /* 请党放心,强国有我 */
+    "\xC4\xE3\xBA\xC3", /* 你好 */
+    "\xCA\xD5\xB5\xBD", /* 收到 */
+    "73",
+};
+
+static void MSG_STORE_FillDefaultDrafts(void)
+{
+    memset(gMessengerConfig.drafts, 0, sizeof(gMessengerConfig.drafts));
+    if (gUiLanguage == UI_LANGUAGE_CN) {
+        for (uint8_t i = 0; i < (uint8_t)(sizeof(kDraftsCn) / sizeof(kDraftsCn[0])); i++)
+            strncpy(gMessengerConfig.drafts[i], kDraftsCn[i], MSG_TEXT_LEN);
+    } else {
+        for (uint8_t i = 0; i < MSG_DRAFT_CAPACITY; i++)
+            strncpy(gMessengerConfig.drafts[i], kDraftsEn[i], MSG_TEXT_LEN);
+    }
+}
+
+void MSG_STORE_ApplyDefaultDrafts(void)
+{
+    MSG_STORE_Init();
+    MSG_STORE_FillDefaultDrafts();
+    MSG_STORE_SaveConfig();
+}
+
+const char *MSG_STORE_GetDraft(uint8_t index)
+{
+    if (index >= MSG_DRAFT_CAPACITY)
+        return "";
+    /* Follow saved UI language — not menu-confirm side effects. */
+    if (gUiLanguage == UI_LANGUAGE_CN) {
+        if (index < (uint8_t)(sizeof(kDraftsCn) / sizeof(kDraftsCn[0])))
+            return kDraftsCn[index];
+        return "";
+    }
+    if (gMessengerConfig.drafts[index][0] != 0)
+        return gMessengerConfig.drafts[index];
+    return kDraftsEn[index];
+}
 
 static void MSG_STORE_DefaultConfig(void)
 {
@@ -31,14 +80,7 @@ static void MSG_STORE_DefaultConfig(void)
     gMessengerConfig.rng_rsp = 1;
     gMessengerConfig.next_msg_id = 1;
     strncpy(gMessengerConfig.callsign, "UVK1", MSG_CALLSIGN_EDIT_LEN);
-    strncpy(gMessengerConfig.drafts[0], "OK", MSG_TEXT_LEN);
-    strncpy(gMessengerConfig.drafts[1], "NEED HELP", MSG_TEXT_LEN);
-    strncpy(gMessengerConfig.drafts[2], "WHERE ARE YOU?", MSG_TEXT_LEN);
-    strncpy(gMessengerConfig.drafts[3], "ON THE WAY", MSG_TEXT_LEN);
-    strncpy(gMessengerConfig.drafts[4], "ARRIVED SAFE", MSG_TEXT_LEN);
-    strncpy(gMessengerConfig.drafts[5], "CALL ME", MSG_TEXT_LEN);
-    strncpy(gMessengerConfig.drafts[6], "NEGATIVE", MSG_TEXT_LEN);
-    strncpy(gMessengerConfig.drafts[7], "BATTERY LOW", MSG_TEXT_LEN);
+    MSG_STORE_FillDefaultDrafts();
 }
 
 static void flash_read_struct(uint32_t addr, void *dst, uint16_t size)

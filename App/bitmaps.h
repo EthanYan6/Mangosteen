@@ -49,6 +49,11 @@ extern const uint8_t BITMAP_NOAA[12];
 extern const uint8_t BITMAP_MSG_ENVELOPE[10];
 #endif
 
+#define BITMAP_CALL_PHONE_WIDTH  16
+#define BITMAP_CALL_PHONE_HEIGHT 16
+#define BITMAP_CALL_PHONE_PAGES  (BITMAP_CALL_PHONE_HEIGHT / 8)
+extern const uint8_t BITMAP_CALL_PHONE[BITMAP_CALL_PHONE_PAGES * BITMAP_CALL_PHONE_WIDTH];
+
 #ifndef ENABLE_CUSTOM_MENU_LAYOUT
     extern const uint8_t BITMAP_CurrentIndicator[8];
 #endif

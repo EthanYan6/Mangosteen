@@ -35,6 +35,7 @@ void UI_DisplayPopup(const char *string);
 
 void UI_ShowMessageBox(const char *text);
 void UI_DrawMessageBox(void);
+void UI_DrawCallSignPopup(void);
 
 void UI_DrawPixelBuffer(uint8_t (*buffer)[128], uint8_t x, uint8_t y, bool black);
 #ifdef ENABLE_FEAT_F4HWN
