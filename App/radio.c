@@ -1300,7 +1300,9 @@ void RADIO_SetVfoState(VfoState_t State)
     gUpdateDisplay = true;
 
     if (State == VFO_STATE_TX_DISABLE)
-        UI_ShowMessageBox("TX Disabled!");
+        UI_ShowMessageBox((gUiLanguage == UI_LANGUAGE_CN)
+            ? "\xBD\xFB\xD6\xB9\xB7\xA2\xC9\xE4"  /* 禁止发射 */
+            : "TX Disabled!");
 }
 
 

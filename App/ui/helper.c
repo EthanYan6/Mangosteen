@@ -510,23 +510,36 @@ void UI_DrawMessageBox(void)
     if (gMessageBoxCountdown == 0 || gMessageBoxText == NULL)
         return;
 
-    const int16_t box_w = 90;
-    const int16_t box_h = 20;
-    const int16_t x1 = (LCD_WIDTH - box_w) / 2;
-    const int16_t y1 = ((FRAME_LINES * 8) - box_h) / 2;
-    const int16_t x2 = x1 + box_w - 1;
-    const int16_t y2 = y1 + box_h - 1;
+    const int16_t x1 = (LCD_WIDTH - 90) / 2;
+    const int16_t y1 = ((FRAME_LINES * 8) - 20) / 2;
+    const int16_t x2 = x1 + 89;
+    const int16_t y2 = y1 + 19;
 
     for (int16_t y = y1; y <= y2 + 1; y++) {
         for (int16_t x = x1; x <= x2 + 1; x++)
             UI_DrawPixelBuffer(gFrameBuffer, (uint8_t)x, (uint8_t)y, false);
     }
 
+    if (gUiLanguage == UI_LANGUAGE_CN) {
+        /* 16×16；当前文案均为 4 字=64px，下移 4px 在 20 高框内居中 */
+        UI_PrintString(gMessageBoxText, (uint8_t)(x1 + 2), (uint8_t)(x2 - 1), 2, 8);
+        const uint8_t text_x = (uint8_t)(x1 + 2 + (86 - 64 + 1) / 2);
+        for (uint8_t x = text_x; x < text_x + 64u; x++) {
+            uint32_t v = (uint32_t)gFrameBuffer[2][x]
+                       | ((uint32_t)gFrameBuffer[3][x] << 8)
+                       | ((uint32_t)gFrameBuffer[4][x] << 16);
+            v <<= 4;
+            gFrameBuffer[2][x] = (uint8_t)v;
+            gFrameBuffer[3][x] = (uint8_t)(v >> 8);
+            gFrameBuffer[4][x] = (uint8_t)(v >> 16);
+        }
+    } else {
+        UI_PrintStringSmallNormal(gMessageBoxText, (uint8_t)(x1 + 2), (uint8_t)(x2 - 1), 3);
+    }
+
     UI_DrawRectangleBuffer(gFrameBuffer, x1, y1, x2, y2, true);
     UI_DrawLineBuffer(gFrameBuffer, x2 + 1, y1 + 1, x2 + 1, y2 + 1, true);
     UI_DrawLineBuffer(gFrameBuffer, x1 + 1, y2 + 1, x2 + 1, y2 + 1, true);
-
-    UI_PrintStringSmallNormal(gMessageBoxText, (uint8_t)(x1 + 2), (uint8_t)(x2 - 1), 3);
 }
 
 void UI_DisplayClear()

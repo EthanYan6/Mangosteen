@@ -2429,7 +2429,9 @@ static void ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
             if (!bKeyHeld) { // keypad is locked, tell the user
                 AUDIO_PlayBeep(BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL);
                 gKeypadLocked  = 4;      // 2 seconds
-                UI_ShowMessageBox("Key Locked");
+                UI_ShowMessageBox((gUiLanguage == UI_LANGUAGE_CN)
+                    ? "\xBC\xFC\xC5\xCC\xCB\xF8\xB6\xA8"  /* 键盘锁定 */
+                    : "Key Locked");
                 return;
             }
         }
@@ -2445,7 +2447,9 @@ static void ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
             // keypad is locked, tell the user
             AUDIO_PlayBeep(BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL);
             gKeypadLocked  = 4;          // 2 seconds
-            UI_ShowMessageBox("Key Locked");
+            UI_ShowMessageBox((gUiLanguage == UI_LANGUAGE_CN)
+                ? "\xBC\xFC\xC5\xCC\xCB\xF8\xB6\xA8"  /* 键盘锁定 */
+                : "Key Locked");
             return;
         }
     }
