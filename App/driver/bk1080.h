@@ -34,6 +34,8 @@ uint16_t BK1080_GetFreqHiLimit(uint8_t band);
 void BK1080_SetFrequency(uint16_t frequency, uint8_t band/*, uint8_t space*/);
 void BK1080_GetFrequencyDeviation(uint16_t Frequency);
 uint8_t BK1080_GetRSSI(void);
+/* Frequency / LowerLimit in 0.1 MHz units. Returns 0 if station locked, -1 otherwise. */
+int BK1080_CheckFrequencyLock(uint16_t Frequency, uint16_t LowerLimit);
 
 #endif
 

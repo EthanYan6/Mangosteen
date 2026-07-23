@@ -199,45 +199,7 @@ void FM_PlayAndUpdate(void)
 
 int FM_CheckFrequencyLock(uint16_t Frequency, uint16_t LowerLimit)
 {
-    const uint16_t Test2     = BK1080_ReadRegister(BK1080_REG_07);
-    const uint16_t Deviation = BK1080_REG_07_GET_FREQD(Test2);
-
-    // Helper macro to update globals and return
-    #define RETURN(val) \
-        do { \
-            BK1080_FrequencyDeviation = Deviation; \
-            BK1080_BaseFrequency      = Frequency; \
-            return (val); \
-        } while (0)
-
-    if (BK1080_REG_07_GET_SNR(Test2) <= 2)
-        RETURN(-1);
-
-    const uint16_t Status = BK1080_ReadRegister(BK1080_REG_10);
-    if ((Status & BK1080_REG_10_MASK_AFCRL) != BK1080_REG_10_AFCRL_NOT_RAILED ||
-        BK1080_REG_10_GET_RSSI(Status) < 10)
-        RETURN(-1);
-
-    if (Deviation >= 280 && Deviation <= 3815)
-        RETURN(-1);
-
-    // Scanning upward: previous deviation was negative (bit 11 set) or near zero
-    if (Frequency > LowerLimit && (Frequency - BK1080_BaseFrequency) == 1) {
-        if (BK1080_FrequencyDeviation & 0x800 || BK1080_FrequencyDeviation < 20)
-            RETURN(-1);
-    }
-
-    // Scanning downward: previous deviation was positive or saturated high
-    if (Frequency >= LowerLimit && (BK1080_BaseFrequency - Frequency) == 1) {
-        if ((BK1080_FrequencyDeviation & 0x800) == 0 || BK1080_FrequencyDeviation > 4075)
-            RETURN(-1);
-    }
-
-    #undef RETURN
-
-    BK1080_FrequencyDeviation = Deviation;
-    BK1080_BaseFrequency      = Frequency;
-    return 0;
+    return BK1080_CheckFrequencyLock(Frequency, LowerLimit);
 }
 
 static void Key_DIGITS(KEY_Code_t Key, uint8_t state)

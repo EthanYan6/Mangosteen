@@ -5,6 +5,10 @@
 #include "app/app.h"
 #include "app/chFrScanner.h"
 #include "audio.h"
+#ifdef ENABLE_BK1080
+#include "driver/bk1080.h"
+#include "frequencies.h"
+#endif
 #ifdef ENABLE_FEAT_F4HWN_SCAN_FASTER
 #include "driver/systick.h"
 #endif
@@ -13,6 +17,15 @@
 #include "settings.h"
 #include "ui/main.h"
 //#include "debugging.h"
+
+#ifdef ENABLE_BK1080
+static bool IsWfmFrequencyScan(void)
+{
+    return IS_FREQ_CHANNEL(gNextMrChannel)
+        && gRxVfo
+        && gRxVfo->Modulation == MODULATION_WFM;
+}
+#endif
 
 int8_t            gScanStateDir;
 bool              gScanKeepResult;
@@ -791,6 +804,12 @@ void CHFRSCANNER_Start(const bool storeBackupSettings, const int8_t scan_directi
             initialFrqOrChan = gRxVfo->freq_config_RX.Frequency;
             lastFoundFrqOrChan = initialFrqOrChan;
         }
+#ifdef ENABLE_BK1080
+        if (gRxVfo->Modulation == MODULATION_WFM) {
+            const uint16_t fmFreq = (uint16_t)(gRxVfo->freq_config_RX.Frequency / 10000u);
+            BK1080_GetFrequencyDeviation(fmFreq);
+        }
+#endif
         NextFreqChannel();
     }
 
@@ -798,6 +817,11 @@ void CHFRSCANNER_Start(const bool storeBackupSettings, const int8_t scan_directi
     lastFoundFrqOrChanOld = lastFoundFrqOrChan;
 #endif
 
+#ifdef ENABLE_BK1080
+    if (IsWfmFrequencyScan())
+        gScanPauseDelayIn_10ms = fm_play_countdown_scan_10ms; // BK1080 settle (~100ms)
+    else
+#endif
     gScanPauseDelayIn_10ms = scan_pause_delay_in_2_10ms;
     gScheduleScanListen    = false;
     gRxReceptionMode       = RX_MODE_NONE;
@@ -849,6 +873,26 @@ void CHFRSCANNER_ContinueScanning(void)
         // learned floor; resetting here can make the next channel blind when
         // it is the real signal, especially while scanning down.
         scanFastLastFullTuneCandidate = false;
+    }
+#endif
+
+#ifdef ENABLE_BK1080
+    /* WFM has no BK4819 squelch — seek with BK1080 lock, stop on station. */
+    if (IsWfmFrequencyScan()) {
+        const uint16_t fmFreq = (uint16_t)(gRxVfo->freq_config_RX.Frequency / 10000u);
+        const uint16_t lo     = (uint16_t)(FREQ_WFM_MIN / 10000u);
+
+        if (BK1080_CheckFrequencyLock(fmFreq, lo) == 0) {
+            CHFRSCANNER_Found();
+            CHFRSCANNER_Stop();
+        } else {
+            NextFreqChannel();
+        }
+
+        gScanPauseMode      = false;
+        gRxReceptionMode    = RX_MODE_NONE;
+        gScheduleScanListen = false;
+        return;
     }
 #endif
 
@@ -1033,6 +1077,11 @@ static void NextFreqChannel(void)
     RADIO_ConfigureSquelchAndOutputPower(gRxVfo);
     RADIO_SetupRegisters(true);
 
+#ifdef ENABLE_BK1080
+    if (gRxVfo->Modulation == MODULATION_WFM)
+        gScanPauseDelayIn_10ms = fm_play_countdown_scan_10ms; // BK1080 settle (~100ms)
+    else
+#endif
 #ifdef ENABLE_FASTER_CHANNEL_SCAN
     gScanPauseDelayIn_10ms = 9;   // 90ms
 #else
