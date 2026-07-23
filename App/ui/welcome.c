@@ -275,7 +275,7 @@ void UI_DisplayWelcome(void)
 
         sprintf(WelcomeString0, "Mangosteen %s", VERSION_STRING_2);
         UI_PrintStringSmallNormal(WelcomeString0, 0, 127, 5);
-        UI_PrintStringSmallNormal("BD1AHN", 0, 127, 6);
+        UI_PrintStringSmallNormal(gEeprom.yan_id[0] ? gEeprom.yan_id : "BD1AHN", 0, 127, 6);
     }
 
     ST7565_BlitStatusLine();
