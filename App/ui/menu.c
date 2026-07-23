@@ -1004,25 +1004,22 @@ static void UI_MENU_PrintBigAtY(const char *text, uint8_t x0, uint8_t x1, uint8_
     const size_t   len = strlen(text);
     const unsigned text_w = UI_MENU_TextPixelWidthBig(text);
     uint8_t        x = x0;
-    bool           has_cn = false;
     uint8_t        ascii_dy = 0;
 
     if (max_rows == 0 || max_rows > 16)
         max_rows = 16;
 
-    /* Mixed CN + ASCII: drop Latin/digits 2px so they optically align with 16x16. */
+    /* Mixed CN + ASCII: drop Latin/digits 1px to optically align with 16x16 楷体. */
     for (size_t k = 0; k < len; k++) {
         const uint8_t c = (uint8_t)text[k];
         if (c >= 0xA1 && c <= 0xF7 && (k + 1) < len) {
             const uint8_t lo = (uint8_t)text[k + 1];
             if (lo >= 0xA1 && lo <= 0xFE) {
-                has_cn = true;
+                ascii_dy = 1u;
                 break;
             }
         }
     }
-    if (has_cn)
-        ascii_dy = 2u;
 
     if (x1 > x0 && text_w + 1u < (unsigned)(x1 - x0 + 1u))
         x = (uint8_t)(x0 + ((x1 - x0 + 1u) - text_w) / 2u);

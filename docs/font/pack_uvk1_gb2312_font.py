@@ -2,7 +2,7 @@
 """Pack UV-K1 FontTool GB2312 lattices into one SPI Flash image.
 
 Layout (UV-K1_FontTool / https://gitee.com/oldlicn/uv-k1_font-tool):
-  0x0A0000  16x16 (康体)  8178 glyphs x 32 bytes = 261696
+  0x0A0000  16x16 (楷体)  8178 glyphs x 32 bytes = 261696
   0x0DFE40  pad zeros                     448 bytes
   0x0E0000  8x8           8178 glyphs x 8  bytes = 65424
 
@@ -45,7 +45,7 @@ def main() -> int:
     ap.add_argument(
         "--font16",
         type=pathlib.Path,
-        help="16x16 / 康体 .FON (default: sibling kangti_16x16.FON or 康体.FON)",
+        help="16x16 / 楷体 .FON (default: sibling kaiti_16x16.FON)",
     )
     ap.add_argument(
         "--font8",
@@ -63,13 +63,13 @@ def main() -> int:
 
     font16_path = args.font16
     if font16_path is None:
-        for name in ("kangti_16x16.FON", "康体.FON", "16x16.FON"):
+        for name in ("kaiti_16x16.FON", "kangti_16x16.FON", "楷体.FON", "康体.FON", "16x16.FON"):
             cand = here / name
             if cand.is_file():
                 font16_path = cand
                 break
         if font16_path is None:
-            raise SystemExit("No 16x16/康体 .FON found; pass --font16")
+            raise SystemExit("No 16x16/楷体 .FON found; pass --font16")
 
     font16 = load_fon(font16_path, FONT16_SIZE)
     font8 = load_fon(args.font8, FONT8_SIZE)

@@ -127,8 +127,8 @@ void UI_PrintString(const char *pString, uint8_t Start, uint8_t End, uint8_t Lin
     size_t i;
     size_t Length = strlen(pString);
     uint8_t cur = Start;
-    /* Mixed CN + ASCII: drop Latin/digits 2px so they optically center with 16×16. */
-    const uint8_t ascii_dy = UI_StringHasGb2312(pString) ? 2u : 0u;
+    /* Mixed CN + ASCII: drop Latin/digits 1px to optically align with 16×16 楷体. */
+    const uint8_t ascii_dy = UI_StringHasGb2312(pString) ? 1u : 0u;
 
     /* Approximate center using ASCII-width units (CN counts as 2 Width units). */
     if (End > Start) {

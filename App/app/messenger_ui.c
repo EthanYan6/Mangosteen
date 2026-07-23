@@ -4,6 +4,7 @@
 #include "app/messenger_t9.h"
 #include "app/messenger_rf.h"
 #include "app/messenger_packet.h"
+#include "app/messenger_ui.h"
 #include "app/pinyin_ime.h"
 #include "driver/st7565.h"
 #include "driver/py25q16.h"
@@ -26,6 +27,7 @@ extern uint8_t gMsgCursor;
 extern uint8_t gMsgScroll;
 extern uint8_t gMsgReadIndex;
 extern uint8_t gMsgReadSource;
+extern uint8_t gMsgReadScroll;
 extern uint8_t gMsgSettingsCursor;
 extern char gMsgComposeBuf[];
 extern char gMsgCallsignBuf[];
@@ -136,7 +138,7 @@ static void draw_title(const char *s)
     memset(gFrameBuffer, 0, sizeof(gFrameBuffer));
     const char *t = msg_label(s);
 
-    /* Home title「信息」: 16×16 centered, up 4px into status band (screen y=4). */
+    /* Home title「信息」: 16×16 centered, up 2px into status band (screen y=6). */
     if (msg_lang_cn() && s != NULL && strcmp(s, "MESSENGER") == 0) {
         const size_t len = strlen(t);
         unsigned units = 0;
@@ -173,7 +175,7 @@ static void draw_title(const char *s)
                             const uint8_t bits = (row < 8u) ? bits_lo : bits_hi;
                             const uint8_t bit = (uint8_t)(row & 7u);
                             if (bits & (uint8_t)(1u << bit)) {
-                                const uint8_t ay = (uint8_t)(4u + row); /* up 4px vs fb-only title */
+                                const uint8_t ay = (uint8_t)(6u + row); /* up 2px vs fb-only title */
                                 const uint8_t px = (uint8_t)(cur + col);
                                 if (ay < 8u)
                                     PutPixelStatus(px, ay, true);
@@ -340,10 +342,8 @@ static void msg_draw_cn16_char_at_y(const char hz[2], uint8_t x, uint8_t y)
 static void msg_draw_py_cands16(uint8_t x0, uint8_t x1, uint8_t y, const PY_CandView_t *cand)
 {
 	const uint8_t dig_w = 6u;
-	const uint8_t gap_dh = 2u; /* gap between digit and hanzi */
 	const uint8_t hz_w = 16u;
-	const uint8_t unit = (uint8_t)(dig_w + gap_dh + hz_w); /* 24 */
-	uint8_t n, span, i, gap, extra, x;
+	uint8_t n, span, i, gap, extra, x, rem;
 
 	if (!cand || cand->count == 0u)
 		return;
@@ -351,46 +351,21 @@ static void msg_draw_py_cands16(uint8_t x0, uint8_t x1, uint8_t y, const PY_Cand
 	if (n > 7u)
 		n = 7u;
 	span = (uint8_t)(x1 - x0 + 1u);
-
-	if ((uint16_t)n * unit + (n + 1u) <= span) {
-		uint8_t rem = (uint8_t)(span - n * unit);
-		gap = (uint8_t)(rem / (n + 1u));
-		extra = (uint8_t)(rem % (n + 1u));
-		x = (uint8_t)(x0 + gap);
-		for (i = 0; i < n; i++) {
-			char dig[2];
-			char hz[2];
-			dig[0] = (char)('1' + i);
-			dig[1] = '\0';
-			hz[0] = cand->hanzi[i * 2u];
-			hz[1] = cand->hanzi[i * 2u + 1u];
-			/* Hanzi first, digit on top so "1" stays visible. */
-			msg_draw_cn16_char_at_y(hz, (uint8_t)(x + dig_w + gap_dh), y);
-			msg_draw_small_at_y(dig, x, (uint8_t)(y + 4u), false);
-			x = (uint8_t)(x + unit + gap + (i < extra ? 1u : 0u));
-		}
-		return;
-	}
-
-	/* Narrow: even gaps between 16×16; digit painted after, to the left. */
-	{
-		uint8_t rem = (span > (uint8_t)(n * hz_w)) ? (uint8_t)(span - n * hz_w) : 0u;
-		gap = (uint8_t)(rem / (n + 1u));
-		extra = (uint8_t)(rem % (n + 1u));
-		x = (uint8_t)(x0 + gap);
-		for (i = 0; i < n; i++) {
-			char dig[2];
-			char hz[2];
-			uint8_t dx;
-			dig[0] = (char)('1' + i);
-			dig[1] = '\0';
-			hz[0] = cand->hanzi[i * 2u];
-			hz[1] = cand->hanzi[i * 2u + 1u];
-			msg_draw_cn16_char_at_y(hz, x, y);
-			dx = (x > x0 + dig_w) ? (uint8_t)(x - dig_w) : x0;
-			msg_draw_small_at_y(dig, dx, (uint8_t)(y + 4u), false);
-			x = (uint8_t)(x + hz_w + gap + (i < extra ? 1u : 0u));
-		}
+	rem = (span > (uint8_t)(n * hz_w)) ? (uint8_t)(span - n * hz_w) : 0u;
+	gap = (uint8_t)(rem / (n + 1u));
+	extra = (uint8_t)(rem % (n + 1u));
+	x = (uint8_t)(x0 + gap);
+	for (i = 0; i < n; i++) {
+		char dig[2];
+		char hz[2];
+		dig[0] = (char)('1' + i);
+		dig[1] = '\0';
+		hz[0] = cand->hanzi[i * 2u];
+		hz[1] = cand->hanzi[i * 2u + 1u];
+		msg_draw_cn16_char_at_y(hz, x, y);
+		msg_draw_small_at_y(dig, (x > x0 + dig_w) ? (uint8_t)(x - dig_w) : x0,
+		                    (uint8_t)(y + 4u), false);
+		x = (uint8_t)(x + hz_w + gap + (i < extra ? 1u : 0u));
 	}
 }
 
@@ -479,18 +454,23 @@ static void print_home_item(const char *en_label, uint8_t y, bool sel)
 		print_line_y(t, y, sel);
 }
 
-static void print_wrapped_small_y(const char *s, uint8_t y, uint8_t max_lines)
+/* Collect wrapped line starts. big16: CN=16/ASCII=8; else CN=8/ASCII=7. */
+static uint8_t compose_collect_lines(const char *s, bool big16, uint8_t *starts, uint8_t max_starts)
 {
-	char linebuf[40];
-	uint8_t line = 0;
 	const size_t len = strlen(s);
 	size_t i = 0;
+	uint8_t nlines = 0;
+	const unsigned ascii_w = big16 ? 8u : 7u;
+	const unsigned cn_w = big16 ? 16u : FONT8_SIZE;
 
-	while (i < len && line < max_lines) {
+	if (len == 0 || max_starts == 0)
+		return 0;
+
+	while (i < len && nlines < max_starts) {
 		unsigned w = 0;
-		size_t start = i;
 		size_t n = 0;
 
+		starts[nlines++] = (uint8_t)i;
 		while (i < len) {
 			const uint8_t c = (uint8_t)s[i];
 			unsigned cw;
@@ -498,82 +478,57 @@ static void print_wrapped_small_y(const char *s, uint8_t y, uint8_t max_lines)
 
 			if (c >= 0xA1 && c <= 0xF7 && (i + 1) < len &&
 			    (uint8_t)s[i + 1] >= 0xA1 && (uint8_t)s[i + 1] <= 0xFE) {
-				cw = FONT8_SIZE;
+				cw = cn_w;
 				step = 2;
 			} else {
-				cw = 7u;
+				cw = ascii_w;
 			}
 			if (w + cw > 126u && n > 0)
 				break;
 			w += cw;
 			i += step;
 			n += step;
-			if (n >= sizeof(linebuf) - 1u)
+			if (n >= 39u)
 				break;
 		}
 		if (n == 0) {
-			/* Single glyph wider than line — force one unit. */
 			n = ((uint8_t)s[i] >= 0xA1 && (i + 1) < len) ? 2u : 1u;
 			i += n;
 		}
-		if (n >= sizeof(linebuf))
-			n = sizeof(linebuf) - 1u;
-		memcpy(linebuf, s + start, n);
-		linebuf[n] = 0;
-		msg_draw_cn8_at_y(linebuf, 0, (uint8_t)(y + (line * 8U)), false);
-		line++;
 	}
+	return nlines;
 }
 
-/* Like print_wrapped_small_y, but shows the last max_lines (tail) so the
- * caret / newest text stays visible when the body area is shrunk for IME. */
-static void print_wrapped_small_y_tail(const char *s, uint8_t y, uint8_t max_lines)
+/* Draw wrapped body.
+ * tail: scroll is lines-from-end (compose follow-newest).
+ * !tail: scroll is first visible line (read from start). */
+static void print_wrapped_compose(const char *s, uint8_t y, uint8_t max_lines,
+                                  bool big16, uint8_t scroll, bool tail)
 {
-	size_t starts[12];
-	uint8_t nlines = 0;
-	const size_t len = strlen(s);
-	size_t i = 0;
+	uint8_t starts[8];
+	uint8_t nlines;
 	uint8_t first;
 	uint8_t row;
 	char linebuf[40];
+	const size_t len = strlen(s);
 
-	if (max_lines == 0)
+	if (max_lines == 0 || len == 0)
 		return;
-	if (len == 0)
+
+	nlines = compose_collect_lines(s, big16, starts, (uint8_t)ARRAY_SIZE(starts));
+	if (nlines == 0)
 		return;
 
-	while (i < len && nlines < (uint8_t)ARRAY_SIZE(starts)) {
-		unsigned w = 0;
-		size_t n = 0;
-
-		starts[nlines++] = i;
-		while (i < len) {
-			const uint8_t c = (uint8_t)s[i];
-			unsigned cw;
-			size_t step = 1;
-
-			if (c >= 0xA1 && c <= 0xF7 && (i + 1) < len &&
-			    (uint8_t)s[i + 1] >= 0xA1 && (uint8_t)s[i + 1] <= 0xFE) {
-				cw = FONT8_SIZE;
-				step = 2;
-			} else {
-				cw = 7u;
-			}
-			if (w + cw > 126u && n > 0)
-				break;
-			w += cw;
-			i += step;
-			n += step;
-			if (n >= sizeof(linebuf) - 1u)
-				break;
-		}
-		if (n == 0) {
-			n = ((uint8_t)s[i] >= 0xA1 && (i + 1) < len) ? 2u : 1u;
-			i += n;
-		}
+	{
+		uint8_t max_scroll = (nlines > max_lines) ? (uint8_t)(nlines - max_lines) : 0u;
+		if (scroll > max_scroll)
+			scroll = max_scroll;
+		if (tail)
+			first = (nlines > max_lines) ? (uint8_t)(nlines - max_lines - scroll) : 0u;
+		else
+			first = scroll;
 	}
 
-	first = (nlines > max_lines) ? (uint8_t)(nlines - max_lines) : 0u;
 	for (row = 0; first + row < nlines && row < max_lines; row++) {
 		size_t start = starts[first + row];
 		size_t end = (first + row + 1u < nlines) ? starts[first + row + 1u] : len;
@@ -582,10 +537,20 @@ static void print_wrapped_small_y_tail(const char *s, uint8_t y, uint8_t max_lin
 			n = sizeof(linebuf) - 1u;
 		memcpy(linebuf, s + start, n);
 		linebuf[n] = 0;
-		msg_draw_cn8_at_y(linebuf, 0, (uint8_t)(y + (row * 8U)), false);
+		if (big16)
+			UI_PrintString(linebuf, 0, 0, (uint8_t)((y >> 3) + row * 2u), 8);
+		else
+			msg_draw_cn8_at_y(linebuf, 0, (uint8_t)(y + row * 8u), false);
 	}
 }
 
+uint8_t MSG_UI_TextLineCount16(const char *s)
+{
+	uint8_t starts[8];
+	if (!s)
+		return 0;
+	return compose_collect_lines(s, true, starts, (uint8_t)ARRAY_SIZE(starts));
+}
 
 static void msg_draw_hline(uint8_t x0, uint8_t x1, uint8_t y, bool on)
 {
@@ -707,17 +672,14 @@ static void draw_home_icon(uint8_t idx)
     }
 }
 
+
 static void draw_home(void)
 {
     static const char *items[] = { "INBOX", "COMPOSE", "SENT", "DRAFTS" };
-    char buf[24];
-    /* CN: list/sep/SELECT block up 2px (row0 14→12, sep 49→47, sel 52→50). */
     const uint8_t row0 = msg_lang_cn() ? 12U : 10U;
     const uint8_t row_step = 9U;
 
     draw_title("MESSENGER");
-    /* 0.3.0: HOME list shifted 1 px up so SELECT keeps 2 px bottom
-     * clearance; right-side icon uses a fixed center shared by all states. */
     for (uint8_t i = 0; i < 4; i++) {
         print_home_item(items[i], (uint8_t)(row0 + (i * row_step)), gMsgHomeCursor == i);
     }
@@ -728,15 +690,6 @@ static void draw_home(void)
         const uint8_t sel_y = msg_lang_cn() ? 50U : 49U;
         draw_dotted_separator(sep_y);
         GUI_DisplaySmallest("SELECT", 0, sel_y, false, true);
-    }
-
-    if (gMessengerConfig.msg_debug) {
-        /* RF22 ACK debug replaces old RF counter debug to save screen space.
-         * P=pending MsgID, A=last ACK id heard, R=ACK rx count, M=match count. */
-        snprintf(buf, sizeof(buf), "P%04X A%04X R%u M%u",
-                 MSG_RF_GetAckDbgPendingId(), MSG_RF_GetAckDbgRxId(),
-                 MSG_RF_GetAckDbgRxCount(), MSG_RF_GetAckDbgMatchCount());
-        UI_PrintStringSmallNormal(buf, 0, 0, 6);
     }
 }
 
@@ -780,6 +733,9 @@ static void draw_read(void)
 {
     MSG_Message_t *m = (gMsgReadSource == MSG_SCREEN_OUTBOX) ? &gMessengerOutbox[gMsgReadIndex] : &gMessengerInbox[gMsgReadIndex];
     char buf[32];
+    uint8_t body_lines;
+    uint8_t starts[8];
+
     draw_title((gMsgReadSource == MSG_SCREEN_OUTBOX) ? "SENT" : "READ");
     {
         uint8_t total = (gMsgReadSource == MSG_SCREEN_OUTBOX) ? MSG_STORE_CountOutbox() : MSG_STORE_CountInbox();
@@ -798,9 +754,6 @@ static void draw_read(void)
         if (gMessengerConfig.msg_hop == 0U) snprintf(buf, sizeof(buf), "TO:%s HOP:OFF %s", m->to, age);
         else snprintf(buf, sizeof(buf), "TO:%s HOP:%u %s", m->to, gMessengerConfig.msg_hop, age);
 
-        /* Metadata is pixel-positioned: one pixel lower than 0.2.4 so it
-         * visually aligns with the large ACK marker and sits closer to the
-         * upper separator. */
         GUI_DisplaySmallest(buf, 0, 9, false, true);
         char stbuf[2] = { st, 0 };
         UI_PrintStringSmallBold(stbuf, 120, 0, 1);
@@ -810,81 +763,92 @@ static void draw_read(void)
         GUI_DisplaySmallest(buf, 0, 9, false, true);
     }
 
-    /* 0.2.6: tighter message box.  Metadata moved down 1 px, message text
-     * begins 4 px higher than before, and footer labels move up 1 px while
-     * keeping the real-LCD safe area. */
-    draw_dotted_separator(17);
+    draw_dotted_separator(15);
+
+    /* 16×16 body: 2 rows (y=16..47). ACK row steals one body line. */
+    body_lines = (gMsgReadSource == MSG_SCREEN_OUTBOX && m->ack_count > 0u) ? 1u : 2u;
+    {
+        uint8_t nlines = compose_collect_lines(m->text, true, starts, (uint8_t)ARRAY_SIZE(starts));
+        uint8_t max_scroll = (nlines > body_lines) ? (uint8_t)(nlines - body_lines) : 0u;
+        if (gMsgReadScroll > max_scroll)
+            gMsgReadScroll = max_scroll;
+    }
+    print_wrapped_compose(m->text, 16, body_lines, true, gMsgReadScroll, false);
+
     if (gMsgReadSource == MSG_SCREEN_OUTBOX && m->ack_count > 0u) {
-        print_wrapped_small_y(m->text, 20, 2);
         char ackbuf[32];
         uint8_t pos = 0u;
         pos += (uint8_t)snprintf(ackbuf + pos, sizeof(ackbuf) - pos, "ACK:");
         for (uint8_t i = 0u; i < m->ack_count && i < MSG_ACK_SOURCE_MAX && pos < sizeof(ackbuf); i++) {
-            pos += (uint8_t)snprintf(ackbuf + pos, sizeof(ackbuf) - pos, "%s%.*s", i ? " " : "", MSG_ACK_ID_LEN, m->ack_from[i]);
+            pos += (uint8_t)snprintf(ackbuf + pos, sizeof(ackbuf) - pos, "%s%.*s",
+                                     i ? " " : "", MSG_ACK_ID_LEN, m->ack_from[i]);
         }
-        GUI_DisplaySmallest(ackbuf, 0, 40, false, true);
-    } else {
-        print_wrapped_small_y(m->text, 20, 3);
+        GUI_DisplaySmallest(ackbuf, 0, 36, false, true);
     }
-    draw_dotted_separator(46);
 
-    if (gMsgReadSource == MSG_SCREEN_OUTBOX) {
-        GUI_DisplaySmallest("RESEND", 0, 49, false, true);
-    } else {
-        GUI_DisplaySmallest("RE:", 0, 49, false, true);
-    }
-    GUI_DisplaySmallest("F:DEL", 104, 49, false, true);
+    draw_dotted_separator(48);
+    if (gMsgReadSource == MSG_SCREEN_OUTBOX)
+        GUI_DisplaySmallest("RESEND", 0, 50, false, true);
+    else
+        GUI_DisplaySmallest("RE:", 0, 50, false, true);
+    GUI_DisplaySmallest("F:DEL", 104, 50, false, true);
 }
 
 static void draw_compose(void)
 {
     char buf[12];
-    uint8_t body_lines = 3;
+    uint8_t body_lines;
+    uint8_t body_y;
+    uint8_t starts[8];
     PY_CandView_t cand;
     const bool py = (gMsgEditor.mode == 3U);
+    const bool py_composing = py && PY_IsComposing();
+    const bool big16 = !py_composing;
 
     draw_title("COMPOSE");
 
-    GUI_DisplaySmallest("NEW MESSAGE", 0, 10, false, true);
     snprintf(buf, sizeof(buf), "%u/%u", (uint8_t)strlen(gMsgComposeBuf), (uint8_t)MSG_TEXT_LEN);
     {
         uint8_t w = (uint8_t)(strlen(buf) * 4U);
-        uint8_t x = (w >= 128U) ? 0U : (uint8_t)(127U - w);
-        GUI_DisplaySmallest(buf, x, 10, false, true);
+        GUI_DisplaySmallest(buf, (w >= 128U) ? 0U : (uint8_t)(127U - w), 9, false, true);
     }
-
-    draw_dotted_separator(17);
 
     memset(&cand, 0, sizeof(cand));
-    if (py) {
+    if (py)
         PY_GetCandView(&cand);
-        if (cand.phase == 2u) body_lines = 1u;
-        else if (cand.phase == 1u) body_lines = 2u;
+
+    body_lines = (py_composing && cand.phase == 2u) ? 1u : 2u;
+    /* Idle 16×16 uses UI_PrintString (page-aligned y=16 / line 2+4). */
+    body_y = big16 ? 16u : 20u;
+    draw_dotted_separator(big16 ? 15u : 17u);
+
+    {
+        uint8_t nlines = compose_collect_lines(gMsgComposeBuf, big16, starts, (uint8_t)ARRAY_SIZE(starts));
+        uint8_t max_scroll = (nlines > body_lines) ? (uint8_t)(nlines - body_lines) : 0u;
+        if (gMsgComposeScroll > max_scroll)
+            gMsgComposeScroll = max_scroll;
     }
 
-    print_wrapped_small_y_tail(gMsgComposeBuf, 20, body_lines);
+    print_wrapped_compose(gMsgComposeBuf, body_y, body_lines, big16, gMsgComposeScroll, true);
 
     if (py && cand.phase >= 1u) {
         if (cand.phase == 2u) {
-            /* Pinyin strip + 16×16 candidates above footer (fb y ends at 55). */
             msg_draw_py_sylls(0, 127, 27, &cand);
             msg_draw_py_cands16(0, 127, 34, &cand);
             GUI_DisplaySmallest("SEND", 0, 51, false, true);
             GUI_DisplaySmallest("pinyin", 92, 51, false, true);
             return;
         }
-        {
-            const uint8_t cy = (uint8_t)(20u + body_lines * 8u);
-            msg_draw_py_sylls(0, 127, cy, &cand);
-        }
+        msg_draw_py_sylls(0, 127, (uint8_t)(body_y + body_lines * 8u), &cand);
     }
 
-    draw_dotted_separator(46);
-    GUI_DisplaySmallest("SEND", 0, 49, false, true);
+    /* Below 2×16 body (y=16..47). */
+    draw_dotted_separator(48);
+    GUI_DisplaySmallest("SEND", 0, 50, false, true);
     if (py)
-        GUI_DisplaySmallest("pinyin", 92, 49, false, true);
+        GUI_DisplaySmallest("pinyin", 92, 50, false, true);
     else
-        GUI_DisplaySmallest((gMsgEditor.mode == 2U) ? "2" : (gMsgEditor.upper ? "B" : "b"), 120, 49, false, true);
+        GUI_DisplaySmallest((gMsgEditor.mode == 2U) ? "2" : (gMsgEditor.upper ? "B" : "b"), 120, 50, false, true);
 }
 
 static void draw_range(void)
@@ -999,47 +963,11 @@ static void draw_callsign(void)
     UI_PrintStringSmallNormal((gMsgCallsignEditor.mode == 2U) ? "2" : (gMsgCallsignEditor.upper ? "B" : "b"), 118, 0, 6);
 }
 
+/* Hidden in public builds — keep a tiny stub so the switch stays valid. */
 static void draw_settings(void)
 {
-    const char *names[] = { "MSG RX", "MSG CSG", "CALLTX", "ACK", "HOP", "BEEP", "LED", "DEBUG", "TESTMSG", "BACK" };
-    char buf[24];
     draw_title("MSG SET");
-    uint8_t start = 0;
-    if (gMsgSettingsCursor >= 5) start = (uint8_t)(gMsgSettingsCursor - 4U);
-    for (uint8_t row = 0; row < 5; row++) {
-        uint8_t idx = (uint8_t)(start + row);
-        if (idx >= 10) break;
-        switch (idx) {
-            case 0: snprintf(buf, sizeof(buf), "%s:%s", names[idx], gMessengerConfig.msg_rx ? "ON" : "OFF"); break;
-            case 1: snprintf(buf, sizeof(buf), "%s:%s", names[idx], gMessengerConfig.callsign); break;
-            case 2: snprintf(buf, sizeof(buf), "%s:%s", names[idx], gMessengerConfig.callsign_tx ? "ON" : "OFF"); break;
-            case 3: snprintf(buf, sizeof(buf), "%s:%s", names[idx], gMessengerConfig.msg_ack ? "ON" : "OFF"); break;
-            case 4: snprintf(buf, sizeof(buf), "%s:%u", names[idx], gMessengerConfig.msg_hop); break;
-            case 5: snprintf(buf, sizeof(buf), "%s:%s", names[idx], gMessengerConfig.msg_beep ? "ON" : "OFF"); break;
-            case 6: snprintf(buf, sizeof(buf), "%s:%u", names[idx], gMessengerConfig.msg_led); break;
-            case 7: snprintf(buf, sizeof(buf), "%s:%s", names[idx], gMessengerConfig.msg_debug ? "ON" : "OFF"); break;
-            case 8: snprintf(buf, sizeof(buf), "%s", names[idx]); break;
-            case 9: snprintf(buf, sizeof(buf), "%s", names[idx]); break;
-            default: buf[0] = 0; break;
-        }
-        print_line(buf, row + 1, gMsgSettingsCursor == idx);
-    }
-    if (gMessengerConfig.msg_debug) {
-        const uint8_t page = (uint8_t)((gFlashLightBlinkCounter / 64U) & 1U);
-        if (page == 0) {
-            snprintf(buf, sizeof(buf), "P%04X A%04X R%u M%u",
-                     MSG_RF_GetAckDbgPendingId(), MSG_RF_GetAckDbgRxId(),
-                     MSG_RF_GetAckDbgRxCount(), MSG_RF_GetAckDbgMatchCount());
-        } else {
-            snprintf(buf, sizeof(buf), "S%04X W%u T%u X%u",
-                     MSG_RF_GetAckDbgSentId(), MSG_RF_GetAckDbgWaitActive(),
-                     MSG_RF_GetAckDbgRetryCount(), MSG_RF_GetAckDbgMissCount());
-        }
-        UI_PrintStringSmallNormal(buf, 0, 0, 6);
-    } else {
-        snprintf(buf, sizeof(buf), "%u/10", (uint8_t)(gMsgSettingsCursor + 1));
-        print_right_small(buf, 6);
-    }
+    GUI_DisplaySmallest("EXIT", 0, 24, false, true);
 }
 
 void UI_DisplayMessenger(void)

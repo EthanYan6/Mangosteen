@@ -4,6 +4,7 @@
 #include "app/messenger_t9.h"
 #include "app/messenger_rf.h"
 #include "app/messenger_packet.h"
+#include "app/messenger_ui.h"
 #include "app/pinyin_ime.h"
 #include "audio.h"
 #include "ui/ui.h"
@@ -31,7 +32,9 @@ MSG_T9Editor_t gMsgCallsignEditor;
 char gMsgCallsignBuf[MSG_CALLSIGN_EDIT_LEN + 1];
 uint8_t gMsgReadIndex;
 uint8_t gMsgReadSource;
+uint8_t gMsgReadScroll;
 uint8_t gMsgSettingsCursor;
+uint8_t gMsgComposeScroll; /* lines above newest; 0 = follow tail */
 
 typedef struct {
     bool used;
@@ -187,16 +190,23 @@ static uint8_t current_count(void)
     return 0;
 }
 
+static uint8_t list_page_size(void)
+{
+    return 6u;
+}
+
 static void list_move(int8_t dir)
 {
     uint8_t count = current_count();
+    const uint8_t page = list_page_size();
     if (count == 0) return;
     int16_t next = (int16_t)gMsgCursor + dir;
     if (next < 0) next = count - 1;
     if (next >= count) next = 0;
     gMsgCursor = (uint8_t)next;
     if (gMsgCursor < gMsgScroll) gMsgScroll = gMsgCursor;
-    if (gMsgCursor >= gMsgScroll + 6) gMsgScroll = gMsgCursor - 5;
+    if (gMsgCursor >= (uint8_t)(gMsgScroll + page))
+        gMsgScroll = (uint8_t)(gMsgCursor - (page - 1u));
 }
 
 static void go_home(void)
@@ -224,6 +234,7 @@ static void return_to_read_source_list(void)
 {
     const MSG_Screen_t src = (gMsgReadSource == MSG_SCREEN_OUTBOX) ? MSG_SCREEN_OUTBOX : MSG_SCREEN_INBOX;
     const uint8_t count = (src == MSG_SCREEN_OUTBOX) ? MSG_STORE_CountOutbox() : MSG_STORE_CountInbox();
+    const uint8_t page = 6u;
     gMsgScreen = src;
     gMsgCursor = gMsgReadIndex;
     if (count == 0u) {
@@ -233,7 +244,8 @@ static void return_to_read_source_list(void)
     }
     if (gMsgCursor >= count) gMsgCursor = (uint8_t)(count - 1u);
     if (gMsgCursor < gMsgScroll) gMsgScroll = gMsgCursor;
-    if (gMsgCursor >= (uint8_t)(gMsgScroll + 6u)) gMsgScroll = (uint8_t)(gMsgCursor - 5u);
+    if (gMsgCursor >= (uint8_t)(gMsgScroll + page))
+        gMsgScroll = (uint8_t)(gMsgCursor - (page - 1u));
 }
 
 static void open_compose(const char *seed)
@@ -244,6 +256,7 @@ static void open_compose(const char *seed)
     if (seed) strncpy(gMsgComposeBuf, seed, MSG_TEXT_LEN);
     gMsgComposeBuf[MSG_TEXT_LEN] = 0;
     MSG_T9_Start(&gMsgEditor, gMsgComposeBuf, MSG_TEXT_LEN);
+    MSG_UI_ComposeResetScroll();
     gMsgScreen = MSG_SCREEN_COMPOSE;
 }
 
@@ -256,6 +269,7 @@ static void open_draft_edit(uint8_t index)
     strncpy(gMsgComposeBuf, gMessengerConfig.drafts[index], MSG_TEXT_LEN);
     gMsgComposeBuf[MSG_TEXT_LEN] = 0;
     MSG_T9_Start(&gMsgEditor, gMsgComposeBuf, MSG_TEXT_LEN);
+    MSG_UI_ComposeResetScroll();
     gMsgScreen = MSG_SCREEN_COMPOSE;
 }
 
@@ -282,7 +296,43 @@ static void read_move(int8_t dir)
     if (next < 0) next = count - 1;
     if (next >= count) next = 0;
     gMsgReadIndex = (uint8_t)next;
+    gMsgReadScroll = 0u;
     if (gMsgReadSource == MSG_SCREEN_INBOX) MSG_STORE_MarkInboxRead(gMsgReadIndex);
+}
+
+static uint8_t read_body_lines(const MSG_Message_t *m)
+{
+    if (gMsgReadSource == MSG_SCREEN_OUTBOX && m && m->ack_count > 0u)
+        return 1u;
+    return 2u;
+}
+
+static void read_scroll_or_move(int8_t dir)
+{
+    MSG_Message_t *m = read_message();
+    uint8_t body_lines;
+    uint8_t nlines;
+    uint8_t max_scroll;
+
+    if (!m) {
+        read_move(dir);
+        return;
+    }
+    body_lines = read_body_lines(m);
+    nlines = MSG_UI_TextLineCount16(m->text);
+    max_scroll = (nlines > body_lines) ? (uint8_t)(nlines - body_lines) : 0u;
+
+    if (dir < 0) {
+        if (gMsgReadScroll > 0u)
+            gMsgReadScroll--;
+        else
+            read_move(-1);
+    } else {
+        if (gMsgReadScroll < max_scroll)
+            gMsgReadScroll++;
+        else
+            read_move(1);
+    }
 }
 
 void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
@@ -291,6 +341,7 @@ void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
         if (bKeyPressed && gMsgScreen == MSG_SCREEN_COMPOSE && Key >= KEY_0 && Key <= KEY_9
             && gMsgEditor.mode != 3U) {
             MSG_T9_HandleLongKey(&gMsgEditor, Key);
+            MSG_UI_ComposeResetScroll();
             gUpdateDisplay = true;
         }
         return;
@@ -323,6 +374,7 @@ void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
                     bool was_inbox = (gMsgScreen == MSG_SCREEN_INBOX);
                     gMsgReadSource = (uint8_t)gMsgScreen;
                     gMsgReadIndex = gMsgCursor;
+                    gMsgReadScroll = 0u;
                     gMsgScreen = MSG_SCREEN_READ;
                     if (was_inbox) MSG_STORE_MarkInboxRead(gMsgReadIndex);
                 }
@@ -332,9 +384,9 @@ void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 
         case MSG_SCREEN_READ:
             if (Key == KEY_UP) {
-                read_move(-1);
+                read_scroll_or_move(-1);
             } else if (Key == KEY_DOWN) {
-                read_move(1);
+                read_scroll_or_move(1);
             } else if (Key == KEY_MENU) {
                 if (gMsgReadSource == MSG_SCREEN_OUTBOX) {
                     MSG_Message_t *m = read_message();
@@ -361,6 +413,7 @@ void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
             if (Key == KEY_MENU) {
                 if (gMsgEditor.mode == 3U && PY_HandleConfirm()) {
                     gMsgEditor.len = (uint8_t)strlen(gMsgComposeBuf);
+                    MSG_UI_ComposeResetScroll();
                     break;
                 }
                 MSG_T9_Commit(&gMsgEditor);
@@ -397,17 +450,34 @@ void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
                     PY_Stop();
                     gMsgEditor.len = (uint8_t)strlen(gMsgComposeBuf);
                 }
+                MSG_UI_ComposeResetScroll();
+            }
+            else if (Key == KEY_UP || Key == KEY_DOWN) {
+                if (gMsgEditor.mode == 3U && PY_ProcessKey(Key, true, false)) {
+                    gMsgEditor.len = (uint8_t)strlen(gMsgComposeBuf);
+                } else if (!PY_IsComposing()) {
+                    /* Clamp happens in draw_compose. */
+                    if (Key == KEY_UP) {
+                        if (gMsgComposeScroll < 8u)
+                            gMsgComposeScroll++;
+                    } else if (gMsgComposeScroll > 0u) {
+                        gMsgComposeScroll--;
+                    }
+                }
             }
             else if (gMsgEditor.mode == 3U) {
                 if (Key == KEY_F) {
                     PY_Backspace();
                     gMsgEditor.len = (uint8_t)strlen(gMsgComposeBuf);
+                    MSG_UI_ComposeResetScroll();
                 } else if (PY_ProcessKey(Key, true, false)) {
                     gMsgEditor.len = (uint8_t)strlen(gMsgComposeBuf);
+                    MSG_UI_ComposeResetScroll();
                 }
             }
             else {
-                MSG_T9_HandleKey(&gMsgEditor, Key);
+                if (MSG_T9_HandleKey(&gMsgEditor, Key))
+                    MSG_UI_ComposeResetScroll();
             }
             break;
 

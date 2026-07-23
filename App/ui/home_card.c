@@ -819,12 +819,12 @@ static void HC_DrawFront(uint8_t vfo_num)
 	if (str[0])
 		HC_SmallFit(str, HC_DTMF_X, 10);
 
-	/* channel name / VFO — ASCII: small bold; CN: 16×16 (nudge up 3px) */
+	/* channel name / VFO — ASCII: small bold; CN: 16×16 (nudge up 2px) */
 	HC_GetName(vfo_num, str, sizeof(str));
 	str[10] = 0;
 	if (hc_ox != 0 || hc_oy != 0) {
 		/* Swap animation: fall back to small font with offset */
-		HC_Small(str, 48, 16);
+		HC_Small(str, 48, 17);
 	} else if (UI_StringHasGb2312(str)) {
 		UI_PrintString(str, 48, 0, 1, 8);
 		{
@@ -852,7 +852,7 @@ static void HC_DrawFront(uint8_t vfo_num)
 				gFrameBuffer[2][x] = 0;
 				for (uint8_t row = 0; row < 16u; row++) {
 					if (glyph & (uint16_t)(1u << row))
-						PutPixel(x, (uint8_t)(8u - 3u + row), true);
+						PutPixel(x, (uint8_t)(8u - 2u + row), true);
 				}
 			}
 		}
@@ -865,7 +865,7 @@ static void HC_DrawFront(uint8_t vfo_num)
 	}
 
 	/* frequency LED below name: full XXX.XXXXX, bold 7-seg */
-	HC_DrawFreqLed(34, 28, freq);
+	HC_DrawFreqLed(34, 29, freq);
 
 	/* info: power, RX/TX tones, mod, SQL, bandwidth (above screen-bottom mic bar) */
 	{

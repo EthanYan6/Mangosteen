@@ -29,6 +29,14 @@ static uint8_t  g_len;
 static uint8_t  g_cur;
 static uint8_t  g_max;
 static uint8_t  g_flags; /* b0=active b1=pad b2=cursor_nav */
+static uint8_t  sym_i;   /* KEY_1 punctuation multitap index; 0xFF = idle */
+
+static const char s_syms[] = ".,?!";
+
+static void clearSym(void)
+{
+	sym_i = 0xFFu;
+}
 
 static bool isHz(const char *s, uint8_t i, uint8_t len)
 {
@@ -45,6 +53,7 @@ static void clearComp(void)
 	f = p = h = 0;
 	memset(digitBuf, 0, sizeof(digitBuf));
 	memset(hanziBuf, 0, sizeof(hanziBuf));
+	clearSym();
 }
 
 static void padOut(void)
@@ -212,6 +221,7 @@ static void enterPick(void)
 
 static void onDigit(KEY_Code_t key)
 {
+	clearSym();
 	if (f == 2u) {
 		uint8_t sel = (uint8_t)(key - KEY_0);
 		if (key >= KEY_1 && sel >= 1u && sel <= candTotal && sel <= g_page) {
@@ -365,6 +375,7 @@ void PY_Backspace(void)
 		return;
 	}
 	delChar();
+	clearSym();
 }
 
 bool PY_ProcessKey(KEY_Code_t key, bool pressed, bool held)
@@ -375,12 +386,14 @@ bool PY_ProcessKey(KEY_Code_t key, bool pressed, bool held)
 	switch (key) {
 		case KEY_0: {
 			char sp = ' ';
+			clearSym();
 			insertAt(&sp, 1);
 			clearComp();
 			return true;
 		}
 		case KEY_1:
 			if (f == 1u) {
+				clearSym();
 				enterPick();
 				return true;
 			}
@@ -388,7 +401,33 @@ bool PY_ProcessKey(KEY_Code_t key, bool pressed, bool held)
 				onDigit(key);
 				return true;
 			}
-			return true;
+			/* Idle: multitap punctuation (same role as letter-mode KEY_1). */
+			{
+				const uint8_t n = (uint8_t)(sizeof(s_syms) - 1u);
+				if (sym_i != 0xFFu && g_cur > 0u && g_buf &&
+				    !isHz(g_buf, (uint8_t)(g_cur - 1u), g_len)) {
+					const char last = g_buf[g_cur - 1u];
+					uint8_t k;
+					bool is_sym = false;
+					for (k = 0; k < n; k++) {
+						if (s_syms[k] == last) {
+							is_sym = true;
+							break;
+						}
+					}
+					if (is_sym) {
+						sym_i = (uint8_t)((sym_i + 1u) % n);
+						g_buf[g_cur - 1u] = s_syms[sym_i];
+						return true;
+					}
+				}
+				{
+					char c = s_syms[0];
+					if (insertAt(&c, 1))
+						sym_i = 0u;
+				}
+				return true;
+			}
 		case KEY_2: case KEY_3: case KEY_4: case KEY_5:
 		case KEY_6: case KEY_7: case KEY_8: case KEY_9:
 			onDigit(key);
