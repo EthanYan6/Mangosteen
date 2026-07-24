@@ -61,7 +61,7 @@
 /* Ellipse: +5px wider to the left (left rim 10→5); RY −10% vs 18 (→16)
  * so the ST7565 aspect reads less tall/elliptical. */
 #define GAUGE_CX        25
-#define GAUGE_CY        24
+#define GAUGE_CY        26
 #define GAUGE_RX        20
 #define GAUGE_RY        16
 #define GAUGE_THICK     2
@@ -608,7 +608,7 @@ static void HC_DrawMiniBattery(uint8_t x, uint8_t y)
 	}
 }
 
-static uint8_t HC_GetSLevel(void)
+static uint8_t HC_GetSLevel(int16_t *dBm_out)
 {
 #ifdef ENABLE_BK1080
 	/*
@@ -619,8 +619,11 @@ static uint8_t HC_GetSLevel(void)
 	if (gRxVfo && gRxVfo->Modulation == MODULATION_WFM) {
 		const uint8_t rssi = BK1080_GetRSSI();
 		enum { WFM_RSSI_S9 = 28 }; /* dBμV → S9 */
-		if (rssi >= WFM_RSSI_S9)
+		if (rssi >= WFM_RSSI_S9) {
+			if (dBm_out) *dBm_out = -93;
 			return 9;
+		}
+		if (dBm_out) *dBm_out = (int16_t)(-141 + (rssi * 48 / WFM_RSSI_S9));
 		return (uint8_t)((rssi * 9u) / WFM_RSSI_S9);
 	}
 #endif
@@ -630,6 +633,8 @@ static uint8_t HC_GetSLevel(void)
 		+ ((gSetting_AM_fix && gRxVfo->Modulation == MODULATION_AM) ? AM_fix_get_gain_diff() : 0)
 #endif
 		+ dBmCorrTable[gRxVfo->Band];
+
+	if (dBm_out) *dBm_out = rssi_dBm;
 
 	uint8_t s_level;
 	if (rssi_dBm >= -93)
@@ -794,6 +799,7 @@ static void HC_DrawFront(uint8_t vfo_num)
 	char rx_tone[10];
 	char tx_tone[10];
 	char pwr[4];
+	int16_t rssi_dBm = 0;
 	const VFO_Info_t *vfo = &gEeprom.VfoInfo[vfo_num];
 	const bool is_tx = (gCurrentFunction == FUNCTION_TRANSMIT)
 		&& ((gEeprom.TX_VFO & 1u) == vfo_num);
@@ -809,7 +815,7 @@ static void HC_DrawFront(uint8_t vfo_num)
 		 || (gRxVfo && gRxVfo->Modulation == MODULATION_WFM)
 #endif
 		);
-	const uint8_t s_level = show_s ? HC_GetSLevel() : 0;
+	const uint8_t s_level = show_s ? HC_GetSLevel(&rssi_dBm) : 0;
 
 	/* Target only — crawl + ghosts advance on 10ms tick. */
 	if (!hc_needle_frozen && meter_vfo)
@@ -823,7 +829,7 @@ static void HC_DrawFront(uint8_t vfo_num)
 	HC_VLine(FRONT_X1, FRONT_Y0, FRONT_Y1, true);
 
 	/* S-meter text follows the displayed needle */
-	sprintf(str, "S%u", HC_P2S(hc_needle));
+	sprintf(str, "S%u %d", HC_P2S(hc_needle), rssi_dBm);
 	HC_Small(str, 5, 3);
 
 	/* VFO letter + channel # + battery + %/V */
@@ -1078,7 +1084,7 @@ bool UI_HomeCard_TimeSlice500ms(void)
 		    || (gRxVfo && gRxVfo->Modulation == MODULATION_WFM)
 #endif
 		   )
-			target = HC_GetSLevel();
+			target = HC_GetSLevel(NULL);
 	}
 
 	/* Map S0..S9 → 0..44; motion happens on 10ms tick. */
