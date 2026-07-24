@@ -1,0 +1,127 @@
+<h2>三种就地抛光方向（布局不动）</h2>
+<p class="subtitle">信息位置与现网一致；只加强「牌」的厚度和「表」的仪式感。点选你更想往哪走</p>
+
+<div class="cards">
+  <!-- Approach 1 -->
+  <div class="card" data-choice="stack" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0a0f0a;padding:16px;display:flex;justify-content:center;">
+        <div style="width:256px;height:128px;background:#9bb88a;border:3px solid #2a3328;border-radius:4px;position:relative;">
+          <div style="position:absolute;inset:6px;background:#8fad7e;">
+            <!-- back: solid thicker L -->
+            <div style="position:absolute;left:14px;top:18px;right:0;bottom:0;border:3px solid #1a2218;"></div>
+            <!-- front shadow -->
+            <div style="position:absolute;left:6px;top:6px;right:16px;bottom:22px;background:#1a2218;opacity:0.35;"></div>
+            <!-- front double border -->
+            <div style="position:absolute;left:2px;top:2px;right:20px;bottom:26px;border:3px solid #1a2218;background:#8fad7e;box-shadow:inset 0 0 0 1px #1a2218;">
+              <div style="display:flex;justify-content:space-between;padding:2px 4px;font-size:9px;font-weight:700;color:#1a2218;font-family:monospace;">
+                <span>S5</span><span>A CH-001 ██</span>
+              </div>
+              <div style="position:absolute;left:10px;top:24px;width:52px;height:38px;border:2px solid #1a2218;border-radius:50% 50% 0 0/100% 100% 0 0;border-bottom:none;opacity:0.7;"></div>
+              <div style="position:absolute;left:96px;top:30px;font-size:11px;font-weight:800;color:#1a2218;font-family:sans-serif;">本地中继</div>
+              <div style="position:absolute;left:72px;top:50px;font-size:15px;font-weight:900;color:#1a2218;font-family:monospace;">145.50000</div>
+              <div style="position:absolute;left:8px;bottom:3px;font-size:8px;color:#1a2218;font-family:monospace;">5W 88.5 FM SQL1 W</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>1 · 叠牌加厚</h3>
+      <p>前卡双线框 + 1px「投影」；后卡实线 L 边（替代虚线）。表盘基本不动。立体感最强，表仍偏平。</p>
+    </div>
+  </div>
+
+  <!-- Approach 2 -->
+  <div class="card" data-choice="gauge" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0a0f0a;padding:16px;display:flex;justify-content:center;">
+        <div style="width:256px;height:128px;background:#9bb88a;border:3px solid #2a3328;border-radius:4px;position:relative;">
+          <div style="position:absolute;inset:6px;background:#8fad7e;">
+            <div style="position:absolute;left:12px;top:16px;right:2px;bottom:2px;border:1.5px dashed #1a2218;opacity:0.5;"></div>
+            <div style="position:absolute;left:2px;top:2px;right:14px;bottom:18px;border:2px solid #1a2218;background:#8fad7e;">
+              <div style="display:flex;justify-content:space-between;padding:2px 4px;font-size:9px;font-weight:700;color:#1a2218;font-family:monospace;">
+                <span>S5</span><span>A CH-001 ██</span>
+              </div>
+              <!-- filled sector gauge -->
+              <svg style="position:absolute;left:6px;top:18px;width:64px;height:48px;" viewBox="0 0 64 48">
+                <path d="M12 40 A22 20 0 0 1 52 40" fill="none" stroke="#1a2218" stroke-width="2"/>
+                <path d="M32 40 L12 40 A22 20 0 0 1 18 18 Z" fill="#1a2218" opacity="0.55"/>
+                <line x1="32" y1="40" x2="18" y2="18" stroke="#1a2218" stroke-width="2.5"/>
+                <circle cx="32" cy="40" r="2.5" fill="#1a2218"/>
+                <!-- major ticks -->
+                <line x1="12" y1="40" x2="16" y2="40" stroke="#1a2218" stroke-width="2"/>
+                <line x1="32" y1="20" x2="32" y2="24" stroke="#1a2218" stroke-width="2"/>
+                <line x1="52" y1="40" x2="48" y2="40" stroke="#1a2218" stroke-width="2"/>
+              </svg>
+              <div style="position:absolute;left:96px;top:30px;font-size:11px;font-weight:800;color:#1a2218;">本地中继</div>
+              <div style="position:absolute;left:72px;top:50px;font-size:15px;font-weight:900;color:#1a2218;font-family:monospace;">145.50000</div>
+              <div style="position:absolute;left:8px;bottom:3px;font-size:8px;color:#1a2218;font-family:monospace;">5W 88.5 FM SQL1 W</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>2 · 仪表拉满</h3>
+      <p>针下扇形随 S 级填充；粗指针 + 大刻度；RX 时可加粗环。卡片边框维持现状。表最有戏，牌仍薄。</p>
+    </div>
+  </div>
+
+  <!-- Approach 3 recommended -->
+  <div class="card" data-choice="combo" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0a0f0a;padding:16px;display:flex;justify-content:center;">
+        <div style="width:256px;height:128px;background:#9bb88a;border:3px solid #2a3328;border-radius:4px;position:relative;">
+          <div style="position:absolute;inset:6px;background:#8fad7e;">
+            <div style="position:absolute;left:14px;top:18px;right:0;bottom:0;border:2.5px solid #1a2218;"></div>
+            <div style="position:absolute;left:5px;top:5px;right:18px;bottom:24px;background:#1a2218;opacity:0.28;"></div>
+            <div style="position:absolute;left:2px;top:2px;right:20px;bottom:26px;border:2.5px solid #1a2218;background:#8fad7e;">
+              <div style="display:flex;justify-content:space-between;padding:2px 4px;font-size:9px;font-weight:700;color:#1a2218;font-family:monospace;">
+                <span style="background:#1a2218;color:#8fad7e;padding:0 3px;border-radius:1px;">S5</span>
+                <span>A CH-001 ██</span>
+              </div>
+              <svg style="position:absolute;left:6px;top:18px;width:64px;height:48px;" viewBox="0 0 64 48">
+                <path d="M12 40 A22 20 0 0 1 52 40" fill="none" stroke="#1a2218" stroke-width="2.5"/>
+                <path d="M32 40 L12 40 A22 20 0 0 1 18 18 Z" fill="#1a2218" opacity="0.5"/>
+                <line x1="32" y1="40" x2="18" y2="18" stroke="#1a2218" stroke-width="2.5"/>
+                <circle cx="32" cy="40" r="2.5" fill="#1a2218"/>
+                <line x1="12" y1="40" x2="16" y2="40" stroke="#1a2218" stroke-width="2"/>
+                <line x1="32" y1="20" x2="32" y2="24" stroke="#1a2218" stroke-width="2"/>
+                <line x1="52" y1="40" x2="48" y2="40" stroke="#1a2218" stroke-width="2"/>
+              </svg>
+              <div style="position:absolute;left:96px;top:30px;font-size:11px;font-weight:800;color:#1a2218;">本地中继</div>
+              <div style="position:absolute;left:72px;top:50px;font-size:15px;font-weight:900;color:#1a2218;font-family:monospace;">145.50000</div>
+              <div style="position:absolute;left:8px;bottom:3px;font-size:8px;color:#1a2218;font-family:monospace;">5W 88.5 FM SQL1 W</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>3 · 牌+表一起收（推荐）</h3>
+      <p>中等叠牌厚度 + 扇形填充表盘；S 值反白小标。改动仍落在现有坐标里，两项痛点一起对上。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:1.5rem">
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>约束（不变）</h4>
+      <ul>
+        <li>128×64 1bpp，无灰度/抗锯齿</li>
+        <li>频率 / 名 / 底栏信息不挪位</li>
+        <li>A/B 滑卡动画路径沿用</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>要注意</h4>
+      <ul>
+        <li>扇形填充会占一点 CPU（动画中可跳过，现已有先例）</li>
+        <li>边框加厚会吃 1～2px 内边距</li>
+        <li>反白 S 标在密点背景上要实测对比度</li>
+      </ul>
+    </div>
+  </div>
+</div>
