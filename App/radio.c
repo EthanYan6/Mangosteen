@@ -880,27 +880,19 @@ void RADIO_SetupRegisters(bool switchToForeground)
     // WFM always uses the BK1080 broadcast chip — regardless of frequency.
     if (gRxVfo->Modulation == MODULATION_WFM)
     {
-        // VFO unit = 10 Hz; BK1080 unit = 0.1 MHz → divide by 10000
-        // e.g. 103.9 MHz = 10390000 → 1039
         uint16_t fmFreq = (uint16_t)(Frequency / 10000u);
         if (fmFreq < 640)
             fmFreq = 640;
         else if (fmFreq > 1080)
             fmFreq = 1080;
 
-        const uint8_t band = FREQUENCY_GetWfmBk1080Band(fmFreq);
-
         BK4819_DisableVox();
         BK4819_SetCompander(0);
-        // Mute BK4819 AF before opening the shared amp. Without this, a mid-RX
-        // switch from NFM (e.g. 144.400) leaves the old demod unmuted → dual
-        // audio, then a loud noise burst when that carrier drops.
+        // Mute BK4819 AF before opening the shared amp (avoid dual-audio / burst).
         BK4819_SetAF(BK4819_AF_MUTE);
         BK4819_PickRXFilterPathBasedOnFrequency(10320000); // VHF LNA path for BK1080
-        // Shared antenna RX switch — WFM early-return used to skip this, so cold
-        // boot into broadcast heard only BK1080 hiss with no RF / dead S-meter.
         BK4819_ToggleGpioOut(BK4819_GPIO0_PIN28_RX_ENABLE, true);
-        BK1080_Init(fmFreq, band);
+        BK1080_Init(fmFreq, FREQUENCY_GetWfmBk1080Band(fmFreq));
 
         gDualWatchActive   = false;
         gScheduleDualWatch = false;

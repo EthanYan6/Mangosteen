@@ -25,6 +25,15 @@ static bool IsWfmFrequencyScan(void)
         && gRxVfo
         && gRxVfo->Modulation == MODULATION_WFM;
 }
+
+/* Mute amp and retune BK1080 only (FM_Tune style). */
+static void WfmSeekTune(void)
+{
+    const uint16_t fmFreq = (uint16_t)(gRxVfo->freq_config_RX.Frequency / 10000u);
+    AUDIO_AudioPathOff();
+    gEnableSpeaker = false;
+    BK1080_SetFrequency(fmFreq, FREQUENCY_GetWfmBk1080Band(fmFreq));
+}
 #endif
 
 int8_t            gScanStateDir;
@@ -805,10 +814,9 @@ void CHFRSCANNER_Start(const bool storeBackupSettings, const int8_t scan_directi
             lastFoundFrqOrChan = initialFrqOrChan;
         }
 #ifdef ENABLE_BK1080
-        if (gRxVfo->Modulation == MODULATION_WFM) {
-            const uint16_t fmFreq = (uint16_t)(gRxVfo->freq_config_RX.Frequency / 10000u);
-            BK1080_GetFrequencyDeviation(fmFreq);
-        }
+        if (gRxVfo->Modulation == MODULATION_WFM)
+            BK1080_GetFrequencyDeviation(
+                (uint16_t)(gRxVfo->freq_config_RX.Frequency / 10000u));
 #endif
         NextFreqChannel();
     }
@@ -1024,6 +1032,18 @@ void CHFRSCANNER_Stop(void)
         SETTINGS_WriteCurrentState();
     #endif
 
+#ifdef ENABLE_BK1080
+    /* Seek already on BK1080 — don't RADIO_SetupRegisters (re-init click). */
+    if (IsWfmFrequencyScan()) {
+        if (!gScanKeepResult)
+            WfmSeekTune();
+        AUDIO_AudioPathOn();
+        gEnableSpeaker = true;
+        gUpdateDisplay = true;
+        return;
+    }
+#endif
+
     RADIO_SetupRegisters(true);
     gUpdateDisplay = true;
 }
@@ -1070,18 +1090,28 @@ static void NextFreqChannel(void)
 #ifdef ENABLE_FEAT_F4HWN_SCAN_FASTER
         scanFastLastFullTuneCandidate = false;
 #endif
+#ifdef ENABLE_BK1080
+        if (gRxVfo->Modulation == MODULATION_WFM)
+            gRxVfo->freq_config_RX.Frequency =
+                APP_SetFreqByStepAndLimits(gRxVfo, gScanStateDir, FREQ_WFM_MIN, FREQ_WFM_MAX);
+        else
+#endif
         gRxVfo->freq_config_RX.Frequency = APP_SetFrequencyByStep(gRxVfo, gScanStateDir);
     }
+
+#ifdef ENABLE_BK1080
+    if (gRxVfo->Modulation == MODULATION_WFM) {
+        WfmSeekTune();
+        gScanPauseDelayIn_10ms = fm_play_countdown_scan_10ms;
+        gUpdateDisplay         = true;
+        return;
+    }
+#endif
 
     RADIO_ApplyOffset(gRxVfo);
     RADIO_ConfigureSquelchAndOutputPower(gRxVfo);
     RADIO_SetupRegisters(true);
 
-#ifdef ENABLE_BK1080
-    if (gRxVfo->Modulation == MODULATION_WFM)
-        gScanPauseDelayIn_10ms = fm_play_countdown_scan_10ms; // BK1080 settle (~100ms)
-    else
-#endif
 #ifdef ENABLE_FASTER_CHANNEL_SCAN
     gScanPauseDelayIn_10ms = 9;   // 90ms
 #else
