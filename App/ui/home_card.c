@@ -413,15 +413,15 @@ static void HC_DrawGaugeArc(uint8_t cx, uint8_t cy, uint8_t rx, uint8_t ry)
 }
 
 /*
- * S1..S9 bold dots just inside the gauge ring (ellipse rx=16, ry=12;
- * inner rim is 18×14). Parametric angles 90°..360° step 33.75°.
+ * S0..S9 bold dots on the gauge ring ellipse (rx=16, ry=12).
+ * Parametric angles 90°..360° step 30°.
  */
-static const int8_t hc_dot_x[9] = {  0, -9,-15,-16,-11, -3,  6, 13, 16};
-static const int8_t hc_dot_y[9] = { 12, 10,  5, -2, -8,-12,-11, -7,  0};
+static const int8_t hc_dot_x[10] = {  0, -8,-14,-16,-14, -8,  0,  8, 14, 16};
+static const int8_t hc_dot_y[10] = { 12, 10,  6,  0, -6,-10,-12,-10, -6,  0};
 
 static void HC_DrawTicks(uint8_t cx, uint8_t cy)
 {
-	for (uint8_t n = 0; n < 9; n++) {
+	for (uint8_t n = 0; n < 10; n++) {
 		const uint8_t x = (uint8_t)(cx + hc_dot_x[n]);
 		const uint8_t y = (uint8_t)(cy + hc_dot_y[n]);
 		/* Plus-shaped bold dot (reads round on 1bpp). */
@@ -482,7 +482,7 @@ static bool HC_NeedleTick10ms(void)
 }
 
 #define HC_S2P(s) ((uint8_t)((((s) > 9u) ? 9u : (uint8_t)(s)) * HC_NEEDLE_MAX / 9u))
-#define HC_P2S(p) ((uint8_t)((((p) > HC_NEEDLE_MAX) ? HC_NEEDLE_MAX : (uint8_t)(p)) * 9u + 22u) / HC_NEEDLE_MAX)
+#define HC_P2S(p) ((uint8_t)(((p) * 9u + (HC_NEEDLE_MAX / 2u)) / HC_NEEDLE_MAX))
 
 /* Bold 7-segment digit 8×12 (2px strokes) */
 static const uint8_t seg_mask[10] = {
