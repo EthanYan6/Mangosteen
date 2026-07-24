@@ -310,6 +310,8 @@ body.writefreq-full .subtitle-chips { display: none; }
 .subtitle-chip--weixin .subtitle-chip-label { color: #4ade80; }
 .subtitle-chip--fmo .subtitle-icon { color: #f97316; }
 .subtitle-chip--fmo .subtitle-chip-label { color: #fb923c; }
+.subtitle-chip--dondji .subtitle-icon { color: #fbbf24; }
+.subtitle-chip--dondji .subtitle-chip-label { color: #fcd34d; }
 a.subtitle-chip {
   text-decoration: none;
   color: inherit;

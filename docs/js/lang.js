@@ -46,7 +46,8 @@
       'fmoScreen': 'FMO副屏',
       'clickView': '点击查看',
       'wechatGroup': '微信群',
-      'otherFirmware': '其它固件合集',
+      'otherFirmware': '其它固件',
+      'otherFirmwareName': '叮咚鸡',
       
       // Timeline sidebar
       'timelineTitle': '山竹（Mangosteen）历史版本',
@@ -482,7 +483,8 @@
       'fmoScreen': 'FMO Screen',
       'clickView': 'Click to view',
       'wechatGroup': 'WeChat Group',
-      'otherFirmware': 'Other Firmware Collection',
+      'otherFirmware': 'Other Firmware',
+      'otherFirmwareName': 'Dondji',
       
       // Timeline sidebar
       'timelineTitle': 'Mangosteen Version History',
