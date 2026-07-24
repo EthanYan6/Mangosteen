@@ -58,17 +58,36 @@
 #define FONT8_SIZE        8u
 #endif
 
-/* Ellipse: +5px wider to the left (left rim 10→5), height unchanged.
- * Wider RX corrects the tall-looking circle on the ST7565 aspect. */
+/* Ellipse: +5px wider to the left (left rim 10→5); RY −10% vs 18 (→16)
+ * so the ST7565 aspect reads less tall/elliptical. */
 #define GAUGE_CX        25
 #define GAUGE_CY        24
 #define GAUGE_RX        20
-#define GAUGE_RY        18
+#define GAUGE_RY        16
 #define GAUGE_THICK     2
 
-/* Displayed needle; rises instantly, falls 1 S-unit per 500ms tick. */
+/* Needle: 45 tips; crawl both ways; every left tip keeps a full needle ~1s. */
+#define HC_NEEDLE_MAX       44u
+#define HC_NEEDLE_N         45u
+#define HC_NEEDLE_STEP_10MS 10u
+#define HC_GHOST_LIFE_10MS  40u  /* 0.4s ghost linger */
+
 static uint8_t hc_needle;
 static uint8_t hc_needle_target;
+static uint8_t hc_needle_tick;
+static uint8_t hc_ghost_age[HC_NEEDLE_N];
+
+/* Tips on inset ellipse, lerp of S-dots — table avoids runtime div. */
+static const int8_t hc_tip_x[HC_NEEDLE_N] = {
+	 0,-2,-4,-5,-7,-9,-10,-11,-12,-13,-14,-15,-16,-16,-16,
+	-16,-16,-16,-15,-14,-13,-12,-11,-10,-9,-7,-6,-4,-3,-1,
+	 1, 2, 4, 6, 7, 8, 9,11,12,13,13,14,14,15,16
+};
+static const int8_t hc_tip_y[HC_NEEDLE_N] = {
+	12,11,11,10,10,10, 9, 8, 7, 6, 5, 5, 3, 2, 1,
+	-1,-2,-3,-4,-5,-6,-7,-8,-9,-10,-11,-11,-12,-12,-12,
+	-12,-12,-12,-11,-11,-10,-9,-9,-8,-7,-6,-4,-3,-2, 0
+};
 
 /* Draw offset for A/B swap animation (applied in HC_Pixel / HC_Small). */
 static int8_t hc_ox;
@@ -394,35 +413,76 @@ static void HC_DrawGaugeArc(uint8_t cx, uint8_t cy, uint8_t rx, uint8_t ry)
 }
 
 /*
- * Tick tips for GAUGE_RX=20, GAUGE_RY=18: angles 90°..360° step 33.75°.
- * Outer ≈14/18 of rim, inner ≈11/18 — both inside inner rim.
+ * S1..S9 bold dots just inside the gauge ring (ellipse rx=16, ry=12;
+ * inner rim is 18×14). Parametric angles 90°..360° step 33.75°.
  */
-static const int8_t hc_tick_ox[9] = {  0, -9,-14,-15,-11, -3,  6, 13, 16};
-static const int8_t hc_tick_oy[9] = { 14, 12,  5, -3,-10,-14,-13, -8,  0};
-static const int8_t hc_tick_ix[9] = {  0, -7,-11,-12, -9, -2,  5, 10, 12};
-static const int8_t hc_tick_iy[9] = { 11,  9,  4, -2, -8,-11,-10, -6,  0};
+static const int8_t hc_dot_x[9] = {  0, -9,-15,-16,-11, -3,  6, 13, 16};
+static const int8_t hc_dot_y[9] = { 12, 10,  5, -2, -8,-12,-11, -7,  0};
 
 static void HC_DrawTicks(uint8_t cx, uint8_t cy)
 {
-	for (uint8_t n = 0; n < 9; n++)
-		HC_Line(cx + hc_tick_ox[n], cy + hc_tick_oy[n],
-			cx + hc_tick_ix[n], cy + hc_tick_iy[n]);
+	for (uint8_t n = 0; n < 9; n++) {
+		const uint8_t x = (uint8_t)(cx + hc_dot_x[n]);
+		const uint8_t y = (uint8_t)(cy + hc_dot_y[n]);
+		/* Plus-shaped bold dot (reads round on 1bpp). */
+		HC_Pixel(x, y, true);
+		HC_Pixel((uint8_t)(x + 1), y, true);
+		HC_Pixel((uint8_t)(x - 1), y, true);
+		HC_Pixel(x, (uint8_t)(y + 1), true);
+		HC_Pixel(x, (uint8_t)(y - 1), true);
+	}
 }
 
-static void HC_DrawNeedle(uint8_t cx, uint8_t cy, uint8_t s_level)
+static void HC_DrawNeedle(uint8_t cx, uint8_t cy, uint8_t pos)
 {
-	if (s_level > 9)
-		s_level = 9;
-	const uint8_t idx = (s_level == 0) ? 0 : (uint8_t)(s_level - 1);
-	/* Needle tip uses inner tick radius — stays clear of the rim */
-	HC_Line(cx, cy, cx + hc_tick_ix[idx], cy + hc_tick_iy[idx]);
-	/* Small hub */
+	uint8_t i;
+
+	if (pos > HC_NEEDLE_MAX)
+		pos = HC_NEEDLE_MAX;
+
+	/* Every stepped-through position keeps a full needle until age hits 0. */
+	for (i = 0; i < HC_NEEDLE_N; i++) {
+		if (hc_ghost_age[i] == 0)
+			continue;
+		HC_Line(cx, cy, cx + hc_tip_x[i], cy + hc_tip_y[i]);
+	}
+
+	HC_Line(cx, cy, cx + hc_tip_x[pos], cy + hc_tip_y[pos]);
 	HC_Pixel(cx, cy, true);
 	HC_Pixel((uint8_t)(cx + 1), cy, true);
 	HC_Pixel(cx, (uint8_t)(cy + 1), true);
 	HC_Pixel((uint8_t)(cx - 1), cy, true);
 	HC_Pixel(cx, (uint8_t)(cy - 1), true);
 }
+
+static bool HC_NeedleTick10ms(void)
+{
+	bool    redraw = false;
+	uint8_t i;
+
+	for (i = 0; i < HC_NEEDLE_N; i++) {
+		if (hc_ghost_age[i] != 0 && --hc_ghost_age[i] == 0)
+			redraw = true;
+	}
+
+	if (hc_needle == hc_needle_target) {
+		hc_needle_tick = 0;
+		return redraw;
+	}
+	if (++hc_needle_tick < HC_NEEDLE_STEP_10MS)
+		return redraw;
+	hc_needle_tick = 0;
+
+	hc_ghost_age[hc_needle] = HC_GHOST_LIFE_10MS;
+	if (hc_needle < hc_needle_target)
+		hc_needle++;
+	else
+		hc_needle--;
+	return true;
+}
+
+#define HC_S2P(s) ((uint8_t)((((s) > 9u) ? 9u : (uint8_t)(s)) * HC_NEEDLE_MAX / 9u))
+#define HC_P2S(p) ((uint8_t)((((p) > HC_NEEDLE_MAX) ? HC_NEEDLE_MAX : (uint8_t)(p)) * 9u + 22u) / HC_NEEDLE_MAX)
 
 /* Bold 7-segment digit 8×12 (2px strokes) */
 static const uint8_t seg_mask[10] = {
@@ -751,12 +811,9 @@ static void HC_DrawFront(uint8_t vfo_num)
 		);
 	const uint8_t s_level = show_s ? HC_GetSLevel() : 0;
 
-	/* Instant rise, slow fall — frozen during A/B card slide. */
-	if (!hc_needle_frozen && meter_vfo) {
-		hc_needle_target = s_level;
-		if (hc_needle_target >= hc_needle)
-			hc_needle = hc_needle_target;
-	}
+	/* Target only — crawl + ghosts advance on 10ms tick. */
+	if (!hc_needle_frozen && meter_vfo)
+		hc_needle_target = HC_S2P(s_level);
 
 	/* Cover anything from the back card that falls under the front. */
 	HC_ClearRect(FRONT_X0, FRONT_Y0, FRONT_X1, FRONT_Y1);
@@ -766,7 +823,7 @@ static void HC_DrawFront(uint8_t vfo_num)
 	HC_VLine(FRONT_X1, FRONT_Y0, FRONT_Y1, true);
 
 	/* S-meter text follows the displayed needle */
-	sprintf(str, "S%u", hc_needle);
+	sprintf(str, "S%u", HC_P2S(hc_needle));
 	HC_Small(str, 5, 3);
 
 	/* VFO letter + channel # + battery + %/V */
@@ -970,19 +1027,27 @@ bool UI_HomeCard_IsVfoSwapAnimActive(void)
 
 bool UI_HomeCard_TimeSlice10ms(void)
 {
-	if (!hc_anim_active)
-		return false;
+	bool redraw = false;
 
 	if (gScreenToDisplay != DISPLAY_MAIN) {
-		hc_anim_active   = false;
-		hc_needle_frozen = false;
-		hc_anim_step     = 0;
-		hc_anim_tick     = 0;
+		if (hc_anim_active) {
+			hc_anim_active   = false;
+			hc_needle_frozen = false;
+			hc_anim_step     = 0;
+			hc_anim_tick     = 0;
+		}
 		return false;
 	}
 
+	/* Needle crawl + ghost decay always while on home. */
+	if (!hc_needle_frozen)
+		redraw = HC_NeedleTick10ms();
+
+	if (!hc_anim_active)
+		return redraw;
+
 	if (++hc_anim_tick < HC_ANIM_TICKS_PER_STEP)
-		return false;
+		return redraw;
 	hc_anim_tick = 0;
 
 	if (hc_anim_step < HC_ANIM_STEPS)
@@ -1016,20 +1081,12 @@ bool UI_HomeCard_TimeSlice500ms(void)
 			target = HC_GetSLevel();
 	}
 
-	hc_needle_target = target;
-
-	/* Instant rise when signal increases. */
-	if (target >= hc_needle) {
-		if (hc_needle != target) {
-			hc_needle = target;
-			return true;
-		}
+	/* Map S0..S9 → 0..44; motion happens on 10ms tick. */
+	const uint8_t pos = HC_S2P(target);
+	if (pos == hc_needle_target)
 		return false;
-	}
-
-	/* Slow fall: 1 S-unit per 500ms — no snap to 0. */
-	hc_needle--;
-	return true;
+	hc_needle_target = pos;
+	return false;
 }
 
 #endif /* ENABLE_FEAT_F4HWN */
