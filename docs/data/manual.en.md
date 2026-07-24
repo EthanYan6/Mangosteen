@@ -3,7 +3,7 @@
 This manual has two chapters:
 
 1. **Chapter 1 — Flashing Guide**: flash firmware, font, calibration, and related tools in the browser  
-2. **Chapter 2 — System User Guide**: using the radio, scan, save channels, naming/IME, and SMS after Mangosteen is installed
+2. **Chapter 2 — System User Guide**: basic operation, broadcast FM (WFM), scan, save channels, naming/IME, and SMS after Mangosteen is installed
 
 > Compatible with Quansheng **UV-K1 / UV-K5 / UV-K6 V3 only**. Check the rear label for **V3**.
 
@@ -127,7 +127,7 @@ Download the Release binary manually, then use **Local Select**.
 
 This chapter covers daily use after Mangosteen is installed. On this keypad, **`#` is the F key** (short press arms F-combos; long press locks the keypad). **`*`** is often used for scan and IME mode switching.
 
-## 2.1 Using the Radio
+## 2.1 Basic Operation
 
 ### Power and volume
 
@@ -173,7 +173,7 @@ If **RxMode** is **MAIN ONLY**, **F+2** is refused with a beep — there is no s
 
 - **PTT:** side PTT key.
 - **TX power:** try **F + 6**, a side **POWER** action, or menu **Power**.
-- **Modulation** (FM / AM / USB / WFM…): side **MODE** or menu **Mode**.
+- **Modulation** (FM / AM / USB / WFM…): side **MODE** or menu **Mode**. For broadcast FM, see **2.2 Using Broadcast FM (WFM)**.
 
 ### Useful F-keys (home screen)
 
@@ -193,7 +193,34 @@ Side keys (**F1 / F2 / long M**, etc.) can be assigned to SCAN, MONITOR, MESSENG
 
 ---
 
-## 2.2 Scanning
+## 2.2 Using Broadcast FM (WFM)
+
+Mangosteen receives broadcast FM on the main screen with **WFM** modulation (about **64.0–108.0 MHz**) via the on-board BK1080. There is no separate full-screen FM-radio app.
+
+### Start listening
+
+Either:
+
+1. **Auto:** in VFO, tune or enter **64.0–108.0 MHz** — modulation switches to **WFM** automatically.
+2. **Manual:** cycle side **MODE** or menu **Mode** to **WFM** (also allowed outside that band).
+
+Use the volume knob for level; **↑ / ↓** or digit keys to change frequency.
+
+### Save and scan
+
+- After tuning, save with **2.4 Saving Channels** (modulation stores as WFM).
+- In WFM VFO mode, **long-press `*`** seeks stations and stops on a lock. Stop scan with short **EXIT** / **MENU**.
+
+### Notes
+
+- **No TX on 64–108 MHz** (PTT is refused in any mode); WFM itself is receive-only.
+- Dual watch pauses while either VFO is in WFM.
+- Inside the band you may manually switch to FM / AM / USB, etc.; further tuning inside the band will not force WFM again.
+- Leaving 64–108 MHz while still on WFM auto-returns modulation to **FM**.
+
+---
+
+## 2.3 Scanning
 
 ### Start / stop
 
@@ -226,7 +253,7 @@ Side keys (**F1 / F2 / long M**, etc.) can be assigned to SCAN, MONITOR, MESSENG
 
 ---
 
-## 2.3 Saving Channels
+## 2.4 Saving Channels
 
 Store the current VFO settings into a memory channel:
 
@@ -241,7 +268,7 @@ You can also bulk-import channels from the website **Freq Program** tab.
 
 ---
 
-## 2.4 Channel Naming and Input Method
+## 2.5 Channel Naming and Input Method
 
 ### Enter naming
 
@@ -302,7 +329,7 @@ Callsign / MsgCsg / DTMF editors generally **do not** support pinyin — ASCII/d
 
 ---
 
-## 2.5 Using SMS (Messenger)
+## 2.6 Using SMS (Messenger)
 
 Mangosteen includes Messenger (title **MESSENGER** / **信息**), interoperable with compatible GOGUFW-style messaging. Messages can be received in the background; an envelope may appear on the status line when unread.
 
@@ -349,7 +376,7 @@ Short **`*`** cycles:
 | `B` | Uppercase multitap |
 | `b` | Lowercase multitap |
 | `2` | Numeric |
-| `pinyin` | Same pinyin engine as ChName (see **2.4 Pinyin keypad letter map**) |
+| `pinyin` | Same pinyin engine as ChName (see **2.5 Pinyin keypad letter map**) |
 
 - Backspace: **`#` (F)**.
 - In letter modes, long-press a digit to insert that digit.
@@ -372,9 +399,10 @@ Short **`*`** cycles:
 
 ---
 
-## 2.6 Usage Notes
+## 2.7 Usage Notes
 
 1. **MAIN ONLY** disables A/B switching.
 2. Chinese display needs the font — flash it as described in Chapter 1.
 3. While scanning, dual-watch UI may temporarily behave as single-VFO scan until you stop.
 4. Inbox content may be lost on power-off; set your local name before messaging.
+5. **64–108 MHz** and **WFM** are receive-only — see **2.2**.
