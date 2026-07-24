@@ -3,9 +3,9 @@
 This manual has two chapters:
 
 1. **Chapter 1 — Flashing Guide**: flash firmware, font, calibration, and related tools in the browser  
-2. **Chapter 2 — System User Guide**: basic operation, broadcast FM (WFM), scan, save channels, naming/IME, and SMS after Mangosteen is installed
+2. **Chapter 2 — System User Guide**: basic operation, broadcast FM (WFM), scan, save channels, naming/IME, SMS, and HEARD after Mangosteen is installed
 
-> Compatible with Quansheng **UV-K1 / UV-K5 / UV-K6 V3 only**. Check the rear label for **V3**.
+> Compatible with Quansheng **UV-K1**, and **UV-K5 / UV-K6 V3**. For K5/K6, confirm **V3** on the rear label (K1 has no V3 variant).
 
 ---
 
@@ -48,7 +48,7 @@ How: Power off, **hold PTT**, then turn the knob to power on.
 
 1. Open **Flash Firmware**.
 2. **Remote Fetch** the latest `mangosteen_*.bin`, or **Local Select** a file.
-3. Confirm V3 hardware, then flash and wait.
+3. Confirm the radio is UV-K1, or UV-K5/K6 V3, then flash and wait.
 4. Do not unplug, close the tab, or cut power during flashing.
 
 ## 1.5 Flash Font
@@ -116,7 +116,7 @@ Download the Release binary manually, then use **Local Select**.
 
 ## 1.11 Safety Notes
 
-- Confirm **V3** hardware.
+- Confirm **UV-K1**, or **UV-K5 / UV-K6 V3** (older non-V3 K5/K6 will brick).
 - Keep power and USB stable during writes.
 - Back up calibration and channels first.
 - This site uses Web Serial in your browser and does not upload your calib/channel files.
@@ -132,7 +132,7 @@ This chapter covers daily use after Mangosteen is installed. On this keypad, **`
 ### Power and volume
 
 - **Power / volume:** physical volume knob. Holding **PTT** while powering on enters BOOT (flashing only).
-- Menu **SetVol** adjusts speaker gain; everyday listening is still mainly the knob.
+- Everyday listening is mainly the knob. Some custom builds may include menu **SetVol** for speaker gain; the default build usually does not.
 
 ### Main menu
 
@@ -173,7 +173,7 @@ If **RxMode** is **MAIN ONLY**, **F+2** is refused with a beep — there is no s
 
 - **PTT:** side PTT key.
 - **TX power:** try **F + 6**, a side **POWER** action, or menu **Power**.
-- **Modulation** (FM / AM / USB / WFM…): side **MODE** or menu **Mode**. For broadcast FM, see **2.2 Using Broadcast FM (WFM)**.
+- **Modulation** (FM / AM / USB / WFM…): side **MODE** or menu **Mode** (Chinese: **调制模式**). For broadcast FM, see **2.2 Using Broadcast FM (WFM)**.
 
 ### Useful F-keys (home screen)
 
@@ -184,12 +184,12 @@ If **RxMode** is **MAIN ONLY**, **F+2** is refused with a beep — there is no s
 | F + 4 | Freq/CSS scanner screen |
 | F + 5 | Scan-list / scan-range helpers |
 | F + 6 | TX power |
-| F + 7 | HEARD / range check |
+| F + 7 | Short: HEARD / range check; long: VOX (if enabled) |
 | F + MENU | Open Messenger |
 | Long * | Start / stop channel or frequency scan |
 | F + * | CTCSS/DCS code search |
 
-Side keys (**F1 / F2 / long M**, etc.) can be assigned to SCAN, MONITOR, MESSENGER, HEARD, MAIN ONLY, and more.
+Side keys (**F1 / F2 / long M**, etc.) can be assigned to SCAN, MONITOR, MESSENGER, HEARD, MAIN ONLY, and more. A legacy side-key **FM** / 「收音机」 action is a no-op in the default build — use main-screen **WFM** instead (see 2.2).
 
 ---
 
@@ -215,7 +215,7 @@ Use the volume knob for level; **↑ / ↓** or digit keys to change frequency.
 
 - **No TX on 64–108 MHz** (PTT is refused in any mode); WFM itself is receive-only.
 - Dual watch pauses while either VFO is in WFM.
-- Inside the band you may manually switch to FM / AM / USB, etc.; further tuning inside the band will not force WFM again.
+- Inside the band you may manually switch to FM / AM / USB, etc.; further tuning inside the band usually will not force WFM again — except tuning exactly to **64.0** or **108.0 MHz**, which still forces WFM.
 - Leaving 64–108 MHz while still on WFM auto-returns modulation to **FM**.
 
 ---
@@ -329,7 +329,7 @@ Callsign / MsgCsg / DTMF editors generally **do not** support pinyin — ASCII/d
 
 ---
 
-## 2.6 Using SMS (Messenger)
+## 2.6 Messenger and HEARD
 
 Mangosteen includes Messenger (title **MESSENGER** / **信息**), interoperable with compatible GOGUFW-style messaging. Messages can be received in the background; an envelope may appear on the status line when unread.
 
@@ -338,7 +338,7 @@ Mangosteen includes Messenger (title **MESSENGER** / **信息**), interoperable 
 | Action | Keys |
 |--------|------|
 | Open Messenger | **F + MENU** ( `#` then MENU), or side **MESSENGER** |
-| Open HEARD / Range | **F + 7** or side **HEARD** |
+| Open HEARD / Range | Short **F + 7** or side **HEARD** |
 | Exit to home | **EXIT** from Messenger home |
 
 ### Home items
@@ -356,10 +356,12 @@ Mangosteen includes Messenger (title **MESSENGER** / **信息**), interoperable 
 
 1. Open **COMPOSE**.
 2. Enter text (about **36** bytes max).
-3. **MENU** sends (empty input sends an empty-message marker).
+3. **MENU** sends; if the text is empty, the radio transmits the literal string **`EMPTY`** (protocol placeholder, not a blank packet).
 4. **EXIT** cancels without sending.
 
 From an inbox read, **MENU** replies with a `RE: ` prefix. From sent, **MENU** can resend. **`#` (F)** deletes in list/read views (UI shows a delete hint).
+
+Editing a draft from **DRAFTS** and pressing **MENU** saves it to Flash **and immediately sends** that text.
 
 Notes:
 
@@ -395,7 +397,10 @@ Short **`*`** cycles:
 
 ### HEARD / Range Check
 
-**F+7** opens it. **MENU** starts/stops ranging; ↑/↓ scroll heard stations (callsign, RSSI, age); **EXIT** leaves.
+1. Open with short **F+7** or side **HEARD**.
+2. When idle, **↑ / ↓** scroll heard stations (callsign, RSSI, age).
+3. **MENU** starts one range ping (ignored while waiting); after results appear, **MENU** can start another ping.
+4. **EXIT**: from the result view, first press returns to the idle HEARD list; press again to leave to the home screen.
 
 ---
 

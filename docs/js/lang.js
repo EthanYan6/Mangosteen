@@ -137,7 +137,7 @@
       // Flash device warning modal
       'flashWarningTitle': '刷机前请确认设备型号',
       'flashWarningText1': '请检查你的设备是否为泉盛 uvk1、泉盛 uvk5/uvk6 V3 版本。老版本泉盛 uvk5 和 uvk6 刷机会变砖！！！',
-      'flashWarningText2': '查看方法：机器背部标签是否有 V3 字样，或者询问卖家。',
+      'flashWarningText2': 'UV-K1 无 V3 之分；UV-K5/K6 请查看背部标签是否有 V3 字样，或询问卖家。',
       'flashWarningOk': '我已了解',
       
       // Snow screen warning HTML
@@ -572,7 +572,7 @@
       // Flash device warning modal
       'flashWarningTitle': 'Confirm Device Model Before Flashing',
       'flashWarningText1': 'Check if your device is Quansheng UVK1, UVK5/UVK6 V3 version. Older UVK5 and UVK6 will brick!!!',
-      'flashWarningText2': 'Check method: Look for V3 on back label, or ask seller.',
+      'flashWarningText2': 'UV-K1 has no V3 variant; for UV-K5/K6, look for V3 on the back label, or ask the seller.',
       'flashWarningOk': 'I understand',
       
       // Snow screen warning HTML
