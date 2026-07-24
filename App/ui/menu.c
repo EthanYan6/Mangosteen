@@ -2213,6 +2213,7 @@ void UI_DisplayMenu(void)
             //   next       -> Battery                 (ENABLE_FEAT_F4HWN)
             //   next       -> Flash / SRAM usage      (ENABLE_FEAT_F4HWN_MEM)
             //   next, +1   -> CODE / WIKI QR codes    (ENABLE_FEAT_F4HWN_QRCODE)
+            //   last       -> Author other firmware   (ENABLE_FEAT_F4HWN)
             // In non-F4HWN builds, page 0 keeps the old battery-voltage display.
             const uint8_t page = (uint8_t)gSubMenuSelection;
             uint8_t       p    = 0;
@@ -2306,7 +2307,17 @@ void UI_DisplayMenu(void)
                 break;
             }
 
-            p += 2; 
+            p += 2;
+#endif
+#ifdef ENABLE_FEAT_F4HWN
+            if (page == p++) {
+                /* Saved UI language: CN -> 作者其它固件/叮咚鸡, EN -> Other Firmware/Dondji */
+                strcpy(String, SUBV(
+                    "Other Firmware\nDondji",
+                    "\xD7\xF7\xD5\xDF\xC6\xE4\xCB\xFC\xB9\xCC\xBC\xFE\n"
+                    "\xB6\xA3\xDF\xCB\xBC\xA6"));
+                break;
+            }
 #endif
             break;
         }

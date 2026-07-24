@@ -510,12 +510,13 @@ int MENU_GetLimits(uint8_t menu_id, int32_t *pMin, int32_t *pMax)
             break;
 
         case MENU_VOL: {
-            // SysInf paginates: 
-            // page 0 = identity, 
+            // SysInf paginates:
+            // page 0 = identity,
             // page 1 = build date/time,
             // page 2 = battery,
-            // +1 if F4HWN_MEM (Flash/SRAM), 
-            // +2 if F4HWN_QRCODE (Code QR + Wiki QR).
+            // +1 if F4HWN_MEM (Flash/SRAM),
+            // +2 if F4HWN_QRCODE (Code QR + Wiki QR),
+            // +1 author other firmware (last page, F4HWN).
             int32_t vol_max = 0;
             #ifdef ENABLE_FEAT_F4HWN
                 vol_max += 2;
@@ -525,6 +526,9 @@ int MENU_GetLimits(uint8_t menu_id, int32_t *pMin, int32_t *pMax)
             #endif
             #ifdef ENABLE_FEAT_F4HWN_QRCODE
                 vol_max += 2;
+            #endif
+            #ifdef ENABLE_FEAT_F4HWN
+                vol_max += 1; /* author other firmware (last page) */
             #endif
             if (vol_max == 0) return -1;
             *pMax = vol_max;
