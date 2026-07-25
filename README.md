@@ -34,6 +34,48 @@ Mangosteen 基于 [armel/uv-k1-k5v3-firmware-custom](https://github.com/armel/uv
 
 ---
 
+Maintainer: **BD1AHN**
+
+Official Website: https://ethanyan6.github.io/Mangosteen/
+
+---
+
+## 商业合作声明
+
+山竹（Mangosteen）源码采用 Apache License 2.0 开源协议。源码开放使用。
+
+但是：
+
+以下内容属于项目品牌资产：
+
+- 山竹（Mangosteen）名称；
+- Logo；
+- 官方网站；
+- 官方身份；
+- 官方合作关系。
+
+
+任何商业产品如需：
+
+- 固件预装；
+- 联名合作；
+- 品牌授权；
+- 官方认证；
+
+请联系：
+
+**BD1AHN**
+
+
+详细说明：
+
+- 商业使用说明：
+  `COMMERCIAL_USE.md`
+
+- 品牌政策：
+  `TRADEMARK.md`
+
+
 ## 亮点一览
 
 | 模块 | 一句话 |
