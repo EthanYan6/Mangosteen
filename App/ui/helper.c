@@ -52,6 +52,11 @@
 #define FONT8_SIZE         8u
 #endif
 
+// 汉字字模裁剪参数:跳过左右空白,只渲染实际字形部分
+#define CN_LEFT_MARGIN     1u    // 左边空白列数(跳过,保留1像素间隔)
+#define CN_RIGHT_MARGIN    3u    // 右边空白列数(跳过)
+#define CN_WIDTH           12u   // 裁剪后的汉字宽度(16 - 1 - 3)
+
 
 void UI_GenerateChannelString(char *pString, const uint16_t Channel)
 {
@@ -178,9 +183,10 @@ void UI_PrintString(const char *pString, uint8_t Start, uint8_t End, uint8_t Lin
                 const uint32_t idx = (uint32_t)(c - 0xA1) * 94u + (lo - 0xA1);
                 uint8_t cnDot[FONT16_SIZE];
                 PY25Q16_ReadBuffer(FLASH_FONT16_BASE + idx * FONT16_SIZE, cnDot, FONT16_SIZE);
-                memcpy(gFrameBuffer[Line + 0] + cur, cnDot + 0, 16);
-                memcpy(gFrameBuffer[Line + 1] + cur, cnDot + 16, 16);
-                cur = (uint8_t)(cur + 16);
+                // 裁剪左右空白:只复制中间的11列(跳过前2列和后3列)
+                memcpy(gFrameBuffer[Line + 0] + cur, cnDot + CN_LEFT_MARGIN, CN_WIDTH);
+                memcpy(gFrameBuffer[Line + 1] + cur, cnDot + 16u + CN_LEFT_MARGIN, CN_WIDTH);
+                cur = (uint8_t)(cur + CN_WIDTH);
                 i++;
                 continue;
             }

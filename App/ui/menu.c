@@ -77,6 +77,11 @@
 #define FONT8_SIZE         8u
 #endif
 
+// 汉字字模裁剪参数:跳过左右空白,只渲染实际字形部分
+#define CN_LEFT_MARGIN     1u    // 左边空白列数(跳过,保留1像素间隔)
+#define CN_RIGHT_MARGIN    3u    // 右边空白列数(跳过)
+#define CN_WIDTH           12u   // 裁剪后的汉字宽度(16 - 1 - 3)
+
 const t_menu_item MenuList[] =
 {
 //   text,          menu ID
@@ -763,14 +768,15 @@ static void UI_MENU_PrintTitleBig(const char *text, uint8_t start)
 
         if (c >= 0xA1 && c <= 0xF7 && (i + 1) < length) {
             const uint8_t lo = (uint8_t)text[i + 1];
-            if (lo >= 0xA1 && lo <= 0xFE && (unsigned)cur_x + 16u <= LCD_WIDTH) {
+            if (lo >= 0xA1 && lo <= 0xFE && (unsigned)cur_x + CN_WIDTH <= LCD_WIDTH) {
                 const uint32_t idx  = (uint32_t)(c - 0xA1) * 94u + (lo - 0xA1);
                 const uint32_t addr = FLASH_FONT16_BASE + idx * FONT16_SIZE;
                 uint8_t cnDot[FONT16_SIZE];
                 PY25Q16_ReadBuffer(addr, cnDot, FONT16_SIZE);
-                memcpy(gStatusLine + cur_x, cnDot, 16);
-                memcpy(gFrameBuffer[0] + cur_x, cnDot + 16, 16);
-                cur_x = (uint8_t)(cur_x + 16u);
+                // 裁剪左右空白:只复制中间的11列(跳过前2列和后3列)
+                memcpy(gStatusLine + cur_x, cnDot + CN_LEFT_MARGIN, CN_WIDTH);
+                memcpy(gFrameBuffer[0] + cur_x, cnDot + 16u + CN_LEFT_MARGIN, CN_WIDTH);
+                cur_x = (uint8_t)(cur_x + CN_WIDTH);
                 i++;
                 continue;
             }
@@ -819,7 +825,7 @@ static unsigned UI_MENU_TextPixelWidthBig(const char *text)
         if (c >= 0xA1 && c <= 0xF7 && (k + 1) < len) {
             const uint8_t lo = (uint8_t)text[k + 1];
             if (lo >= 0xA1 && lo <= 0xFE) {
-                text_w += 16u;
+                text_w += CN_WIDTH;  // 使用裁剪后的宽度
                 k++;
                 continue;
             }
@@ -1055,10 +1061,11 @@ static void UI_MENU_PrintBigAtY(const char *text, uint8_t x0, uint8_t x1, uint8_
                 uint8_t cnDot[FONT16_SIZE];
                 PY25Q16_ReadBuffer(addr, cnDot, FONT16_SIZE);
 
-                for (uint8_t col = 0; col < 16u; col++) {
+                // 裁剪左右空白:只渲染中间的11列
+                for (uint8_t col = CN_LEFT_MARGIN; col < CN_LEFT_MARGIN + CN_WIDTH; col++) {
                     const uint8_t bits_lo = cnDot[col];
                     const uint8_t bits_hi = cnDot[col + 16u];
-                    const uint8_t px      = (uint8_t)(cur_x + col);
+                    const uint8_t px      = (uint8_t)(cur_x + (col - CN_LEFT_MARGIN));
                     if (px >= LCD_WIDTH)
                         break;
                     for (uint8_t row = 0; row < max_rows; row++) {
@@ -1071,7 +1078,7 @@ static void UI_MENU_PrintBigAtY(const char *text, uint8_t x0, uint8_t x1, uint8_
                         }
                     }
                 }
-                cur_x = (uint8_t)(cur_x + 16u);
+                cur_x = (uint8_t)(cur_x + CN_WIDTH);
                 i++;
                 continue;
             }

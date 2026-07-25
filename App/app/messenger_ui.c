@@ -41,6 +41,11 @@
 #define FONT8_SIZE         8u
 #endif
 
+// 汉字字模裁剪参数:跳过左右空白,只渲染实际字形部分
+#define CN_LEFT_MARGIN     1u    // 左边空白列数(跳过,保留1像素间隔)
+#define CN_RIGHT_MARGIN    3u    // 右边空白列数(跳过)
+#define CN_WIDTH           12u   // 裁剪后的汉字宽度(16 - 1 - 3)
+
 extern uint8_t gMsgHomeCursor;
 extern uint8_t gMsgCursor;
 extern uint8_t gMsgScroll;
@@ -186,7 +191,8 @@ static void draw_title(const char *s)
                     uint8_t cnDot[FONT16_SIZE];
                     uint8_t col;
                     PY25Q16_ReadBuffer(FLASH_FONT16_BASE + idx * FONT16_SIZE, cnDot, FONT16_SIZE);
-                    for (col = 0; col < 16u; col++) {
+                    // 裁剪左右空白:只渲染中间的11列
+                    for (col = CN_LEFT_MARGIN; col < CN_LEFT_MARGIN + CN_WIDTH; col++) {
                         const uint8_t bits_lo = cnDot[col];
                         const uint8_t bits_hi = cnDot[col + 16u];
                         uint8_t row;
@@ -195,7 +201,7 @@ static void draw_title(const char *s)
                             const uint8_t bit = (uint8_t)(row & 7u);
                             if (bits & (uint8_t)(1u << bit)) {
                                 const uint8_t ay = (uint8_t)(6u + row); /* up 2px vs fb-only title */
-                                const uint8_t px = (uint8_t)(cur + col);
+                                const uint8_t px = (uint8_t)(cur + (col - CN_LEFT_MARGIN));
                                 if (ay < 8u)
                                     PutPixelStatus(px, ay, true);
                                 else
@@ -203,7 +209,7 @@ static void draw_title(const char *s)
                             }
                         }
                     }
-                    cur = (uint8_t)(cur + 16u);
+                    cur = (uint8_t)(cur + CN_WIDTH);
                     i += 2;
                     continue;
                 }
@@ -345,14 +351,15 @@ static void msg_draw_cn16_char_at_y(const char hz[2], uint8_t x, uint8_t y)
 		return;
 	PY25Q16_ReadBuffer(FLASH_FONT16_BASE + ((uint32_t)(c - 0xA1u) * 94u + (lo - 0xA1u)) * FONT16_SIZE,
 	                   cnDot, FONT16_SIZE);
-	for (col = 0; col < 16u && (uint8_t)(x + col) < 128u; col++) {
+	// 裁剪左右空白:只渲染中间的11列
+	for (col = CN_LEFT_MARGIN; col < CN_LEFT_MARGIN + CN_WIDTH && (uint8_t)(x + (col - CN_LEFT_MARGIN)) < 128u; col++) {
 		const uint8_t bits_lo = cnDot[col];
 		const uint8_t bits_hi = cnDot[col + 16u];
 		uint8_t row;
 		for (row = 0; row < 16u; row++) {
 			const uint8_t bits = (row < 8u) ? bits_lo : bits_hi;
 			if (bits & (uint8_t)(1u << (row & 7u)))
-				msg_set_pixel((uint8_t)(x + col), (uint8_t)(y + row), true);
+				msg_set_pixel((uint8_t)(x + (col - CN_LEFT_MARGIN)), (uint8_t)(y + row), true);
 		}
 	}
 }
