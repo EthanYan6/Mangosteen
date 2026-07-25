@@ -80,7 +80,7 @@ bool MSG_T9_HandleKey(MSG_T9Editor_t *ed, KEY_Code_t key)
 {
     if (!ed || !ed->buffer) return false;
 
-    if (key == KEY_STAR) {
+    if (key == KEY_F) {
         MSG_T9_Commit(ed);
         ed->mode = (uint8_t)((ed->mode + 1U) % 4U);
         ed->upper = (ed->mode == 0U);
@@ -91,7 +91,12 @@ bool MSG_T9_HandleKey(MSG_T9Editor_t *ed, KEY_Code_t key)
     if (ed->mode == 3U)
         return false;
 
-    if (key == KEY_F || key == KEY_EXIT) {
+    /* KEY_STAR backspace is handled by caller */
+    if (key == KEY_STAR) {
+        return false;
+    }
+
+    if (key == KEY_EXIT) {
         if (ed->len > 0) ed->buffer[--ed->len] = 0;
         MSG_T9_Commit(ed);
         return true;

@@ -365,6 +365,7 @@ void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
         }
         return;
     }
+
     if (bKeyPressed) return;
 
     switch (gMsgScreen) {
@@ -459,7 +460,7 @@ void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
                     PY_Stop();
                 go_home();
             }
-            else if (Key == KEY_STAR) {
+            else if (Key == KEY_F) {
                 uint8_t prev = gMsgEditor.mode;
                 MSG_T9_HandleKey(&gMsgEditor, Key);
                 if (gMsgEditor.mode == 3U && prev != 3U)
@@ -485,7 +486,7 @@ void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
                 }
             }
             else if (gMsgEditor.mode == 3U) {
-                if (Key == KEY_F) {
+                if (Key == KEY_STAR) {
                     PY_Backspace();
                     gMsgEditor.len = (uint8_t)strlen(gMsgComposeBuf);
                     MSG_UI_ComposeResetScroll();

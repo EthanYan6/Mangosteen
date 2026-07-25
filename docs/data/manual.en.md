@@ -391,7 +391,7 @@ Notes:
 
 ### Compose IME
 
-Short **`*`** cycles:
+Short **`#` (F)** cycles:
 
 | Badge | Mode |
 |-------|------|
@@ -400,7 +400,7 @@ Short **`*`** cycles:
 | `2` | Numeric |
 | `pinyin` | Same pinyin engine as ChName (see **2.5 Pinyin keypad letter map**) |
 
-- Backspace: **`#` (F)**.
+- Backspace in pinyin mode: **`*`**.
 - In letter modes, long-press a digit to insert that digit.
 - `0` is usually space; `1` is punctuation in letter modes.
 
