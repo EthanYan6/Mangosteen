@@ -487,7 +487,7 @@ static uint8_t compose_collect_lines(const char *s, bool big16, uint8_t *starts,
 	size_t i = 0;
 	uint8_t nlines = 0;
 	const unsigned ascii_w = big16 ? 8u : 7u;
-	const unsigned cn_w = big16 ? 16u : FONT8_SIZE;
+	const unsigned cn_w = big16 ? CN_WIDTH : FONT8_SIZE;
 
 	if (len == 0 || max_starts == 0)
 		return 0;
@@ -509,7 +509,7 @@ static uint8_t compose_collect_lines(const char *s, bool big16, uint8_t *starts,
 			} else {
 				cw = ascii_w;
 			}
-			if (w + cw > 126u && n > 0)
+			if (w + cw > 127u && n > 0)
 				break;
 			w += cw;
 			i += step;
