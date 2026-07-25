@@ -1485,8 +1485,9 @@ static void UI_MENU_DrawListStyle(const char *current_value)
                     const uint8_t text_rows = (uint8_t)(sel_h - (MENU_LIST_SEL_PAD * 2u));
 
                     if (big_sel) {
-                        /* Title only — hide value so long CN labels cannot collide. */
                         UI_MENU_PrintBigAtY(UI_MENU_GetMenuTitle(&MenuList[idx]), 2, 0, text_y, text_rows);
+                        if (vals[row][0] != '\0')
+                            UI_MENU_PrintSmallRightAtY(vals[row], (uint8_t)(text_y + 4u), MENU_LIST_TEXT_H);
                     } else {
                         UI_MENU_PrintSmallAtY(UI_MENU_GetMenuTitle(&MenuList[idx]), 2, 0, text_y, text_rows);
                         if (vals[row][0] != '\0')
@@ -1494,7 +1495,6 @@ static void UI_MENU_DrawListStyle(const char *current_value)
                     }
                     UI_MENU_InvertPixelsY(y0, (uint8_t)(y0 + sel_h - 1u));
                 } else if (sel_h > 0u) {
-                    /* Heavily clipped: draw whatever fits, still invert the band. */
                     if (big_sel) {
                         UI_MENU_PrintBigAtY(UI_MENU_GetMenuTitle(&MenuList[idx]), 2, 0, y0, sel_h);
                     } else {
