@@ -909,6 +909,9 @@ void RADIO_SetupRegisters(bool switchToForeground)
         BK4819_SetCompander(0);
         // Mute BK4819 AF before opening the shared amp (avoid dual-audio / burst).
         BK4819_SetAF(BK4819_AF_MUTE);
+        /* AF DAC on shared amp → background crackle (same as scan mute). */
+        BK4819_WriteRegister(BK4819_REG_30,
+            BK4819_ReadRegister(BK4819_REG_30) & ~BK4819_REG_30_MASK_ENABLE_AF_DAC);
         BK4819_PickRXFilterPathBasedOnFrequency(10320000); // VHF LNA path for BK1080
         BK4819_ToggleGpioOut(BK4819_GPIO0_PIN28_RX_ENABLE, true);
         BK1080_Init(fmFreq, FREQUENCY_GetWfmBk1080Band(fmFreq));

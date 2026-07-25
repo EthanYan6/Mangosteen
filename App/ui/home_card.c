@@ -627,20 +627,27 @@ static void HC_DrawMiniBattery(uint8_t x, uint8_t y)
 static uint8_t HC_GetSLevel(int16_t *dBm_out)
 {
 #ifdef ENABLE_BK1080
-	/*
-	 * WFM uses BK1080 REG10 RSSI (dBμV). Datasheet ceiling is ~75, but on a
-	 * stock HT antenna clear locals are typically ~15–30 and stereo blend
-	 * starts near 31 — so map a practical full-scale to S9, not 75.
-	 */
+	/* WFM: sample BK1080 RSSI once per frequency, then only paint cache.
+	 * Continuous I2C while the shared amp is open can click on UV-K1. */
 	if (gRxVfo && gRxVfo->Modulation == MODULATION_WFM) {
-		const uint8_t rssi = BK1080_GetRSSI();
-		enum { WFM_RSSI_S9 = 28 }; /* dBμV → S9 */
-		if (rssi >= WFM_RSSI_S9) {
-			if (dBm_out) *dBm_out = -93;
-			return 9;
+		static uint32_t freq;
+		static uint8_t  s_level;
+		static int16_t  dbm;
+		const uint32_t f = gRxVfo->freq_config_RX.Frequency;
+		if (freq != f) {
+			const uint8_t rssi = BK1080_GetRSSI();
+			enum { S9 = 28 };
+			freq = f;
+			if (rssi >= S9) {
+				dbm = -93;
+				s_level = 9;
+			} else {
+				dbm = (int16_t)(-141 + (rssi * 48 / S9));
+				s_level = (uint8_t)((rssi * 9u) / S9);
+			}
 		}
-		if (dBm_out) *dBm_out = (int16_t)(-141 + (rssi * 48 / WFM_RSSI_S9));
-		return (uint8_t)((rssi * 9u) / WFM_RSSI_S9);
+		if (dBm_out) *dBm_out = dbm;
+		return s_level;
 	}
 #endif
 	int16_t rssi_dBm =
@@ -1094,14 +1101,14 @@ bool UI_HomeCard_TimeSlice500ms(void)
 	if (hc_needle_frozen)
 		return false;
 
-	if (gCurrentFunction != FUNCTION_TRANSMIT) {
-		if (FUNCTION_IsRx()
 #ifdef ENABLE_BK1080
-		    || (gRxVfo && gRxVfo->Modulation == MODULATION_WFM)
+	/* WFM: one-shot meter per frequency — leave needle alone. */
+	if (gRxVfo && gRxVfo->Modulation == MODULATION_WFM)
+		return false;
 #endif
-		   )
-			target = HC_GetSLevel(NULL);
-	}
+
+	if (gCurrentFunction != FUNCTION_TRANSMIT && FUNCTION_IsRx())
+		target = HC_GetSLevel(NULL);
 
 	/* Map S0..S9 → 0..44; motion happens on 10ms tick. */
 	const uint8_t pos = HC_S2P(target);
