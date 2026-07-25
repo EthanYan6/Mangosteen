@@ -1,4 +1,23 @@
 /*
+ * Mangosteen Firmware
+ *
+ * Copyright (c) 2026 BD1AHN
+ *
+ * Licensed under the Apache License, Version 2.0
+ *
+ * Project:
+ *     山竹 (Mangosteen)
+ *
+ * Maintainer:
+ *     BD1AHN
+ *
+ * Official Website:
+ *     https://ethanyan6.github.io/Mangosteen/
+ *
+ * The Mangosteen name, logo, and official project identity
+ * are protected separately from the source code license.
+ */
+/*
   Fontname: -FontForge-SG04-Book-R-Normal--8-80-75-75-P-38-ISO10646-1
   Copyright: (C) 2000 SHAKAGRAPHICS
   Glyphs: 64/104

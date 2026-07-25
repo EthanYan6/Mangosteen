@@ -1,3 +1,22 @@
+<!--
+  Mangosteen Firmware
+
+  Copyright (c) 2026 BD1AHN
+
+  Licensed under the Apache License, Version 2.0
+
+  Project:
+      山竹 (Mangosteen)
+
+  Maintainer:
+      BD1AHN
+
+  Official Website:
+      https://ethanyan6.github.io/Mangosteen/
+
+  The Mangosteen name, logo, and official project identity
+  are protected separately from the source code license.
+-->
 # Home Card A/B + Main Follow RX Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

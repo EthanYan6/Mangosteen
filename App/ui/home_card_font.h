@@ -1,3 +1,22 @@
+/*
+ * Mangosteen Firmware
+ *
+ * Copyright (c) 2026 BD1AHN
+ *
+ * Licensed under the Apache License, Version 2.0
+ *
+ * Project:
+ *     山竹 (Mangosteen)
+ *
+ * Maintainer:
+ *     BD1AHN
+ *
+ * Official Website:
+ *     https://ethanyan6.github.io/Mangosteen/
+ *
+ * The Mangosteen name, logo, and official project identity
+ * are protected separately from the source code license.
+ */
 /* Small text for home card: Dondji dual-VFO font (u8g2_font_5_tr). */
 #ifndef UI_HOME_CARD_FONT_H
 #define UI_HOME_CARD_FONT_H

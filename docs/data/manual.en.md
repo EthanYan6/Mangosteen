@@ -1,9 +1,29 @@
+<!--
+  Mangosteen Firmware
+
+  Copyright (c) 2026 BD1AHN
+
+  Licensed under the Apache License, Version 2.0
+
+  Project:
+      山竹 (Mangosteen)
+
+  Maintainer:
+      BD1AHN
+
+  Official Website:
+      https://ethanyan6.github.io/Mangosteen/
+
+  The Mangosteen name, logo, and official project identity
+  are protected separately from the source code license.
+-->
 # Mangosteen User Manual
 
-This manual has two chapters:
+This manual has three chapters:
 
 1. **Chapter 1 — Flashing Guide**: flash firmware, font, calibration, and related tools in the browser  
-2. **Chapter 2 — System User Guide**: basic operation, broadcast FM (WFM), scan, save channels, naming/IME, SMS, and HEARD after Mangosteen is installed
+2. **Chapter 2 — System User Guide**: basic operation, broadcast FM (WFM), scan, save channels, naming/IME, SMS, and HEARD after Mangosteen is installed  
+3. **Chapter 3 — License, Brand & Usage**: license scope, personal/commercial use, trademark policy, support, and contributing
 
 > Compatible with Quansheng **UV-K1**, and **UV-K5 / UV-K6 V3**. For K5/K6, confirm **V3** on the rear label (K1 has no V3 variant).
 
@@ -411,3 +431,108 @@ Short **`*`** cycles:
 3. While scanning, dual-watch UI may temporarily behave as single-VFO scan until you stop.
 4. Inbox content may be lost on power-off; set your local name before messaging.
 5. **64–108 MHz** and **WFM** are receive-only — see **2.2**.
+
+---
+
+# Chapter 3 License, Brand & Usage
+
+This chapter summarizes the project’s license and brand notes (`NOTICE`, `COMMERCIAL_USE.md`, `TRADEMARK.md`, `SUPPORT.md`, `SECURITY.md`, `CONTRIBUTING.md`). Source code is open; the **name, logo, and official identity** are protected separately.
+
+Maintainer: **BD1AHN**  
+Official web flasher: <https://ethanyan6.github.io/Mangosteen/>
+
+## 3.1 Scope of the Open-Source License
+
+Mangosteen firmware **source code** is licensed under **Apache License 2.0**.
+
+Apache License 2.0 grants rights to obtain, use, modify, and distribute this project’s **source code**.
+
+The license applies **only to the source code**. It does **not** grant rights to these brand / identity assets:
+
+- The Mangosteen / 山竹 name
+- Mangosteen logo
+- Project branding and visual identity
+- Official website and official distribution channels
+- BD1AHN maintainer identity / official partnership claims
+- Official certification marks
+
+See repository `LICENSE` for the full legal text; see `NOTICE` and `TRADEMARK.md` for brand notes.
+
+## 3.2 Personal Use
+
+Individual radio amateurs and developers may freely:
+
+- Download, study, compile, and modify the source
+- Flash firmware onto their own devices
+- Use it for personal testing
+
+Personal non-commercial use has no extra brand restrictions (still keep copyright/license notices; do not impersonate the official project).
+
+## 3.3 Trademark / Brand Policy
+
+“Mangosteen（山竹）” is created and maintained by **BD1AHN**. Brand assets include: the name, logo, visual elements, official website, official channels, and official certification marks.
+
+**Fair use** includes: technical discussion, citation, study, and open-source contribution.
+
+Without authorization from BD1AHN, third parties must not:
+
+- Create lookalike official sites or impersonate the official flasher
+- Use confusing names to mislead users
+- Use “Mangosteen / 山竹” as a commercial product name, or sell products using the logo
+- Claim an official build, official certification, or partnership with BD1AHN
+
+## 3.4 Commercial Use & Partnerships
+
+Apache License 2.0 covers source-code use, modification, and distribution. **Brand and official identity are outside that grant.**
+
+Contact **BD1AHN** and obtain **written commercial authorization** before:
+
+- Pre-installing Mangosteen firmware on hardware sold commercially
+- Building commercial devices based on Mangosteen
+- Advertising products under the Mangosteen name or making co-branded products
+- Claiming official certification or official support
+
+Commercial authorization may cover firmware pre-install, co-branded hardware, brand licensing, official certification, support, custom development, commercial distribution, and similar terms negotiated case by case.
+
+### Unauthorized commercial conduct (prohibited)
+
+- Using “Mangosteen / 山竹” as a commercial product name, or using the Mangosteen logo
+- Claiming an official product, or implying partnership with BD1AHN
+- Impersonating official distribution channels
+- Removing project copyright notices
+
+These notes **do not limit** rights already granted by Apache License 2.0; they clarify brand rights, official identity, and commercial boundaries. Details: `COMMERCIAL_USE.md`.
+
+## 3.5 Support Policy
+
+**Community support** (free): GitHub Issues and GitHub Discussions.
+
+The following are **not** free community support — contact **BD1AHN** for commercial support:
+
+- Enterprise deployment / bulk flashing
+- Commercial product adaptation / custom features
+- Paid technical support
+
+## 3.6 Security Reports
+
+If you find a security vulnerability or a data/permission issue, **do not open a public Issue**. Contact **BD1AHN** with a description, impact, reproduction steps, and suggested fix if possible. See `SECURITY.md`.
+
+## 3.7 Contributing (summary)
+
+Contributions are welcome. They must be lawfully sourced, must not infringe third-party rights, must comply with Apache License 2.0, and must not include sensitive data.
+
+Pull requests should describe what changed and why, keep quality high, and avoid unrelated edits. By contributing, you represent that you have the rights and allow the project to use the contribution under the project license. See `CONTRIBUTING.md`.
+
+## 3.8 Repository document index
+
+| File | Contents |
+|------|----------|
+| `LICENSE` | Full Apache License 2.0 text |
+| `NOTICE` | Project notice and brand-asset summary |
+| `COMMERCIAL_USE.md` | Commercial use and partnership notes |
+| `TRADEMARK.md` | Brand / trademark policy |
+| `SUPPORT.md` | Support policy |
+| `SECURITY.md` | Security vulnerability reporting |
+| `CONTRIBUTING.md` | Contributing guide |
+
+Repository: <https://github.com/EthanYan6/Mangosteen>

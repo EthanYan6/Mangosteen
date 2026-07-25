@@ -1,77 +1,42 @@
-F4HWN Edition Fusion firmware for Quansheng UV-K1 and UV-K5 V3
-================================================================
+Mangosteen Firmware
+山竹开源固件项目
 
-This product includes software originally developed by Dual Tachyon
-for the Quansheng UV-K5 open-source firmware project:
+Copyright (c) 2026 BD1AHN
 
-  https://github.com/DualTachyon/uv-k5-firmware
 
-This product includes work derived from Egzumer's UV-K5 custom
-firmware:
+Project:
+Mangosteen（山竹）
 
-  https://github.com/egzumer/uv-k5-firmware-custom
 
-This product includes work developed by Armel / F4HWN and contributors
-for the F4HWN firmware projects, including the F4HWN Edition Fusion
-port for UV-K1 and UV-K5 V3 radios:
+Maintainer:
+BD1AHN
 
-  https://github.com/armel/uv-k5-firmware-custom
-  https://github.com/armel/uv-k1-k5v3-firmware-custom
 
-The UV-K1 and UV-K5 V3 port is the result of joint work by muzkr and
-Armel / F4HWN.
+Official Website:
+https://ethanyan6.github.io/Mangosteen/
 
-Additional attribution notices
-------------------------------
 
-This product includes contributions and/or derived work from, among
-others:
+This project is licensed under the Apache License, Version 2.0.
 
-  Dual Tachyon
-  OneOfEleven
-  fagci
-  Egzumer
-  muzkr
-  Armel / F4HWN
 
-Project-specific derived components
------------------------------------
+The Apache License applies only to the source code.
 
-The spectrum analyzer implementation includes work originally developed
-by fagci:
 
-  https://github.com/fagci
+The following assets are not granted under the Apache License:
 
-Third-party components
-----------------------
+- Mangosteen name
+- 山竹名称
+- Mangosteen logo
+- Project branding
+- Official website
+- Official distribution channels
+- Official maintainer identity
 
-This product includes CherryUSB by sakumisu, licensed under the
-Apache License, Version 2.0. Its license is included at:
 
-  Middlewares/CherryUSB/LICENSE
+The Mangosteen brand and official project identity are managed by BD1AHN.
 
-This product includes CMSIS Version 5 by Arm, licensed under the
-Apache License, Version 2.0. Its license is included at:
 
-  App/external/CMSIS_5/LICENSE.txt
-
-This product includes the embedded printf implementation by Marco
-Paland, licensed under the MIT License. Its license is included at:
-
-  App/external/printf/LICENSE
-
-License and endorsement notice
-------------------------------
-
-This NOTICE file is provided for attribution purposes only and does not
-modify the terms of any applicable license.
-
-The main firmware is licensed under the Apache License, Version 2.0.
-Redistributions of this product or derivative works, in source or object
-form, must comply with the Apache License, Version 2.0, including its
-conditions on license copies, modified-file notices, retained copyright
-and attribution notices, and NOTICE files.
-
-Attribution in this file does not imply endorsement by Dual Tachyon,
-OneOfEleven, fagci, Egzumer, muzkr, Armel / F4HWN or any other
-contributor.
+Commercial products using the Mangosteen brand,
+claiming official support, certification,
+or official association require prior written
+authorization from BD1AHN.

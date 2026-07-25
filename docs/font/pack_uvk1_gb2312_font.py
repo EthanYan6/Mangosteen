@@ -1,4 +1,21 @@
 #!/usr/bin/env python3
+# Mangosteen Firmware
+#
+# Copyright (c) 2026 BD1AHN
+#
+# Licensed under the Apache License, Version 2.0
+#
+# Project:
+#     山竹 (Mangosteen)
+#
+# Maintainer:
+#     BD1AHN
+#
+# Official Website:
+#     https://ethanyan6.github.io/Mangosteen/
+#
+# The Mangosteen name, logo, and official project identity
+# are protected separately from the source code license.
 """Pack UV-K1 FontTool GB2312 lattices into one SPI Flash image.
 
 Layout (UV-K1_FontTool / https://gitee.com/oldlicn/uv-k1_font-tool):

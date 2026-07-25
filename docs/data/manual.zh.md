@@ -1,9 +1,29 @@
+<!--
+  Mangosteen Firmware
+
+  Copyright (c) 2026 BD1AHN
+
+  Licensed under the Apache License, Version 2.0
+
+  Project:
+      山竹 (Mangosteen)
+
+  Maintainer:
+      BD1AHN
+
+  Official Website:
+      https://ethanyan6.github.io/Mangosteen/
+
+  The Mangosteen name, logo, and official project identity
+  are protected separately from the source code license.
+-->
 # 山竹使用手册
 
-本手册分两章：
+本手册分三章：
 
 1. **第一章 刷机教程**：如何用电脑网站给手台刷固件、字库与校准等  
-2. **第二章 系统使用手册**：刷好山竹固件后的基本操作、收音机（WFM）、扫描、存台、命名、短信与 HEARD
+2. **第二章 系统使用手册**：刷好山竹固件后的基本操作、收音机（WFM）、扫描、存台、命名、短信与 HEARD  
+3. **第三章 开源、品牌与使用说明**：协议范围、个人/商业使用、品牌政策、支持与贡献
 
 > 仅适配泉盛 **UV-K1**，以及 **UV-K5 / UV-K6 的 V3**。K5/K6 请确认机身标签有 **V3** 字样（K1 无 V3 之分）。
 
@@ -413,3 +433,108 @@
 3. 扫描时双守候界面可能暂时按单频扫描逻辑工作，停止扫描后恢复。
 4. 短信收件箱关机可能丢失，重要内容请及时记下；先设好本机信息名称再发信。
 5. **64–108 MHz** 及 **WFM** 仅接收，不能发射；详见 **2.2**。
+
+---
+
+# 第三章 开源、品牌与使用说明
+
+本章汇总项目仓库中的权限与品牌说明（`NOTICE`、`COMMERCIAL_USE.md`、`TRADEMARK.md`、`SUPPORT.md`、`SECURITY.md`、`CONTRIBUTING.md`）。源码开放使用，**名称、Logo 与官方身份**另行保护。
+
+项目维护者：**BD1AHN**  
+官方刷机网站：<https://ethanyan6.github.io/Mangosteen/>
+
+## 3.1 开源协议范围
+
+山竹（Mangosteen）固件**源代码**采用 **Apache License 2.0**。
+
+Apache License 2.0 授予合法获取、使用、修改和分发本项目**源代码**的权利。
+
+协议**仅适用于源码**，不自动授予下列品牌与身份资产：
+
+- 山竹（Mangosteen）名称
+- Mangosteen Logo
+- 项目品牌与视觉元素
+- 官方网站与官方发布渠道
+- BD1AHN 官方维护身份 / 官方合作关系
+- 官方认证标识
+
+完整法律文本见仓库 `LICENSE`；品牌与 NOTICE 摘要见 `NOTICE`、`TRADEMARK.md`。
+
+## 3.2 个人使用
+
+个人无线电爱好者、开发者可以自由：
+
+- 下载源码、学习研究、编译与修改
+- 为自己的设备刷写固件
+- 用于个人测试
+
+个人非商业用途不受额外品牌限制（仍请保留版权与许可声明，勿冒充官方）。
+
+## 3.3 品牌使用政策
+
+「山竹（Mangosteen）」由 **BD1AHN** 创建并维护。下列属于项目品牌资产：名称、Logo、视觉元素、官方网站、官方发布渠道、官方认证标识。
+
+**合理使用**包括：技术讨论、项目引用、学习研究、开源贡献。
+
+未经 BD1AHN 授权，第三方不得：
+
+- 创建仿冒官方网站，或冒充官方刷机入口
+- 使用易混淆名称误导用户
+- 使用「山竹（Mangosteen）」作为商业产品名称，或使用 Logo 销售产品
+- 宣称官方版本、官方认证或与 BD1AHN 存在合作关系
+
+## 3.4 商业使用与合作
+
+Apache License 2.0 授权的是源代码的使用、修改与分发权；**品牌与官方身份不在该授权范围内**。
+
+凡计划下列行为，须提前联系 **BD1AHN** 并取得**书面商业授权**：
+
+- 将 Mangosteen 固件预装到硬件产品销售
+- 基于 Mangosteen 开发商业设备
+- 使用 Mangosteen 名称宣传产品、制作联名产品
+- 宣称官方认证或官方支持
+
+商业授权可能包括：固件预装、联名硬件、品牌授权、官方认证、技术支持、定制开发、商业发行支持等；具体方式由双方协商。
+
+### 未授权商业行为（不得）
+
+- 使用「山竹（Mangosteen）」作为商业产品名称，或使用 Mangosteen Logo
+- 宣称产品为官方版本，或暗示与 BD1AHN 合作
+- 冒充官方发布渠道
+- 删除项目版权声明
+
+本说明**不限制** Apache License 2.0 已授予的源码权利，仅明确品牌权益、官方身份与商业合作边界。详情见仓库 `COMMERCIAL_USE.md`。
+
+## 3.5 支持政策
+
+**社区支持**（免费）：可通过 GitHub Issues、GitHub Discussions 交流。
+
+下列不属于免费社区支持，请联系 **BD1AHN** 洽谈商业支持：
+
+- 企业部署、批量刷机
+- 商业产品适配、定制功能开发
+- 付费技术支持服务
+
+## 3.6 安全漏洞报告
+
+若发现安全漏洞、权限或数据安全问题，**请勿直接公开 Issue**。请联系 **BD1AHN**，并尽量提供：问题描述、影响范围、复现步骤、修复建议。详见 `SECURITY.md`。
+
+## 3.7 贡献指南（摘要）
+
+欢迎提交代码与文档。贡献须来源合法、不侵犯第三方权益、遵守 Apache License 2.0，且不包含敏感信息。
+
+Pull Request 请说明修改内容与原因，保持代码质量，避免无关改动。提交贡献即表示贡献者拥有相应权利，并允许项目按项目许可证使用这些贡献。详见 `CONTRIBUTING.md`。
+
+## 3.8 仓库说明文件索引
+
+| 文件 | 内容 |
+|------|------|
+| `LICENSE` | Apache License 2.0 全文 |
+| `NOTICE` | 项目声明与品牌资产摘要 |
+| `COMMERCIAL_USE.md` | 商业使用与合作说明 |
+| `TRADEMARK.md` | 品牌使用政策 |
+| `SUPPORT.md` | 支持政策 |
+| `SECURITY.md` | 安全漏洞报告 |
+| `CONTRIBUTING.md` | 贡献指南 |
+
+仓库地址：<https://github.com/EthanYan6/Mangosteen>
