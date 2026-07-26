@@ -2611,8 +2611,13 @@ void MENU_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
                             uint8_t prev = edit_text_mode;
                             edit_text_mode = (uint8_t)((edit_text_mode + 1u) % 4u);
                             edit_is_uppercase = (edit_text_mode == 1u);
-                            if (edit_text_mode == 3u && prev != 3u)
+                            if (edit_text_mode == 3u && prev != 3u) {
                                 PY_Start(edit, 10, 17, true, true, PY_PAGE_CHNAME);
+                                /* PY_Start places the cursor at the head of
+                                   existing content (cursor_nav=true), so sync
+                                   the host-side caret to the same position. */
+                                edit_index = 0;
+                            }
                             else if (prev == 3u && edit_text_mode != 3u) {
                                 PY_Stop();
                                 edit_index = 0;

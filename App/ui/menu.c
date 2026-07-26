@@ -1251,19 +1251,32 @@ static void UI_MENU_DrawEditCard(const char *title, const char *value, bool text
         /* Left-align glyphs to the underline slots (not centered on trimmed text). */
         UI_MENU_PrintSmallAtY(name_line, tx, 0, val_y, 8);
 
-        for (uint8_t ci = 0; ci < edit_len; ci++) {
-            const uint8_t cx = (uint8_t)(tx + ci * pitch);
-            const uint8_t glyph_w = (uint8_t)(ARRAY_SIZE(gFontSmall[0]));
+        /* Walk the buffer by character (ASCII = 1 byte, GB2312 = 2 bytes) so
+           each glyph sits over a single underline and the caret tracks the
+           cursor byte position. A Chinese glyph is FONT8_SIZE wide (== pitch+1),
+           not 2*pitch, which previously made the grid drift out of sync. */
+        {
+            uint8_t cx = tx;
+            uint8_t ci = 0u;
+            while (ci < edit_len) {
+                const uint8_t  c  = (uint8_t)edit[ci];
+                const unsigned hz = (unsigned)(c >= 0xA1u && (ci + 1u) < edit_len);
 
-            if (ci != caret_i) {
-                if (edit[ci] != 'g' && edit[ci] != 'j')
-                    UI_DrawLineBuffer(gFrameBuffer, cx, (int16_t)(val_y + 7),
-                                      (int16_t)(cx + glyph_w - 1), (int16_t)(val_y + 7), true);
-            } else {
-                /* Caret under the active character. */
-                UI_DrawLineBuffer(gFrameBuffer, (int16_t)(cx + 1), (int16_t)(val_y + 8),
-                                  (int16_t)(cx + 3), (int16_t)(val_y + 8), true);
-                UI_DrawPixelBuffer(gFrameBuffer, (uint8_t)(cx + 2), (uint8_t)(val_y + 7), true);
+                if (ci != caret_i) {
+                    if (c != 'g' && c != 'j')
+                        UI_DrawLineBuffer(gFrameBuffer, cx, (int16_t)(val_y + 7),
+                                          (int16_t)(cx + pitch + hz - 2u),
+                                          (int16_t)(val_y + 7), true);
+                } else {
+                    /* Caret under the active character. */
+                    UI_DrawLineBuffer(gFrameBuffer, (int16_t)(cx + 1),
+                                      (int16_t)(val_y + 8),
+                                      (int16_t)(cx + 3), (int16_t)(val_y + 8), true);
+                    UI_DrawPixelBuffer(gFrameBuffer, (uint8_t)(cx + 2),
+                                       (uint8_t)(val_y + 7), true);
+                }
+                cx = (uint8_t)(cx + pitch + hz);
+                ci = (uint8_t)(ci + 1u + hz);
             }
         }
 

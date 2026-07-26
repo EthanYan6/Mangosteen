@@ -59,11 +59,9 @@ static void clearSym(void)
 
 static bool isHz(const char *s, uint8_t i, uint8_t len)
 {
-	uint8_t a = (uint8_t)s[i], b;
-	if (i + 1u >= len || a < 0xA1u || a > 0xF7u)
-		return false;
-	b = (uint8_t)s[i + 1u];
-	return b >= 0xA1u && b <= 0xFEu;
+	/* Edit buffer only holds ASCII/spaces or valid GB2312 pairs, so a
+	   leading byte >= 0xA1 with a follower present marks a hanzi. */
+	return (uint8_t)s[i] >= 0xA1u && (uint16_t)i + 1u < (uint16_t)len;
 }
 
 static void clearComp(void)
@@ -104,7 +102,9 @@ static void findMatches(void)
 	uint8_t  fb[4];
 
 	matchCnt = 0;
-	if (digitCnt == 0u || digitCnt > 6u)
+	/* digitCnt is clamped to [0,6] by onDigit, so only the zero check
+	   is reachable here. */
+	if (digitCnt == 0u)
 		return;
 
 	di   = (uint8_t)(digitCnt - 1u);
@@ -132,7 +132,9 @@ static void loadHanzi(void)
 
 	candTotal = 0;
 	memset(hanziBuf, 0, sizeof(hanziBuf));
-	if (matchCnt == 0u || p >= matchCnt || g_page == 0u)
+	/* g_page is always >= 1 (PY_Start clamps page_size to PY_PAGE_COMPOSE
+	   when 0), so only matchCnt/p need guarding here. */
+	if (matchCnt == 0u || p >= matchCnt)
 		return;
 
 	PY25Q16_ReadBuffer(FLASH_PINYIN_BASE + matchOff[p] + 12u, info, 3);
@@ -148,8 +150,8 @@ static void loadHanzi(void)
 	read_cnt = (uint8_t)(count - h * g_page);
 	if (read_cnt > g_page)
 		read_cnt = g_page;
-	if (read_cnt > PY_HANZI_MAX)
-		read_cnt = PY_HANZI_MAX;
+	/* g_page <= PY_HANZI_MAX (enforced by PY_Start), so the upper clamp
+	   on PY_HANZI_MAX is unreachable and omitted. */
 	candTotal = read_cnt;
 	if (read_cnt)
 		PY25Q16_ReadBuffer(addr, (uint8_t *)hanziBuf, (uint32_t)read_cnt * 2u);
@@ -163,6 +165,23 @@ static bool insertAt(const char *src, uint8_t n)
 		return false;
 	if (g_cur > g_len)
 		g_cur = g_len;
+
+	/* Overwrite in place when the char under the cursor has the same byte
+	   width as the new glyph (the common case: hanzi replacing hanzi, or
+	   ASCII replacing ASCII). Mismatched widths fall through to plain
+	   insert; the top-of-function capacity check already covers that. */
+	if (g_cur < g_len) {
+		uint8_t c = (uint8_t)g_buf[g_cur];
+		uint8_t w = (uint8_t)(1u + (unsigned)(c >= 0xA1u && (uint8_t)(g_cur + 1u) < g_len));
+		if (w == n) {
+			for (i = 0; i < n; i++)
+				g_buf[g_cur + i] = src[i];
+			g_cur = (uint8_t)(g_cur + n);
+			padOut();
+			return true;
+		}
+	}
+
 	for (i = g_len; i > g_cur; ) {
 		i--;
 		g_buf[i + n] = g_buf[i];
@@ -181,7 +200,7 @@ static uint8_t prevStart(uint8_t cur)
 	uint8_t i = 0, prev = 0;
 	while (i < cur) {
 		prev = i;
-		i = (uint8_t)(i + (isHz(g_buf, i, g_len) ? 2u : 1u));
+		i = (uint8_t)(i + 1u + (unsigned)isHz(g_buf, i, g_len));
 	}
 	return prev;
 }
@@ -194,7 +213,7 @@ static void moveCur(int dir)
 		if (g_cur)
 			g_cur = prevStart(g_cur);
 	} else if (g_cur < g_len) {
-		g_cur = (uint8_t)(g_cur + (isHz(g_buf, g_cur, g_len) ? 2u : 1u));
+		g_cur = (uint8_t)(g_cur + 1u + (unsigned)isHz(g_buf, g_cur, g_len));
 	}
 }
 
@@ -242,8 +261,11 @@ static void onDigit(KEY_Code_t key)
 {
 	clearSym();
 	if (f == 2u) {
+		/* onDigit is only reached for KEY_1..KEY_9, so sel = key-KEY_0 >= 1.
+		   candTotal <= g_page is guaranteed by loadHanzi, so a single range
+		   check on candTotal is sufficient. */
 		uint8_t sel = (uint8_t)(key - KEY_0);
-		if (key >= KEY_1 && sel >= 1u && sel <= candTotal && sel <= g_page) {
+		if (sel <= candTotal) {
 			char hz[2];
 			uint8_t si = (uint8_t)((sel - 1u) * 2u);
 			hz[0] = hanziBuf[si];
@@ -294,7 +316,10 @@ void PY_Start(char *buf, uint8_t max_len, uint8_t buf_cap,
 	while (n > 0u && buf[n - 1u] == ' ')
 		n--;
 	g_len = n;
-	g_cur = n;
+	/* Cursor-nav hosts (channel name) start at the head of any existing
+	   content so typed hanzi overwrite the char under the cursor instead
+	   of appending at the tail; pure-append hosts (messenger) stay at end. */
+	g_cur = (g_flags & 4u) ? 0u : n;
 	buf[n] = '\0';
 	padOut();
 	clearComp();
@@ -427,17 +452,12 @@ bool PY_ProcessKey(KEY_Code_t key, bool pressed, bool held)
 				    !isHz(g_buf, (uint8_t)(g_cur - 1u), g_len)) {
 					const char last = g_buf[g_cur - 1u];
 					uint8_t k;
-					bool is_sym = false;
 					for (k = 0; k < n; k++) {
 						if (s_syms[k] == last) {
-							is_sym = true;
-							break;
+							sym_i = (uint8_t)((sym_i + 1u) % n);
+							g_buf[g_cur - 1u] = s_syms[sym_i];
+							return true;
 						}
-					}
-					if (is_sym) {
-						sym_i = (uint8_t)((sym_i + 1u) % n);
-						g_buf[g_cur - 1u] = s_syms[sym_i];
-						return true;
 					}
 				}
 				{
