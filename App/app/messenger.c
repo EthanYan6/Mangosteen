@@ -486,14 +486,12 @@ void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
                 }
             }
             else if (gMsgEditor.mode == 3U) {
-                if (Key == KEY_STAR) {
+                if (Key == KEY_STAR)
                     PY_Backspace();
-                    gMsgEditor.len = (uint8_t)strlen(gMsgComposeBuf);
-                    MSG_UI_ComposeResetScroll();
-                } else if (PY_ProcessKey(Key, true, false)) {
-                    gMsgEditor.len = (uint8_t)strlen(gMsgComposeBuf);
-                    MSG_UI_ComposeResetScroll();
-                }
+                else if (!PY_ProcessKey(Key, true, false))
+                    break;  /* key not consumed — skip len/reset update */
+                gMsgEditor.len = (uint8_t)strlen(gMsgComposeBuf);
+                MSG_UI_ComposeResetScroll();
             }
             else {
                 if (MSG_T9_HandleKey(&gMsgEditor, Key))

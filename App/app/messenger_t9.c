@@ -43,7 +43,7 @@ static const char *map_chars(KEY_Code_t key)
 
 static char apply_case(char c, bool upper)
 {
-    if (!upper && c >= 'A' && c <= 'Z') c = (char)(c + ('a' - 'A'));
+    if (!upper && (uint8_t)(c - 'A') < 26u) c = (char)(c + ('a' - 'A'));
     return c;
 }
 
@@ -55,10 +55,7 @@ void MSG_T9_Start(MSG_T9Editor_t *ed, char *buf, uint8_t max_len)
     if (ed->len > max_len) ed->len = max_len;
     ed->upper = true;
     ed->mode = 0;
-    ed->pending_key = KEY_INVALID;
-    ed->cycle_index = 0;
-    ed->pending_ticks = 0;
-    ed->has_pending = false;
+    MSG_T9_Commit(ed);  /* clears pending_key/cycle_index/pending_ticks/has_pending */
 }
 
 void MSG_T9_Commit(MSG_T9Editor_t *ed)
@@ -91,14 +88,14 @@ bool MSG_T9_HandleKey(MSG_T9Editor_t *ed, KEY_Code_t key)
     if (ed->mode == 3U)
         return false;
 
-    /* KEY_STAR backspace is handled by caller */
+    /* * is backspace in B/b/2 modes — mirrors pinyin's PY_Backspace so the
+     * delete key is consistent across all input modes.  Only has_pending needs
+     * clearing: pending_key/cycle_index/pending_ticks are never read while
+     * has_pending is false (MSG_T9_Tick returns early; the next keypress
+     * overwrites them before use). */
     if (key == KEY_STAR) {
-        return false;
-    }
-
-    if (key == KEY_EXIT) {
         if (ed->len > 0) ed->buffer[--ed->len] = 0;
-        MSG_T9_Commit(ed);
+        ed->has_pending = false;
         return true;
     }
 
@@ -111,7 +108,7 @@ bool MSG_T9_HandleKey(MSG_T9Editor_t *ed, KEY_Code_t key)
     if (ed->mode == 2U) {
         MSG_T9_Commit(ed);
         if (ed->len >= ed->max_len) return true;
-        if (key >= KEY_0 && key <= KEY_9) {
+        if (key <= KEY_9) {
             ed->buffer[ed->len++] = (char)('0' + (uint8_t)key);
             ed->buffer[ed->len] = 0;
             return true;
@@ -126,8 +123,10 @@ bool MSG_T9_HandleKey(MSG_T9Editor_t *ed, KEY_Code_t key)
         return true;
     }
 
-    MSG_T9_Commit(ed);
-    if (ed->len >= ed->max_len) return true;
+    if (ed->len >= ed->max_len) {
+        ed->has_pending = false;  /* cancel any prior pending cycle */
+        return true;
+    }
     ed->cycle_index = 0;
     ed->pending_key = key;
     ed->has_pending = true;
@@ -140,7 +139,7 @@ bool MSG_T9_HandleKey(MSG_T9Editor_t *ed, KEY_Code_t key)
 bool MSG_T9_HandleLongKey(MSG_T9Editor_t *ed, KEY_Code_t key)
 {
     if (!ed || !ed->buffer) return false;
-    if (key < KEY_0 || key > KEY_9) return false;
+    if (key > KEY_9) return false;
 
     /* 0.2.2: while in B/b modes, long-pressing a numeric key inserts its
      * digit directly.  This preserves the existing B/b/2 modes but removes
