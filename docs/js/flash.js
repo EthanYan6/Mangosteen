@@ -218,13 +218,14 @@ const CONFIG_FLASH_SIZE   = 0x0200;
 const CONFIG_CHUNK        = 32;
 
 /**
- * 山竹校准区 EEPROM 基址（固定，不按版本切换）。
- * 对应 App/driver/eeprom_compat.c：物理 Flash 0x010000 ↔ 协议地址 0xB000（512 字节）。
+ * 校准区 EEPROM 基址：v5.0.0 起为 0xB000，更早固件（含原厂）为 0x1E00。
+ * 由 applyCalibBaseFromDeviceInfo 根据设备固件版本自动选择。
+ * 山竹固件对应 App/driver/eeprom_compat.c：物理 Flash 0x010000 ↔ 协议地址 0xB000（512 字节）。
  */
 const CALIB_MANGOSTEEN_BASE = 0xB000;
 const CALIB_OFFICIAL_BASE   = 0x1E00;
 const CALIB_THIRD_PARTY_BASE = 0xB000;
-let calibEepromBase = CALIB_MANGOSTEEN_BASE;
+let calibEepromBase = CALIB_OFFICIAL_BASE;
 
 // ========== STATE ==========
 let port = null, reader = null, writer = null;
@@ -748,9 +749,13 @@ async function handshake(blVersion) {
   readBuffer = [];
 }
 
-/** 记录设备信息；山竹校准基址固定为 CALIB_MANGOSTEEN_BASE，不再按版本号切换 */
+/**
+ * 根据设备信息自动选择校准区基址：
+ * - 山竹固件（含 "Mangosteen" 或 "BD1AHN"）→ 0xB000（固定）
+ * - 第三方固件主版本号 >= 5 → 0xB000
+ * - 其他（含原厂固件）→ 0x1E00
+ */
 function applyCalibBaseFromDeviceInfo(deviceInfoPayload) {
-  calibEepromBase = CALIB_MANGOSTEEN_BASE;
   let asciiLine = '';
   let idx = 0;
   for (; idx < deviceInfoPayload.length; idx++) {
@@ -764,9 +769,25 @@ function applyCalibBaseFromDeviceInfo(deviceInfoPayload) {
   }
   if (asciiLine.length > 0) {
     log(window.t ? window.t('logDeviceInfo') + asciiLine : '设备信息: ' + asciiLine, 'success');
-    const versionMatch = asciiLine.match(/v(\d+\.\d+\.\d+)/);
-    const verStr = versionMatch ? versionMatch[1] : '?';
-    log(window.t ? window.t('logFirmwareCalibBase', {ver: verStr, addr: 'B000'}) : '固件 v' + verStr + '：校准区基址 0xB000（山竹固定）', 'info');
+    const isMangosteen = /Mangosteen|BD1AHN/i.test(asciiLine);
+    const versionMatch = asciiLine.match(/v(\d+)\.(\d+)\.(\d+)/);
+    const verStr = versionMatch ? versionMatch[0].slice(1) : '?';
+    if (isMangosteen) {
+      calibEepromBase = CALIB_MANGOSTEEN_BASE;
+      log(window.t ? window.t('logFirmwareCalibBase', {ver: verStr, addr: 'B000'}) : '固件 v' + verStr + '：校准区基址 0xB000（山竹）', 'info');
+    } else if (versionMatch) {
+      const major = parseInt(versionMatch[1], 10);
+      if (major >= 5) {
+        calibEepromBase = CALIB_THIRD_PARTY_BASE;
+        log(window.t ? window.t('logFirmwareCalibBase', {ver: verStr, addr: 'B000'}) : '固件 v' + verStr + '：校准区基址 0xB000', 'info');
+      } else {
+        calibEepromBase = CALIB_OFFICIAL_BASE;
+        log(window.t ? window.t('logFirmwareCalibBase', {ver: verStr, addr: '1E00'}) : '固件 v' + verStr + '：校准区基址 0x1E00', 'info');
+      }
+    } else {
+      calibEepromBase = CALIB_OFFICIAL_BASE;
+      log(window.t ? window.t('logFirmwareCalibBase', {ver: '?', addr: '1E00'}) : '校准区基址 0x1E00（默认）', 'info');
+    }
     return;
   }
   let hexLine = '';
@@ -776,12 +797,13 @@ function applyCalibBaseFromDeviceInfo(deviceInfoPayload) {
     hexLine += deviceInfoPayload[hi].toString(16).padStart(2, '0').toUpperCase() + ' ';
   }
   log(window.t ? window.t('logDeviceInfoHex') + hexLine : '设备信息(hex): ' + hexLine, 'info');
-  log(window.t ? window.t('logFirmwareCalibBase', {ver: '?', addr: 'B000'}) : '校准区基址 0xB000（山竹固定）', 'info');
+  calibEepromBase = CALIB_OFFICIAL_BASE;
+  log(window.t ? window.t('logFirmwareCalibBase', {ver: '?', addr: '1E00'}) : '校准区基址 0x1E00（默认）', 'info');
 }
 
 /** 导出/恢复校准用：发 DEV_INFO_REQ，等设备应答（运行中的固件协议），不使用 Bootloader 的 NOTIFY 检测 */
 async function requestDeviceInfoForCalib(purpose) {
-  calibEepromBase = CALIB_MANGOSTEEN_BASE;
+  calibEepromBase = CALIB_OFFICIAL_BASE;
   const purposeText = purpose || '校准';
   log(window.t ? window.t('logRequestingDeviceInfo', {purpose: purposeText}) : '正在请求设备信息（' + purposeText + '）...', 'info');
   const sessionTimestamp = Date.now() & 0xffffffff;
@@ -1328,7 +1350,7 @@ on('restoreBtn', 'click', async () => {
     const calibSession = await requestDeviceInfoForCalib();
     log(window.t ? window.t('logRestoreCalibration') : '恢复校准数据...', 'info');
     const ts = calibSession.timestamp;
-    let offset = calibEepromBase;
+    let offset = CALIB_MANGOSTEEN_BASE;
     for (let i = 0; i < CALIB_SIZE; i += CALIB_CHUNK) {
       updateProgress((i / CALIB_SIZE) * 100);
       const msg = createMessage(MSG_WRITE_EEPROM, 24);
