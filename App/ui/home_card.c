@@ -82,16 +82,14 @@
 #define GAUGE_RY        16
 #define GAUGE_THICK     2
 
-/* Needle: 45 tips; crawl both ways; every left tip keeps a full needle ~1s. */
+/* Needle: 45 tips; crawl both ways. */
 #define HC_NEEDLE_MAX       44u
 #define HC_NEEDLE_N         45u
 #define HC_NEEDLE_STEP_10MS 10u
-#define HC_GHOST_LIFE_10MS  40u  /* 0.4s ghost linger */
 
 static uint8_t hc_needle;
 static uint8_t hc_needle_target;
 static uint8_t hc_needle_tick;
-static uint8_t hc_ghost_age[HC_NEEDLE_N];
 
 /* Tips on inset ellipse, lerp of S-dots — table avoids runtime div. */
 static const int8_t hc_tip_x[HC_NEEDLE_N] = {
@@ -451,17 +449,8 @@ static void HC_DrawTicks(uint8_t cx, uint8_t cy)
 
 static void HC_DrawNeedle(uint8_t cx, uint8_t cy, uint8_t pos)
 {
-	uint8_t i;
-
 	if (pos > HC_NEEDLE_MAX)
 		pos = HC_NEEDLE_MAX;
-
-	/* Every stepped-through position keeps a full needle until age hits 0. */
-	for (i = 0; i < HC_NEEDLE_N; i++) {
-		if (hc_ghost_age[i] == 0)
-			continue;
-		HC_Line(cx, cy, cx + hc_tip_x[i], cy + hc_tip_y[i]);
-	}
 
 	HC_Line(cx, cy, cx + hc_tip_x[pos], cy + hc_tip_y[pos]);
 	HC_Pixel(cx, cy, true);
@@ -473,23 +462,14 @@ static void HC_DrawNeedle(uint8_t cx, uint8_t cy, uint8_t pos)
 
 static bool HC_NeedleTick10ms(void)
 {
-	bool    redraw = false;
-	uint8_t i;
-
-	for (i = 0; i < HC_NEEDLE_N; i++) {
-		if (hc_ghost_age[i] != 0 && --hc_ghost_age[i] == 0)
-			redraw = true;
-	}
-
 	if (hc_needle == hc_needle_target) {
 		hc_needle_tick = 0;
-		return redraw;
+		return false;
 	}
 	if (++hc_needle_tick < HC_NEEDLE_STEP_10MS)
-		return redraw;
+		return false;
 	hc_needle_tick = 0;
 
-	hc_ghost_age[hc_needle] = HC_GHOST_LIFE_10MS;
 	if (hc_needle < hc_needle_target)
 		hc_needle++;
 	else
