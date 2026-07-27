@@ -113,6 +113,22 @@ static unsigned msg_text_width8(const char *s)
 	return w;
 }
 
+/** Max byte count of s that fits within max_w pixels.
+ *  ASCII=7px, GB2312=8px.  Stops at character boundary. */
+static uint8_t msg_fit_bytes(const char *s, uint8_t max_w)
+{
+	unsigned w = 0;
+	size_t i = 0;
+	while (s[i]) {
+		const bool hz = (uint8_t)s[i] >= 0xA1u && s[i + 1u];
+		const unsigned cw = hz ? FONT8_SIZE : 7u;
+		if (w + cw > max_w) break;
+		w += cw;
+		i += 1u + hz;
+	}
+	return (uint8_t)i;
+}
+
 
 static void format_age(uint16_t seconds, char *buf, uint8_t len)
 {
@@ -140,7 +156,7 @@ static void print_line(const char *s, uint8_t line, bool sel)
     // End value to UI_PrintStringSmallNormalInverse here, because that helper
     // centers text when End > Start.  That was causing the text to drift
     // outside the selected capsule.
-    char safe[18];
+    char safe[40];
     strncpy(safe, s, sizeof(safe) - 1U);
     safe[sizeof(safe) - 1U] = 0;
 
@@ -238,10 +254,13 @@ static void draw_title(const char *s)
 
 static void draw_dotted_separator(uint8_t y)
 {
-    /* Light message separator: one filled segment, one gap.  It is less
-     * visually heavy than a solid line and keeps the message text dominant. */
-    for (uint8_t x = 0; x < 128U; x = (uint8_t)(x + 4U)) {
-        UI_DrawLineBuffer(gFrameBuffer, x, y, (uint8_t)(x + 1U), y, 1);
+    /* Light message separator: one filled segment, one gap.
+     * Direct framebuffer write avoids 32 calls to UI_DrawLineBuffer. */
+    const uint8_t mask = (uint8_t)(1u << (y & 7u));
+    uint8_t *row = gFrameBuffer[y >> 3];
+    for (uint8_t x = 0; x < 128u; x += 4u) {
+        row[x] |= mask;
+        row[(uint8_t)(x + 1u)] |= mask;
     }
 }
 
@@ -330,14 +349,6 @@ static void msg_draw_small_at_y(const char *s, uint8_t x, uint8_t y, bool invert
             }
         }
     }
-}
-
-static void print_line_y(const char *s, uint8_t y, bool sel)
-{
-    char safe[18];
-    strncpy(safe, s, sizeof(safe) - 1U);
-    safe[sizeof(safe) - 1U] = 0;
-    msg_draw_small_at_y(safe, 1, y, sel);
 }
 
 /** 16×16 GB2312 glyph at pixel Y (one character = 2 bytes). */
@@ -748,7 +759,7 @@ static void draw_home(void)
             if (cn && UI_StringHasGb2312(label))
                 msg_draw_cn8_at_y(label, 1u, y0, false);
             else
-                print_line_y(label, y0, false);
+                msg_draw_small_at_y(label, 1u, y0, false);
             y_cursor = (uint8_t)(y0 + NORM_PITCH);
         }
         drawn++;
@@ -779,7 +790,7 @@ static void draw_list(void)
 {
     uint8_t count; const char *title;
     MSG_Message_t *list = current_list(&count, &title);
-    char buf[24];
+    char buf[40];
     draw_title(title);
     snprintf(buf, sizeof(buf), "%u/%u", count ? (gMsgCursor + 1) : 0, count);
     print_right_small(buf, 0);
@@ -787,7 +798,12 @@ static void draw_list(void)
     for (uint8_t row = 0; row < 6; row++) {
         uint8_t idx = gMsgScroll + row;
         if (idx >= count) break;
-        if (gMsgScreen == MSG_SCREEN_DRAFTS) snprintf(buf, sizeof(buf), "%u %.18s", idx + 1, MSG_STORE_GetDraft(idx));
+        if (gMsgScreen == MSG_SCREEN_DRAFTS) {
+            const char *d = MSG_STORE_GetDraft(idx);
+            /* "N " prefix = 14px; available for text: 127-14-1 = 112px */
+            uint8_t n = msg_fit_bytes(d, 112u);
+            snprintf(buf, sizeof(buf), "%u %.*s", idx + 1, n, d);
+        }
         else if (gMsgScreen == MSG_SCREEN_OUTBOX) {
             char st = '?';
             char age[5];
