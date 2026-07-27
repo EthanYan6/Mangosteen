@@ -298,5 +298,7 @@ const char *UI_MENU_GetSideFunctionName(uint8_t index);
 void UI_DisplayMenu(void);
 int UI_MENU_GetCurrentMenuId();
 uint8_t UI_MENU_GetMenuIdx(uint8_t id);
+void UI_MENU_PrintBigAtY(const char *text, uint8_t x0, uint8_t x1, uint8_t y, uint8_t max_rows);
+void UI_MENU_InvertPixelsY(uint8_t y0, uint8_t y1);
 
 #endif

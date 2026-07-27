@@ -31,6 +31,7 @@
 #include "settings.h"
 #include "ui/helper.h"
 #include "ui/ui.h"
+#include "ui/menu.h"
 #include "misc.h"
 #include "font.h"
 
@@ -471,15 +472,6 @@ static void msg_draw_cn8_at_y(const char *s, uint8_t x, uint8_t y, bool inverted
 	}
 }
 
-static void print_home_item(const char *en_label, uint8_t y, bool sel)
-{
-	const char *t = msg_label(en_label);
-	if (msg_lang_cn() && UI_StringHasGb2312(t))
-		msg_draw_cn8_at_y(t, 1, y, sel);
-	else
-		print_line_y(t, y, sel);
-}
-
 /* Collect wrapped line starts. big16: CN=16/ASCII=8; else CN=8/ASCII=7. */
 static uint8_t compose_collect_lines(const char *s, bool big16, uint8_t *starts, uint8_t max_starts)
 {
@@ -684,17 +676,15 @@ static void draw_icon_floppy(uint8_t x, uint8_t y)
     msg_draw_hline((uint8_t)(x + 9U), (uint8_t)(x + 24U), (uint8_t)(y + 19U), true);
 }
 
-static void draw_home_icon(uint8_t idx)
+static void draw_home_icon(uint8_t idx, uint8_t cy)
 {
-    /* Icons share one center point in the right side, midway between the
-     * INBOX and DRAFTS rows.  They are not tied to the bottom separator.
-     * CN: list up 3px vs prior CN layout → icon dy 6-3=3. */
-    const uint8_t dy = msg_lang_cn() ? 1U : 0U;
+    /* Icons centered around cy in the right side.
+     * cy is the vertical center of the whole menu area (not tied to selection). */
     switch (idx) {
-        case 0: draw_icon_envelope(88U, (uint8_t)(17U + dy)); break;  /* 30x18, center y~26 */
-        case 1: draw_icon_pencil(89U, (uint8_t)(13U + dy)); break;    /* 30x28, center y~27 */
-        case 2: draw_icon_up_arrow(88U, (uint8_t)(14U + dy)); break;  /* 31x27, center y~27 */
-        default: draw_icon_floppy(86U, (uint8_t)(15U + dy)); break;   /* 34x24, visual center y~27 */
+        case 0: draw_icon_envelope(88U, (uint8_t)(cy - 9U)); break;  /* 30x18 */
+        case 1: draw_icon_pencil(89U, (uint8_t)(cy - 14U)); break;   /* 30x28 */
+        case 2: draw_icon_up_arrow(88U, (uint8_t)(cy - 13U)); break; /* 31x27 */
+        default: draw_icon_floppy(86U, (uint8_t)(cy - 12U)); break;  /* 34x24 */
     }
 }
 
@@ -702,18 +692,77 @@ static void draw_home_icon(uint8_t idx)
 static void draw_home(void)
 {
     static const char *items[] = { "INBOX", "COMPOSE", "SENT", "DRAFTS" };
-    const uint8_t row0 = msg_lang_cn() ? 12U : 10U;
-    const uint8_t row_step = 9U;
+    const uint8_t count = 4u;
+    const uint8_t sel  = gMsgHomeCursor;
+    const bool    cn   = msg_lang_cn();
+
+    /* Layout: only 2 rows visible (selected 16px + 1 neighbour 8px).
+     * Selected = 2+16+2 = 20px, neighbour = 8+1 = 9px, total ≤ 29px. */
+    const uint8_t FIRST_Y    = cn ? 14u : 10u;
+    const uint8_t CLIP_Y     = cn ? 47u : 46u;
+    const uint8_t SEL_PAD    = 2u;
+    const uint8_t SEL_NEED   = (uint8_t)(SEL_PAD + 16u + SEL_PAD);   /* 20 */
+    const uint8_t NORM_PITCH = 9u;
 
     draw_title("MESSENGER");
-    for (uint8_t i = 0; i < 4; i++) {
-        print_home_item(items[i], (uint8_t)(row0 + (i * row_step)), gMsgHomeCursor == i);
+
+    /* --- Only show selected row and one adjacent row (2 rows total) --- */
+    uint8_t first = sel;
+    /* Prefer showing one item above the selection when possible */
+    if (sel > 0u) first = (uint8_t)(sel - 1u);
+
+    /* --- Draw visible items (max 2 rows) --- */
+    uint8_t y_cursor = FIRST_Y;
+    uint8_t drawn = 0u;
+
+    for (uint8_t i = first; i < count && drawn < 2u; i++) {
+        const bool    is_sel = (i == sel);
+        const uint8_t y0     = y_cursor;
+        uint8_t       need;
+
+        if (y0 >= CLIP_Y) break;
+
+        need = is_sel ? SEL_NEED : NORM_PITCH;
+        {
+            const uint8_t avail = (uint8_t)(CLIP_Y - y0);
+            if (need > avail) need = avail;
+        }
+
+        const char *label = msg_label(items[i]);
+
+        if (is_sel) {
+            const uint8_t text_y    = (uint8_t)(y0 + SEL_PAD);
+            uint8_t       text_rows = (uint8_t)(need > 2u * SEL_PAD)
+                                     ? (uint8_t)(need - 2u * SEL_PAD) : 0u;
+            if (text_rows > 16u) text_rows = 16u;
+
+            /* Draw 16×16 text normally, then invert the left band */
+            UI_MENU_PrintBigAtY(label, 2u, 0u, text_y, text_rows);
+            for (uint8_t yy = y0; yy <= (uint8_t)(y0 + need - 1u) && yy < 64u; yy++) {
+                const uint8_t mask = (uint8_t)(1u << (yy & 7u));
+                for (uint8_t xx = 0u; xx < 85u; xx++)
+                    gFrameBuffer[yy >> 3][xx] ^= mask;
+            }
+            y_cursor = (uint8_t)(y0 + SEL_NEED + 1u);
+        } else {
+            if (cn && UI_StringHasGb2312(label))
+                msg_draw_cn8_at_y(label, 1u, y0, false);
+            else
+                print_line_y(label, y0, false);
+            y_cursor = (uint8_t)(y0 + NORM_PITCH);
+        }
+        drawn++;
     }
-    draw_home_icon(gMsgHomeCursor);
+
+    /* Icon: vertically centered in the menu area (FIRST_Y..CLIP_Y), not tied to selection */
+    {
+        const uint8_t menu_cy = (uint8_t)((FIRST_Y + CLIP_Y) / 2u);
+        draw_home_icon(sel, menu_cy);
+    }
 
     {
-        const uint8_t sep_y = msg_lang_cn() ? 47U : 46U;
-        const uint8_t sel_y = msg_lang_cn() ? 50U : 49U;
+        const uint8_t sep_y = cn ? 47U : 46U;
+        const uint8_t sel_y = cn ? 50U : 49U;
         draw_dotted_separator(sep_y);
         GUI_DisplaySmallest("SELECT", 0, sel_y, false, true);
     }

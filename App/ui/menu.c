@@ -1024,7 +1024,7 @@ static void UI_MENU_DrawPySylls(uint8_t x0, uint8_t x1, uint8_t y, const PY_Cand
     }
 }
 
-static void UI_MENU_PrintBigAtY(const char *text, uint8_t x0, uint8_t x1, uint8_t y, uint8_t max_rows)
+void UI_MENU_PrintBigAtY(const char *text, uint8_t x0, uint8_t x1, uint8_t y, uint8_t max_rows)
 {
     const size_t   len = strlen(text);
     const unsigned text_w = UI_MENU_TextPixelWidthBig(text);
@@ -1115,7 +1115,7 @@ static void UI_MENU_PrintBigAtY(const char *text, uint8_t x0, uint8_t x1, uint8_
     }
 }
 
-static void UI_MENU_InvertPixelsY(uint8_t y0, uint8_t y1)
+void UI_MENU_InvertPixelsY(uint8_t y0, uint8_t y1)
 {
     for (uint8_t y = y0; y <= y1 && y < FRAME_LINES * 8; y++) {
         const uint8_t bit = (uint8_t)(1u << (y % 8));
