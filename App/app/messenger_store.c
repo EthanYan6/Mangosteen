@@ -71,15 +71,12 @@ const char *MSG_STORE_GetDraft(uint8_t index)
 {
     if (index >= MSG_DRAFT_CAPACITY)
         return "";
-    /* Follow saved UI language — not menu-confirm side effects. */
-    if (gUiLanguage == UI_LANGUAGE_CN) {
-        if (index < (uint8_t)(sizeof(kDraftsCn) / sizeof(kDraftsCn[0])))
-            return kDraftsCn[index];
-        return "";
-    }
-    if (gMessengerConfig.drafts[index][0] != 0)
-        return gMessengerConfig.drafts[index];
-    return kDraftsEn[index];
+    /* Storage is the single source of truth.  FillDefaultDrafts() pre-fills the
+     * current language's presets on first boot and on every language switch, so
+     * the built-in quick messages still appear until the user overwrites a slot
+     * (save) or clears it (delete).  Reading storage directly is what makes a
+     * saved draft visible in CN mode and a deleted slot show empty. */
+    return gMessengerConfig.drafts[index];
 }
 
 static void MSG_STORE_DefaultConfig(void)
@@ -113,7 +110,21 @@ static void flash_write_struct(uint32_t addr, const void *src, uint16_t size)
     // Do not use EEPROM-compatible addresses here: the old 0x1E80 location
     // overlaps the MR/channel memory compatibility area.
     if (size > MSG_CFG_FLASH_SIZE) return;
-    PY25Q16_WriteBuffer(addr, src, size, false);
+
+    /* Write-verify with retry: SPI flash writes can occasionally leave stale
+     * bytes (e.g. when a sector erase is followed by a full-sector program).
+     * We write, read back, and compare; if the read-back does not match we
+     * retry up to 2 more times before giving up.  Interrupts are NOT disabled
+     * here because PY25Q16_WriteBuffer/ReadBuffer rely on the DMA completion
+     * interrupt (DMA1_Channel4_5_6_7_IRQn) to signal TC_Flag — masking IRQs
+     * would deadlock in their `while (!TC_Flag)` spin loop. */
+    uint8_t tmp[sizeof(gMessengerConfig)];
+    for (uint8_t attempt = 0; attempt < 3; attempt++) {
+        PY25Q16_WriteBuffer(addr, src, size, false);
+        PY25Q16_ReadBuffer(addr, tmp, size);
+        if (memcmp(src, tmp, size) == 0)
+            return;
+    }
 }
 
 static void MSG_STORE_SanitizeCallsign(void)
@@ -146,30 +157,6 @@ static void MSG_STORE_CopyCommonFromLegacyV4(const MSG_Config_t *old)
     memcpy(gMessengerConfig.drafts, old->drafts, sizeof(gMessengerConfig.drafts));
 }
 
-// Temporary bad test3/test4 layout inserted call_tone/call_vol before next_msg_id.
-typedef struct __attribute__((packed)) {
-    uint8_t magic;
-    uint8_t version;
-    uint8_t msg_rx;
-    uint8_t callsign_tx;
-    uint8_t msg_ack;
-    uint8_t msg_hop;
-    uint8_t msg_beep;
-    uint8_t msg_led;
-    uint8_t msg_debug;
-    uint8_t call_tone;
-    uint8_t call_vol;
-    uint16_t next_msg_id;
-    char callsign[MSG_CALLSIGN_LEN + 1];
-    char drafts[MSG_DRAFT_CAPACITY][MSG_TEXT_LEN + 1];
-} MSG_Config_BadV5_t;
-
-static bool MSG_STORE_LooksLikeBadV5(const MSG_Config_t *cfg)
-{
-    return cfg->version == 5u &&
-           ((uint8_t)cfg->callsign[0] < 0x20u || (uint8_t)cfg->callsign[1] < 0x20u);
-}
-
 void MSG_STORE_Init(void)
 {
     flash_read_struct(MSG_CFG_FLASH_ADDR, &gMessengerConfig, sizeof(gMessengerConfig));
@@ -185,29 +172,6 @@ void MSG_STORE_Init(void)
         gMessengerConfig.call_tone = 0;
         gMessengerConfig.call_vol = 1;
         gMessengerConfig.rng_rsp = 1;
-        MSG_STORE_SaveConfig();
-    } else if (MSG_STORE_LooksLikeBadV5(&gMessengerConfig)) {
-        // Recover from the bad intermediate layout as much as possible and then
-        // rewrite the sector with the fixed v6 layout. Bytes already overwritten
-        // by the bad test build cannot always be reconstructed, but this stops
-        // further offset damage.
-        MSG_Config_BadV5_t bad;
-        flash_read_struct(MSG_CFG_FLASH_ADDR, &bad, sizeof(bad));
-        MSG_STORE_DefaultConfig();
-        gMessengerConfig.msg_rx = bad.msg_rx;
-        gMessengerConfig.callsign_tx = bad.callsign_tx;
-        gMessengerConfig.msg_ack = bad.msg_ack;
-        gMessengerConfig.msg_hop = bad.msg_hop;
-        gMessengerConfig.msg_beep = bad.msg_beep;
-        gMessengerConfig.msg_led = bad.msg_led;
-        gMessengerConfig.msg_debug = bad.msg_debug;
-        gMessengerConfig.next_msg_id = bad.next_msg_id ? bad.next_msg_id : 1;
-        memcpy(gMessengerConfig.callsign, bad.callsign, sizeof(gMessengerConfig.callsign));
-        memcpy(gMessengerConfig.drafts, bad.drafts, sizeof(gMessengerConfig.drafts));
-        gMessengerConfig.call_tone = (bad.call_tone <= 4u) ? bad.call_tone : 0;
-        gMessengerConfig.call_vol = (bad.call_vol == 0u) ? 0u : 1u;
-        gMessengerConfig.rng_rsp = 1;
-        MSG_STORE_SanitizeCallsign();
         MSG_STORE_SaveConfig();
     } else if (gMessengerConfig.version == 6u) {
         /* v7 appends RngRsp at the end only; preserve all v6 offsets. */

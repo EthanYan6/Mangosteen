@@ -36,14 +36,13 @@ typedef enum {
     MSG_SCREEN_DRAFTS,
     MSG_SCREEN_COMPOSE,
     MSG_SCREEN_READ,
-    MSG_SCREEN_SETTINGS,
-    MSG_SCREEN_CALLSIGN,
     MSG_SCREEN_RANGE,
 } MSG_Screen_t;
 
 MSG_Screen_t gMsgScreen = MSG_SCREEN_HOME;
 uint8_t gMsgCursor;
 uint8_t gMsgScroll;
+uint8_t gMsgDraftMode;   /* 0 normal drafts list, 1 save-into-slot picker, 2 delete-slot confirm */
 uint8_t gMsgHomeCursor;
 char gMsgComposeBuf[MSG_TEXT_LEN + 1];
 MSG_T9Editor_t gMsgEditor;
@@ -104,7 +103,6 @@ void MSG_Tick(void)
 {
     if (gSurvivalMode) return;
     if (gMsgScreen == MSG_SCREEN_COMPOSE) MSG_T9_Tick(&gMsgEditor);
-    else if (gMsgScreen == MSG_SCREEN_CALLSIGN) MSG_T9_Tick(&gMsgCallsignEditor);
     else if (gMsgScreen == MSG_SCREEN_RANGE && gMsgRangeStatus == 1u) {
         if (s_msgRangeWaitTicks > 0u) --s_msgRangeWaitTicks;
         if (s_msgRangeWaitTicks == 0u) {
@@ -240,6 +238,7 @@ static void open_list(MSG_Screen_t screen)
     gMsgScreen = screen;
     gMsgCursor = 0;
     gMsgScroll = 0;
+    gMsgDraftMode = 0u;   /* clear any stale save/delete mode from a prior session */
 }
 
 static void open_sent_after_send(void)
@@ -357,11 +356,27 @@ static void read_scroll_or_move(int8_t dir)
 void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 {
     if (bKeyHeld) {
-        if (bKeyPressed && gMsgScreen == MSG_SCREEN_COMPOSE && Key >= KEY_0 && Key <= KEY_9
-            && gMsgEditor.mode != 3U) {
-            MSG_T9_HandleLongKey(&gMsgEditor, Key);
-            MSG_UI_ComposeResetScroll();
-            gUpdateDisplay = true;
+        if (bKeyPressed) {
+            if (gMsgScreen == MSG_SCREEN_COMPOSE && Key == KEY_F) {
+                /* Long-press F in compose: reuse the drafts list as a
+                 * "save into slot" picker (mode 1).  Buffer is preserved so
+                 * the user keeps editing after saving. */
+                gMsgDraftMode = 1u;
+                gMsgCursor = 0;
+                gMsgScroll = 0;
+                gMsgScreen = MSG_SCREEN_DRAFTS;
+                gUpdateDisplay = true;
+            } else if (gMsgScreen == MSG_SCREEN_DRAFTS && Key == KEY_F && gMsgDraftMode == 0u) {
+                /* Long-press F on a draft (normal list only): confirm delete of
+                 * the highlighted slot (mode 2).  Disabled in save/delete modes. */
+                gMsgDraftMode = 2u;
+                gUpdateDisplay = true;
+            } else if (gMsgScreen == MSG_SCREEN_COMPOSE && Key >= KEY_0 && Key <= KEY_9
+                       && gMsgEditor.mode != 3U) {
+                MSG_T9_HandleLongKey(&gMsgEditor, Key);
+                MSG_UI_ComposeResetScroll();
+                gUpdateDisplay = true;
+            }
         }
         return;
     }
@@ -387,10 +402,26 @@ void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
         case MSG_SCREEN_INBOX:
         case MSG_SCREEN_OUTBOX:
         case MSG_SCREEN_DRAFTS:
-            if (Key == KEY_UP || Key == KEY_DOWN) list_move(Key == KEY_UP ? -1 : 1);
+            if (Key == KEY_UP || Key == KEY_DOWN) {
+                /* In delete-confirm mode the target slot is already chosen. */
+                if (gMsgDraftMode != 2u) list_move(Key == KEY_UP ? -1 : 1);
+            }
             else if (Key == KEY_MENU) {
-                if (gMsgScreen == MSG_SCREEN_DRAFTS) open_draft_edit(gMsgCursor);
-                else if (current_count() > 0) {
+                if (gMsgScreen == MSG_SCREEN_DRAFTS) {
+                    if (gMsgDraftMode == 1u) {
+                        /* Save current compose buffer into the picked slot (overwrite). */
+                        MSG_STORE_SetDraft(gMsgCursor, gMsgComposeBuf);
+                        gMsgDraftMode = 0u;
+                        MSG_UI_ComposeResetScroll();
+                        gMsgScreen = MSG_SCREEN_COMPOSE;
+                    } else if (gMsgDraftMode == 2u) {
+                        /* Confirm delete: clear the slot, back to normal drafts. */
+                        MSG_STORE_SetDraft(gMsgCursor, "");
+                        gMsgDraftMode = 0u;
+                    } else {
+                        open_draft_edit(gMsgCursor);
+                    }
+                } else if (current_count() > 0) {
                     bool was_inbox = (gMsgScreen == MSG_SCREEN_INBOX);
                     gMsgReadSource = (uint8_t)gMsgScreen;
                     gMsgReadIndex = gMsgCursor;
@@ -398,8 +429,18 @@ void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
                     gMsgScreen = MSG_SCREEN_READ;
                     if (was_inbox) MSG_STORE_MarkInboxRead(gMsgReadIndex);
                 }
-            } else if (Key == KEY_EXIT) go_home();
-            else if (Key == KEY_F) { if (gMsgScreen == MSG_SCREEN_INBOX) MSG_STORE_DeleteInbox(gMsgCursor); else if (gMsgScreen == MSG_SCREEN_OUTBOX) MSG_STORE_DeleteOutbox(gMsgCursor); }
+            } else if (Key == KEY_EXIT) {
+                if (gMsgScreen == MSG_SCREEN_DRAFTS && gMsgDraftMode != 0u) {
+                    /* Cancel save (back to compose) or delete (back to normal drafts). */
+                    if (gMsgDraftMode == 1u) { MSG_UI_ComposeResetScroll(); gMsgScreen = MSG_SCREEN_COMPOSE; }
+                    gMsgDraftMode = 0u;
+                } else {
+                    go_home();
+                }
+            } else if (Key == KEY_F) {
+                if (gMsgScreen == MSG_SCREEN_INBOX) MSG_STORE_DeleteInbox(gMsgCursor);
+                else if (gMsgScreen == MSG_SCREEN_OUTBOX) MSG_STORE_DeleteOutbox(gMsgCursor);
+            }
             break;
 
         case MSG_SCREEN_READ:
@@ -439,16 +480,12 @@ void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
                 MSG_T9_Commit(&gMsgEditor);
                 if (PY_IsActive())
                     PY_Stop();
-                if (gMsgComposeIsDraftEdit) {
-                    /* Drafts are quick-message templates: MENU saves the edited
-                     * draft persistently and immediately sends the same text.
-                     * This avoids needing an extra key combination on UV-K1.
-                     */
+                /* Drafts are quick-message templates: MENU saves the edited
+                 * draft persistently and immediately sends the same text.
+                 * The send path is shared with plain compose to save FLASH. */
+                if (gMsgComposeIsDraftEdit)
                     MSG_STORE_SetDraft(gMsgComposeDraftIndex, gMsgComposeBuf);
-                    const char *send_text = gMsgComposeBuf[0] ? gMsgComposeBuf : "EMPTY";
-                    if (!MSG_RF_SendText(send_text)) MSG_STORE_AddOutboxDemo(send_text);
-                    open_sent_after_send();
-                } else {
+                {
                     const char *send_text = gMsgComposeBuf[0] ? gMsgComposeBuf : "EMPTY";
                     if (!MSG_RF_SendText(send_text)) MSG_STORE_AddOutboxDemo(send_text);
                     open_sent_after_send();
@@ -526,17 +563,6 @@ void MSG_ProcessKeys(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
                     if (gMsgRangeScroll + 1u < pages) ++gMsgRangeScroll;
                 }
             }
-            break;
-
-        case MSG_SCREEN_CALLSIGN:
-            /* Public 0.2.0: Messenger-local settings screen is hidden.
-             * Callsign editing remains available from the main radio menu. */
-            if (Key == KEY_EXIT || Key == KEY_MENU) go_home();
-            break;
-
-        case MSG_SCREEN_SETTINGS:
-            /* Hidden in public builds; keep a safe escape in case stale state is entered. */
-            go_home();
             break;
     }
     gUpdateDisplay = true;

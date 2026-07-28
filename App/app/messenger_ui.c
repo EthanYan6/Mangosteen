@@ -55,10 +55,9 @@ extern uint8_t gMsgReadSource;
 extern uint8_t gMsgReadScroll;
 extern uint8_t gMsgSettingsCursor;
 extern char gMsgComposeBuf[];
-extern char gMsgCallsignBuf[];
 extern MSG_T9Editor_t gMsgEditor;
-extern MSG_T9Editor_t gMsgCallsignEditor;
 extern uint8_t gMsgScreen;
+extern uint8_t gMsgDraftMode;   /* 0 normal drafts list, 1 save-into-slot picker, 2 delete-slot confirm */
 typedef struct {
     bool used;
     char callsign[MSG_CALLSIGN_EDIT_LEN + 1];
@@ -75,24 +74,30 @@ extern uint8_t gMsgRangeStatus;
 extern uint16_t gMsgRangeSession;
 #define MSG_RANGE_MAX_FOUND 6u
 
-enum { MSG_SCREEN_HOME = 0, MSG_SCREEN_INBOX, MSG_SCREEN_OUTBOX, MSG_SCREEN_DRAFTS, MSG_SCREEN_COMPOSE, MSG_SCREEN_READ, MSG_SCREEN_SETTINGS, MSG_SCREEN_CALLSIGN, MSG_SCREEN_RANGE };
+enum { MSG_SCREEN_HOME = 0, MSG_SCREEN_INBOX, MSG_SCREEN_OUTBOX, MSG_SCREEN_DRAFTS, MSG_SCREEN_COMPOSE, MSG_SCREEN_READ, MSG_SCREEN_RANGE };
 
 static bool msg_lang_cn(void)
 {
 	return gUiLanguage == UI_LANGUAGE_CN;
 }
 
-/** English UI key → GB2312 label when language is Chinese. */
+/** English UI key → GB2312 label when language is Chinese.
+ *  All callers pass one of a few known literals whose first ASCII byte is
+ *  unique (MESSENGER/INBOX/COMPOSE/SENT/DRAFTS), so dispatch on en[0] and
+ *  avoid pulling strcmp into this hot path.  "MSG CSG"/"MSG SET" share 'M'
+ *  with MESSENGER but are disambiguated by the 2nd byte ('E' vs 'S'). */
 static const char *msg_label(const char *en)
 {
-	if (!msg_lang_cn() || en == NULL)
+	if (!msg_lang_cn() || en == NULL || en[0] == '\0')
 		return en;
-	if (strcmp(en, "MESSENGER") == 0) return "\xD0\xC5\xCF\xA2";                 /* 信息 */
-	if (strcmp(en, "INBOX") == 0)     return "\xCA\xD5\xBC\xFE\xCF\xE4";         /* 收件箱 */
-	if (strcmp(en, "COMPOSE") == 0)   return "\xB1\xE0\xBC\xAD\xD0\xC5\xCF\xA2"; /* 编辑信息 */
-	if (strcmp(en, "SENT") == 0)      return "\xB7\xA2\xBC\xFE\xCF\xE4";         /* 发件箱 */
-	if (strcmp(en, "DRAFTS") == 0)    return "\xB2\xDD\xB8\xE5\xCF\xE4";         /* 草稿箱 */
-	return en;
+	switch (en[0]) {
+		case 'M': return (en[1] == 'E') ? "\xD0\xC5\xCF\xA2"             : en; /* 信息  (MESSENGER) */
+		case 'I': return "\xCA\xD5\xBC\xFE\xCF\xE4";                           /* 收件箱 */
+		case 'C': return "\xB1\xE0\xBC\xAD\xD0\xC5\xCF\xA2";                   /* 编辑信息 */
+		case 'S': return "\xB7\xA2\xBC\xFE\xCF\xE4";                           /* 发件箱 */
+		case 'D': return "\xB2\xDD\xB8\xE5\xCF\xE4";                           /* 草稿箱 */
+		default:  return en;
+	}
 }
 
 static unsigned msg_text_width8(const char *s)
@@ -151,17 +156,21 @@ static const char *packet_type_short(uint8_t type)
 
 static void print_line(const char *s, uint8_t line, bool sel)
 {
-    // Keep all Messenger menu/list rows left-aligned and use the same
-    // inverted selector style everywhere.  Important: do NOT pass a non-zero
-    // End value to UI_PrintStringSmallNormalInverse here, because that helper
-    // centers text when End > Start.  That was causing the text to drift
-    // outside the selected capsule.
+    /* Render the text first, then invert the whole row when selected.
+     * UI_PrintStringSmallNormalInverse sizes its invert box with strlen(),
+     * which double-counts 2-byte GB2312 chars (e.g. 14 hanzi = 28 bytes
+     * → invert width 28*7=196 > 128), overflowing past x=127 into the
+     * next display row.  Full-row invert matches draw_home's capsule style
+     * and never overflows. */
     char safe[40];
     strncpy(safe, s, sizeof(safe) - 1U);
     safe[sizeof(safe) - 1U] = 0;
 
-    if (sel) UI_PrintStringSmallNormalInverse(safe, 1, 0, line);
-    else UI_PrintStringSmallNormal(safe, 1, 0, line);
+    UI_PrintStringSmallNormal(safe, 1, 0, line);
+    if (sel) {
+        for (uint8_t x = 0; x < 128; x++)
+            gFrameBuffer[line][x] ^= 0xFF;
+    }
 }
 
 static void print_right_small(const char *s, uint8_t line)
@@ -783,7 +792,14 @@ static MSG_Message_t *current_list(uint8_t *count, const char **title)
 {
     if (gMsgScreen == MSG_SCREEN_INBOX) { *count = MSG_STORE_CountInbox(); *title = "INBOX"; return gMessengerInbox; }
     if (gMsgScreen == MSG_SCREEN_OUTBOX) { *count = MSG_STORE_CountOutbox(); *title = "SENT"; return gMessengerOutbox; }
-    *count = MSG_DRAFT_CAPACITY; *title = "DRAFTS"; return 0;
+    *count = MSG_DRAFT_CAPACITY;
+    /* gMsgDraftMode reuses the drafts list as either a "save into slot"
+     * picker (1) or a "delete this slot" confirm (2); both swap the title.
+     * Passing a GB2312 string directly makes draw_title render it as CN. */
+    *title = (gMsgDraftMode == 1u) ? (msg_lang_cn() ? "\xCA\xC7\xB7\xF1\xB1\xA3\xB4\xE6" : "SAVE?")
+           : (gMsgDraftMode == 2u) ? (msg_lang_cn() ? "\xCA\xC7\xB7\xF1\xC9\xBE\xB3\xFD" : "DELETE?")
+           : "DRAFTS";
+    return 0;
 }
 
 static void draw_list(void)
@@ -804,17 +820,18 @@ static void draw_list(void)
             uint8_t n = msg_fit_bytes(d, 112u);
             snprintf(buf, sizeof(buf), "%u %.*s", idx + 1, n, d);
         }
-        else if (gMsgScreen == MSG_SCREEN_OUTBOX) {
-            char st = '?';
+        else {
+            /* INBOX and OUTBOX share the same "%c%-11.11s%4s" row layout;
+             * only the leading status char differs. */
+            char st;
             char age[5];
             format_age(list[idx].age_seconds, age, sizeof(age));
-            if (list[idx].status == MSG_STATUS_ACKED) st = '+';
-            else if (list[idx].status == MSG_STATUS_FAILED) st = 'x';
+            if (gMsgScreen == MSG_SCREEN_OUTBOX)
+                st = (list[idx].status == MSG_STATUS_ACKED) ? '+'
+                   : (list[idx].status == MSG_STATUS_FAILED) ? 'x' : '?';
+            else
+                st = list[idx].unread ? '*' : ' ';
             snprintf(buf, sizeof(buf), "%c%-11.11s%4s", st, list[idx].text, age);
-        } else {
-            char age[5];
-            format_age(list[idx].age_seconds, age, sizeof(age));
-            snprintf(buf, sizeof(buf), "%c%-11.11s%4s", (list[idx].unread ? '*' : ' '), list[idx].text, age);
         }
         print_line(buf, row + 1, idx == gMsgCursor);
     }
@@ -1046,21 +1063,6 @@ static void draw_range(void)
     GUI_DisplaySmallest("EXIT", 112, 49, false, true);
 }
 
-static void draw_callsign(void)
-{
-    draw_title("MSG CSG");
-    UI_PrintStringSmallNormal("CALLSIGN:", 0, 0, 1);
-    UI_PrintStringSmallBold(gMsgCallsignBuf, 0, 0, 3);
-    UI_PrintStringSmallNormal((gMsgCallsignEditor.mode == 2U) ? "2" : (gMsgCallsignEditor.upper ? "B" : "b"), 118, 0, 6);
-}
-
-/* Hidden in public builds — keep a tiny stub so the switch stays valid. */
-static void draw_settings(void)
-{
-    draw_title("MSG SET");
-    GUI_DisplaySmallest("EXIT", 0, 24, false, true);
-}
-
 void UI_DisplayMessenger(void)
 {
     /* Do not clear/blit the status line here — that blanks battery/icons on
@@ -1073,8 +1075,6 @@ void UI_DisplayMessenger(void)
         case MSG_SCREEN_DRAFTS: draw_list(); break;
         case MSG_SCREEN_READ: draw_read(); break;
         case MSG_SCREEN_COMPOSE: draw_compose(); break;
-        case MSG_SCREEN_CALLSIGN: draw_callsign(); break;
-        case MSG_SCREEN_SETTINGS: draw_settings(); break;
         case MSG_SCREEN_RANGE: draw_range(); break;
         default: draw_home(); break;
     }
