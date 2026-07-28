@@ -22,7 +22,7 @@
 This manual has three chapters:
 
 1. **Chapter 1 — Flashing Guide**: flash firmware, font, calibration, and related tools in the browser  
-2. **Chapter 2 — System User Guide**: basic operation, broadcast FM (WFM), scan, save channels, naming/IME, SMS, and HEARD after Mangosteen is installed  
+2. **Chapter 2 — System User Guide**: basic operation, broadcast FM (WFM), scan, save channels, naming/IME, SMS, HEARD, and FAQ after Mangosteen is installed  
 3. **Chapter 3 — License, Brand & Usage**: license scope, personal/commercial use, trademark policy, support, and contributing
 
 > Compatible with Quansheng **UV-K1**, and **UV-K5 / UV-K6 V3**. For K5/K6, confirm **V3** on the rear label (K1 has no V3 variant).
@@ -383,6 +383,29 @@ From an inbox read, **MENU** replies with a `RE: ` prefix. From sent, **MENU** c
 
 Editing a draft from **DRAFTS** and pressing **MENU** saves it to Flash **and immediately sends** that text.
 
+### Saving a draft
+
+While composing a message, you can save the current text as a draft (**8** slots available):
+
+1. In the **COMPOSE** screen, write your message.
+2. **Long-press `#` (F)** to open the draft-slot picker (title shows **SAVE?**).
+3. Use **↑ / ↓** to choose a slot (1–8), then press **MENU** to save and return to composing.
+4. Press **EXIT** to cancel and go back to composing.
+
+After saving, you can continue editing — the save does not interrupt your work.
+
+### Deleting a draft
+
+1. Open **DRAFTS** from the Messenger home.
+2. Use **↑ / ↓** to highlight the draft you want to delete.
+3. **Long-press `#` (F)** — the title changes to **DELETE?**.
+4. Press **MENU** to confirm (the slot is cleared); press **EXIT** to cancel.
+
+### Sending from a draft
+
+1. In **DRAFTS**, highlight a draft and press **MENU** to open it for editing.
+2. After editing, press **MENU**: the draft is saved to Flash **and immediately sent**.
+
 Notes:
 
 - **Inbox / Sent are RAM-only** and may be cleared on power-off.
@@ -431,6 +454,25 @@ Short **`#` (F)** cycles:
 3. While scanning, dual-watch UI may temporarily behave as single-VFO scan until you stop.
 4. Inbox content may be lost on power-off; set your local name before messaging.
 5. **64–108 MHz** and **WFM** are receive-only — see **2.2**.
+
+---
+
+## 2.8 FAQ
+
+### Why does menu item 14 "TXLock" sometimes show ON/OFF and sometimes "Inside"?
+
+The TXLock display depends on **whether the current TX frequency falls inside the F Lock plan's allowed bands**:
+
+- **"Inside F Lock Plan"** is shown when the frequency **is allowed** by the current F Lock plan — the frequency is legal, so the TXLock toggle is irrelevant and there is nothing to lock/unlock.
+- **"OFF / ON"** is shown when the frequency **is not in the allowed bands** (a non-standard frequency). Here the switch matters:
+  - **OFF**: TX is not locked — you can attempt to transmit on the non-standard frequency.
+  - **ON**: TX is locked — transmitting on the non-standard frequency is blocked.
+
+The F Lock plan type is set in the menu under **F Lock** (options include DEF, FCC, CE, GB, 430, 438, ALL, NONE, etc.). Each plan defines its own set of legal TX frequency ranges.
+
+### I changed F Lock but TXLock still shows the same thing?
+
+After changing the F Lock plan, you must leave and re-enter the TXLock menu item for the display to refresh. The shown text is determined at the time you enter the menu, based on the current VFO's TX frequency versus the active F Lock plan.
 
 ---
 
