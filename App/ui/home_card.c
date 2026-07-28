@@ -471,9 +471,9 @@ static bool HC_NeedleTick10ms(void)
 	hc_needle_tick = 0;
 
 	if (hc_needle < hc_needle_target)
-		hc_needle++;
+		hc_needle = hc_needle_target;  /* snap up instantly */
 	else
-		hc_needle--;
+		hc_needle--;                    /* slow fallback */
 	return true;
 }
 
