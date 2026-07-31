@@ -806,7 +806,8 @@ static void HC_DrawFront(uint8_t vfo_num)
 	const VFO_Info_t *vfo = &gEeprom.VfoInfo[vfo_num];
 	const bool is_tx = (gCurrentFunction == FUNCTION_TRANSMIT)
 		&& ((gEeprom.TX_VFO & 1u) == vfo_num);
-	const uint32_t freq = is_tx ? vfo->freq_config_TX.Frequency : vfo->freq_config_RX.Frequency;
+	/* Use pTX/pRX so reverse and REMOVE OFFSET (pTX→RX) match actual RF. */
+	const uint32_t freq = is_tx ? vfo->pTX->Frequency : vfo->pRX->Frequency;
 	const bool meter_vfo = ((gEeprom.RX_VFO & 1u) == vfo_num);
 	/* WFM never enters FUNCTION_RECEIVE (BK4819 squelch ignored), so always meter. */
 	const bool show_s =
@@ -1011,6 +1012,10 @@ void UI_HomeCard_StartVfoSwapAnim(uint8_t outgoing_vfo)
 	hc_anim_in       = hc_anim_out ^ 1u;
 	hc_anim_step     = 0;
 	hc_anim_tick     = 0;
+	/* Drop S-meter immediately — do not carry the previous VFO's reading. */
+	hc_needle        = 0;
+	hc_needle_target = 0;
+	hc_needle_tick   = 0;
 	hc_needle_frozen = true;
 	hc_anim_active   = true;
 	gUpdateDisplay   = true;
