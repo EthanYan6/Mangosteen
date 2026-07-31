@@ -130,7 +130,7 @@ const t_menu_item MenuList[] =
     {"BatSav",      MENU_SAVE          }, // was "SAVE"
     {"BatTxt",      MENU_BAT_TXT       },
     {"Mic",         MENU_MIC           },
-    {"MicBar",      MENU_MIC_BAR       },
+    // {"MicBar",      MENU_MIC_BAR       }, // ENABLE_AUDIO_BAR off; dead N/A entry
     // {"ChDisp",      MENU_MDF           }, // was "MDF"
     {"POnMsg",      MENU_PONMSG        },
     {"BLTime",      MENU_ABR           }, // was "ABR"
