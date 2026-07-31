@@ -880,8 +880,9 @@ static void HC_DrawFront(uint8_t vfo_num)
 		HC_Small(str, 48, 17);
 	} else if (UI_StringHasGb2312(str)) {
 		UI_PrintString(str, 48, 0, 1, 8);
-		/* Nudge CN name up 2px; fixed band covers max mixed-name width. */
-		for (uint8_t x = 48; x < 120; x++) {
+		/* Nudge CN name up 2px. Stop before FRONT_X1 — clearing that
+		 * column punched a gap in the card's right border. */
+		for (uint8_t x = 48; x < FRONT_X1; x++) {
 			const uint16_t glyph =
 				(uint16_t)gFrameBuffer[1][x] |
 				((uint16_t)gFrameBuffer[2][x] << 8);
@@ -929,6 +930,13 @@ static void HC_DrawFront(uint8_t vfo_num)
 			gEeprom.SQUELCH_LEVEL, bw);
 		HC_Small(str, 6, FRONT_INFO_Y);
 	}
+
+	/* Long/mixed names use memcpy into the FB and can wipe border columns;
+	 * redraw the frame so the right edge never shows a notch. */
+	HC_HLine(FRONT_X0, FRONT_X1, FRONT_Y0, true);
+	HC_HLine(FRONT_X0, FRONT_X1, FRONT_Y1, true);
+	HC_VLine(FRONT_X0, FRONT_Y0, FRONT_Y1, true);
+	HC_VLine(FRONT_X1, FRONT_Y0, FRONT_Y1, true);
 }
 
 void UI_DisplayHomeCard(void)
@@ -972,8 +980,20 @@ void UI_DisplayHomeCard(void)
 		hc_ox = 0;
 		hc_oy = 0;
 
-		/* Normal home: front card + back peek (name / freq / modulation). */
-		if (dual)
+		/* Normal home: front card + back peek (name / freq / modulation).
+		 * During TX the bottom row is the mic/audio scope — skip the back
+		 * peek so its name/freq strip is not half-visible under the bar. */
+#ifdef ENABLE_FEAT_F4HWN_AUDIO_SCOPE
+		const bool hide_back_for_tx_bar =
+			(gCurrentFunction == FUNCTION_TRANSMIT
+#ifdef ENABLE_AUDIO_BAR
+			 && gSetting_mic_bar
+#endif
+			);
+#else
+		const bool hide_back_for_tx_bar = false;
+#endif
+		if (dual && !hide_back_for_tx_bar)
 			HC_DrawBackPeek(back);
 
 		HC_DrawFront(front);
