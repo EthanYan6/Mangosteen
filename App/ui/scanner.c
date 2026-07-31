@@ -40,52 +40,53 @@
 #include "driver/st7565.h"
 #include "external/printf/printf.h"
 #include "misc.h"
+#include "settings.h"
 #include "ui/helper.h"
 #include "ui/scanner.h"
 
 void UI_DisplayScanner(void)
 {
-    char String[16];
+    char String[28];
     char *pPrintStr = String;
+    const bool cn = (gUiLanguage == UI_LANGUAGE_CN);
 
     UI_DisplayClear();
 
-    // 1st line
+    /* Status line — 16×16 via UI_PrintString (GB2312 / gFontBig). */
     if (gScannerSaveState == SCAN_SAVE_CHANNEL) {
-        pPrintStr = "Save?";
+        pPrintStr = cn ? "\xB1\xA3\xB4\xE6\x3F" : "Save?"; /* 保存? */
     } else if (gScannerSaveState == SCAN_SAVE_CHAN_SEL) {
-        strcpy(String, "Save:");
+        strcpy(String, cn ? "\xB1\xA3\xB4\xE6\x3A" : "Save:"); /* 保存: — both 5 bytes */
         UI_GenerateChannelStringEx(String + 5, gShowChPrefix, gScanChannel);
         pPrintStr = String;
     } else if ((gScanCssState < SCAN_CSS_STATE_FOUND) && ((gScanProgressIndicator & 1u) != 0)) {
         pPrintStr = "";
     } else if (gScanCssState == SCAN_CSS_STATE_OFF) {
-        pPrintStr = "Search Freq";
+        pPrintStr = cn ? "\xCB\xD1\xCB\xF7\xC6\xB5\xC2\xCA" : "Search Freq"; /* 搜索频率 */
     } else if (gScanCssState == SCAN_CSS_STATE_SCANNING) {
-        pPrintStr = "Search Tone";
+        pPrintStr = cn ? "\xCB\xD1\xCB\xF7\xD1\xC7\xD2\xF4" : "Search Tone"; /* 搜索亚音 */
     } else if (gScanCssState == SCAN_CSS_STATE_FOUND) {
-        pPrintStr = "Scan Complete";
+        pPrintStr = cn ? "\xC9\xA8\xC3\xE8\xCD\xEA\xB3\xC9" : "Scan Complete"; /* 扫描完成 */
     } else {
-        pPrintStr = "Scan Failed";
+        pPrintStr = cn ? "\xC9\xA8\xC3\xE8\xCA\xA7\xB0\xDC" : "Scan Failed"; /* 扫描失败 */
     }
 
     UI_PrintString(pPrintStr, 2, 0, 1, 8);
 
-    // 2nd line
     if (gScanSingleFrequency || (gScanCssState != SCAN_CSS_STATE_OFF && gScanCssState != SCAN_CSS_STATE_FAILED)) {
-        sprintf(String, "Freq:%u.%05u", gScanFrequency / 100000, gScanFrequency % 100000);
+        sprintf(String, cn ? "\xC6\xB5\xC2\xCA\x3A%u.%05u" : "Freq:%u.%05u",
+                gScanFrequency / 100000, gScanFrequency % 100000); /* 频率: */
         pPrintStr = String;
     } else {
-        pPrintStr = "Freq:---.-----";
+        pPrintStr = cn ? "\xC6\xB5\xC2\xCA\x3A---.-----" : "Freq:---.-----";
     }
 
     UI_PrintString(pPrintStr, 2, 0, 3, 8);
 
-    // 3rd line
     if (gScanCssState < SCAN_CSS_STATE_FOUND) {
-        pPrintStr = "Tone:---";
+        pPrintStr = cn ? "\xD1\xC7\xD2\xF4\x3A---" : "Tone:---"; /* 亚音: */
     } else if (!gScanUseCssResult) {
-        pPrintStr = "Tone:None";
+        pPrintStr = cn ? "\xD1\xC7\xD2\xF4\x3A\xCE\xDE" : "Tone:None"; /* 亚音:无 */
     } else if (gScanCssResultType == CODE_TYPE_CONTINUOUS_TONE) {
         sprintf(String, "CTCSS:%u.%uHz", CTCSS_Options[gScanCssResultCode] / 10, CTCSS_Options[gScanCssResultCode] % 10);
         pPrintStr = String;
@@ -93,7 +94,7 @@ void UI_DisplayScanner(void)
         sprintf(String, "DCS:D%03oN", DCS_Options[gScanCssResultCode]);
         pPrintStr = String;
     }
- 
+
     UI_PrintString(pPrintStr, 2, 0, 5, 8);
 
     ST7565_BlitFullScreen();

@@ -168,12 +168,14 @@ const char *UI_MENU_GetMenuTitle(const t_menu_item *item)
 #endif
     case MENU_RESET: return "\xBB\xD6\xB8\xB4\xB3\xF6\xB3\xA7";
 #ifdef ENABLE_MESSENGER
-    case MENU_MSG_RX:   return "\xD0\xC5\xCF\xA2\xBD\xD3\xCA\xD5";                 /* 信息接收 */
-    case MENU_MSG_CSG:  return "\xD0\xC5\xCF\xA2\xB1\xBE\xBB\xFA\xC3\xFB\xB3\xC6"; /* 信息本机名称 */
-    case MENU_MSG_ACK:  return "\xD0\xC5\xCF\xA2\xD3\xA6\xB4\xF0";                 /* 信息应答 */
-    case MENU_MSG_BEEP: return "\xD0\xC5\xCF\xA2\xBD\xD3\xCA\xD5\xD2\xF4";         /* 信息接收音 */
-    case MENU_MSG_LED:  return "\xD0\xC5\xCF\xA2\xBD\xD3\xCA\xD5\xB5\xC6\xB9\xE2"; /* 信息接收灯光 */
-    case MENU_RNG_RSP:  return "\xD0\xC5\xCF\xA2\xB7\xB6\xCE\xA7\xBB\xD8\xD3\xA6"; /* 信息范围回应 */
+    case MENU_MSG_RX:    return "\xD0\xC5\xCF\xA2\xBD\xD3\xCA\xD5";                 /* 信息接收 */
+    case MENU_MSG_CSG:   return "\xD0\xC5\xCF\xA2\xB1\xBE\xBB\xFA\xC3\xFB\xB3\xC6"; /* 信息本机名称 */
+    case MENU_MSG_ACK:   return "\xD0\xC5\xCF\xA2\xD3\xA6\xB4\xF0";                 /* 信息应答 */
+    case MENU_MSG_BEEP:  return "\xD0\xC5\xCF\xA2\xBD\xD3\xCA\xD5\xD2\xF4";         /* 信息接收音 */
+    case MENU_MSG_LED:   return "\xD0\xC5\xCF\xA2\xBD\xD3\xCA\xD5\xB5\xC6\xB9\xE2"; /* 信息接收灯光 */
+    case MENU_RNG_RSP:   return "\xD0\xC5\xCF\xA2\xB7\xB6\xCE\xA7\xBB\xD8\xD3\xA6"; /* 信息范围回应 */
+    case MENU_MSG_DEBUG: return "\xD0\xC5\xCF\xA2\xB5\xF7\xCA\xD4";                 /* 信息调试 */
+    case MENU_MSG_HOP:   return "\xD0\xC5\xCF\xA2\xCC\xF8\xCA\xFD";                 /* 信息跳数 */
 #endif
     default:
         return item->name;

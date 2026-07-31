@@ -237,16 +237,32 @@ void UI_DrawQRCode(bool wiki, uint8_t origin_x, uint8_t origin_y)
 
 void UI_DisplayReleaseKeys(void)
 {
+    /* Two-line framed popup; text H-centered, box sized to hug text (V-centered). */
+    const bool    cn = (gUiLanguage == UI_LANGUAGE_CN);
+    const int16_t x1 = 9, x2 = 118;
+    const int16_t y1 = cn ? 8 : 14;
+    const int16_t y2 = cn ? 39 : 33;
+
     UI_StatusClear();
 #if defined(ENABLE_FEAT_F4HWN_CTR) || defined(ENABLE_FEAT_F4HWN_INV)
         ST7565_ContrastAndInv();
 #endif
     UI_DisplayClear();
 
-    UI_PrintString("RELEASE", 0, 127, 1, 10);
-    UI_PrintString("ALL KEYS", 0, 127, 3, 10);
+    if (cn) {
+        /* 4×12 / 6×12 glyphs; End=0 + manual X (UI_PrintString CN width ≠ Width*2). */
+        UI_PrintString("\xCB\xC9\xBF\xAA\xB0\xB4\xBC\xFC", 40, 0, 1, 8);           /* 松开按键 @ (110-48)/2+9+2 */
+        UI_PrintString("\xBD\xE2\xCB\xF8\xC8\xAB\xB2\xBF\xB9\xA6\xC4\xDC", 28, 0, 3, 8); /* 解锁全部功能 */
+    } else {
+        UI_PrintStringSmallNormal("Release Keys", 11, 116, 2);
+        UI_PrintStringSmallNormal("Unlock All", 11, 116, 3);
+    }
 
-    ST7565_BlitStatusLine();  // blank status line
+    UI_DrawRectangleBuffer(gFrameBuffer, x1, y1, x2, y2, true);
+    UI_DrawLineBuffer(gFrameBuffer, x2 + 1, y1 + 1, x2 + 1, y2 + 1, true);
+    UI_DrawLineBuffer(gFrameBuffer, x1 + 1, y2 + 1, x2 + 1, y2 + 1, true);
+
+    ST7565_BlitStatusLine();
     ST7565_BlitFullScreen();
 }
 

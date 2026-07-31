@@ -880,33 +880,16 @@ static void HC_DrawFront(uint8_t vfo_num)
 		HC_Small(str, 48, 17);
 	} else if (UI_StringHasGb2312(str)) {
 		UI_PrintString(str, 48, 0, 1, 8);
-		{
-			unsigned name_w = 0;
-			const size_t nlen = strlen(str);
-			size_t ni;
-			for (ni = 0; ni < nlen; ) {
-				const uint8_t c = (uint8_t)str[ni];
-				if (c >= 0xA1 && c <= 0xF7 && (ni + 1) < nlen &&
-				    (uint8_t)str[ni + 1] >= 0xA1 && (uint8_t)str[ni + 1] <= 0xFE) {
-					name_w += 16u;
-					ni += 2;
-				} else {
-					name_w += 8u;
-					ni++;
-				}
-			}
-			if (name_w > (unsigned)(LCD_WIDTH - 48))
-				name_w = (unsigned)(LCD_WIDTH - 48);
-			for (uint8_t x = 48; x < (uint8_t)(48u + name_w); x++) {
-				const uint16_t glyph =
-					(uint16_t)gFrameBuffer[1][x] |
-					((uint16_t)gFrameBuffer[2][x] << 8);
-				gFrameBuffer[1][x] = 0;
-				gFrameBuffer[2][x] = 0;
-				for (uint8_t row = 0; row < 16u; row++) {
-					if (glyph & (uint16_t)(1u << row))
-						PutPixel(x, (uint8_t)(8u - 2u + row), true);
-				}
+		/* Nudge CN name up 2px; fixed band covers max mixed-name width. */
+		for (uint8_t x = 48; x < 120; x++) {
+			const uint16_t glyph =
+				(uint16_t)gFrameBuffer[1][x] |
+				((uint16_t)gFrameBuffer[2][x] << 8);
+			gFrameBuffer[1][x] = 0;
+			gFrameBuffer[2][x] = 0;
+			for (uint8_t row = 0; row < 16u; row++) {
+				if (glyph & (uint16_t)(1u << row))
+					PutPixel(x, (uint8_t)(8u - 2u + row), true);
 			}
 		}
 	} else {
@@ -1001,7 +984,11 @@ void UI_DisplayHomeCard(void)
 
 #ifdef ENABLE_FEAT_F4HWN_AUDIO_SCOPE
 	/* Bottom strip: audio scope only (not the classic level bar). */
-	if (gCurrentFunction == FUNCTION_TRANSMIT && gSetting_mic_bar)
+	if (gCurrentFunction == FUNCTION_TRANSMIT
+#ifdef ENABLE_AUDIO_BAR
+	    && gSetting_mic_bar
+#endif
+	   )
 		UI_DisplayAudioScope();
 #endif
 }

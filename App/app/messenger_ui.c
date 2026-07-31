@@ -81,21 +81,58 @@ static bool msg_lang_cn(void)
 	return gUiLanguage == UI_LANGUAGE_CN;
 }
 
-/** English UI key → GB2312 label when language is Chinese.
- *  All callers pass one of a few known literals whose first ASCII byte is
- *  unique (MESSENGER/INBOX/COMPOSE/SENT/DRAFTS), so dispatch on en[0] and
- *  avoid pulling strcmp into this hot path.  "MSG CSG"/"MSG SET" share 'M'
- *  with MESSENGER but are disambiguated by the 2nd byte ('E' vs 'S'). */
+/** English UI key → GB2312 when Chinese. Dispatch on en[0]/en[1..]. */
 static const char *msg_label(const char *en)
 {
 	if (!msg_lang_cn() || en == NULL || en[0] == '\0')
 		return en;
 	switch (en[0]) {
-		case 'M': return (en[1] == 'E') ? "\xD0\xC5\xCF\xA2"             : en; /* 信息  (MESSENGER) */
-		case 'I': return "\xCA\xD5\xBC\xFE\xCF\xE4";                           /* 收件箱 */
-		case 'C': return "\xB1\xE0\xBC\xAD\xD0\xC5\xCF\xA2";                   /* 编辑信息 */
-		case 'S': return "\xB7\xA2\xBC\xFE\xCF\xE4";                           /* 发件箱 */
-		case 'D': return "\xB2\xDD\xB8\xE5\xCF\xE4";                           /* 草稿箱 */
+		case 'M': return (en[1] == 'E') ? "\xD0\xC5\xCF\xA2" : en; /* 信息 */
+		case 'I': return "\xCA\xD5\xBC\xFE\xCF\xE4";               /* 收件箱 */
+		case 'C': return "\xB1\xE0\xBC\xAD\xD0\xC5\xCF\xA2";       /* 编辑信息 */
+		case 'S':
+			/* SELECT / SEND / SENT */
+			if (en[1] == 'E' && en[2] == 'L')
+				return "\xD1\xA1\xD4\xF1";                       /* 选择 */
+			if (en[1] == 'E' && en[2] == 'N' && en[3] == 'D' && en[4] == '\0')
+				return "\xB7\xA2\xCB\xCD";                       /* 发送 */
+			return "\xB7\xA2\xBC\xFE\xCF\xE4";                     /* 发件箱 */
+		case 'D': return "\xB2\xDD\xB8\xE5\xCF\xE4";               /* 草稿箱 */
+		case 'E':
+			if (en[1] == 'M') return "\xBF\xD5";                 /* 空 EMPTY */
+			if (en[1] == 'X') return "\xCD\xCB\xB3\xF6";         /* 退出 */
+			return en;
+		case 'R':
+			/* READ / RESEND / RE: / RESULT / RANGE CHECK */
+			if (en[1] == 'E') {
+				if (en[2] == 'S' && en[3] == 'E')
+					return "\xD6\xD8\xB7\xA2";                   /* 重发 */
+				if (en[2] == 'S' && en[3] == 'U')
+					return "\xBD\xE1\xB9\xFB";                   /* 结果 */
+				if (en[2] == 'A')
+					return "\xD4\xC4\xB6\xC1";                   /* 阅读 */
+				if (en[2] == ':')
+					return "\xBB\xD8\xB8\xB4";                   /* 回复 */
+				return en;
+			}
+			if (en[1] == 'A')
+				return "\xB2\xE2\xBE\xE0";                       /* 测距 */
+			return en;
+		case 'H': return "\xCC\xFD\xB5\xBD";                       /* 听到 HEARD */
+		case 'W': return "\xB5\xC8\xB4\xFD";                       /* 等待 WAIT */
+		case 'F':
+			if (en[1] == ':') return "\xC9\xBE\xB3\xFD";         /* 删除 F:DEL */
+			if (en[1] == 'O') return "\xB7\xA2\xCF\xD6\x3A";     /* 发现: */
+			return en;
+		case 'N':
+			if (en[1] == 'O' && en[2] == 'T')
+				return "\xCE\xB4\xB7\xA2\xCF\xD6";               /* 未发现 */
+			if (en[1] == 'O' && en[2] == ' ')
+				return "\xCE\xDE\xBC\xC7\xC2\xBC";               /* 无记录 */
+			return en;
+		case 'L':
+			if (en[1] == 'A') return "\xCC\xFD\xB5\xBD\x3A";     /* 听到: */
+			return en;
 		default:  return en;
 	}
 }
@@ -492,6 +529,22 @@ static void msg_draw_cn8_at_y(const char *s, uint8_t x, uint8_t y, bool inverted
 	}
 }
 
+/** Footer hint: 8×8 GB2312 when Chinese, else 3×5. right → align to x=128. */
+static void msg_draw_hint(const char *en, uint8_t x, uint8_t y, bool right)
+{
+	const char *t = msg_label(en);
+	const bool  cn = msg_lang_cn() && UI_StringHasGb2312(t);
+
+	if (right) {
+		const unsigned w = cn ? msg_text_width8(t) : (unsigned)(strlen(t) * 4u);
+		x = (w >= 128u) ? 0u : (uint8_t)(128u - w);
+	}
+	if (cn)
+		msg_draw_cn8_at_y(t, x, y, false);
+	else
+		GUI_DisplaySmallest(t, x, y, false, true);
+}
+
 /* Collect wrapped line starts. big16: CN=16/ASCII=8; else CN=8/ASCII=7. */
 static uint8_t compose_collect_lines(const char *s, bool big16, uint8_t *starts, uint8_t max_starts)
 {
@@ -719,7 +772,7 @@ static void draw_home(void)
     /* Layout: only 2 rows visible (selected 16px + 1 neighbour 8px).
      * Selected = 2+16+2 = 20px, neighbour = 8+1 = 9px, total ≤ 29px. */
     const uint8_t FIRST_Y    = cn ? 14u : 10u;
-    const uint8_t CLIP_Y     = cn ? 47u : 46u;
+    const uint8_t CLIP_Y     = cn ? 46u : 45u; /* matches bottom sep (up 1px) */
     const uint8_t SEL_PAD    = 2u;
     const uint8_t SEL_NEED   = (uint8_t)(SEL_PAD + 16u + SEL_PAD);   /* 20 */
     const uint8_t NORM_PITCH = 9u;
@@ -781,10 +834,10 @@ static void draw_home(void)
     }
 
     {
-        const uint8_t sep_y = cn ? 47U : 46U;
-        const uint8_t sel_y = cn ? 50U : 49U;
+        const uint8_t sep_y = cn ? 46U : 45U; /* up 1px */
+        const uint8_t sel_y = cn ? 48U : 47U; /* up 2px */
         draw_dotted_separator(sep_y);
-        GUI_DisplaySmallest("SELECT", 0, sel_y, false, true);
+        msg_draw_hint("SELECT", 0, sel_y, false);
     }
 }
 
@@ -810,7 +863,7 @@ static void draw_list(void)
     draw_title(title);
     snprintf(buf, sizeof(buf), "%u/%u", count ? (gMsgCursor + 1) : 0, count);
     print_right_small(buf, 0);
-    if (!count) { UI_PrintStringSmallNormal("EMPTY", 0, 0, 3); return; }
+    if (!count) { UI_PrintStringSmallNormal(msg_label("EMPTY"), 0, 0, 3); return; }
     for (uint8_t row = 0; row < 6; row++) {
         uint8_t idx = gMsgScroll + row;
         if (idx >= count) break;
@@ -894,12 +947,12 @@ static void draw_read(void)
         GUI_DisplaySmallest(ackbuf, 0, 36, false, true);
     }
 
-    draw_dotted_separator(48);
+    draw_dotted_separator(47); /* up 1px */
     if (gMsgReadSource == MSG_SCREEN_OUTBOX)
-        GUI_DisplaySmallest("RESEND", 0, 50, false, true);
+        msg_draw_hint("RESEND", 0, 48, false); /* up 2px */
     else
-        GUI_DisplaySmallest("RE:", 0, 50, false, true);
-    GUI_DisplaySmallest("F:DEL", 104, 50, false, true);
+        msg_draw_hint("RE:", 0, 48, false);
+    msg_draw_hint("F:DEL", 0, 48, true);
 }
 
 static void draw_compose(void)
@@ -943,31 +996,31 @@ static void draw_compose(void)
         if (cand.phase == 2u) {
             msg_draw_py_sylls(0, 127, 27, &cand);
             msg_draw_py_cands16(0, 127, 34, &cand);
-            GUI_DisplaySmallest("SEND", 0, 51, false, true);
-            GUI_DisplaySmallest("pinyin", 92, 51, false, true);
+            msg_draw_hint("SEND", 0, 49, false); /* up 2px */
+            GUI_DisplaySmallest("pinyin", 92, 49, false, true);
             return;
         }
         msg_draw_py_sylls(0, 127, (uint8_t)(body_y + body_lines * 8u), &cand);
     }
 
-    /* Below 2×16 body (y=16..47). */
-    draw_dotted_separator(48);
-    GUI_DisplaySmallest("SEND", 0, 50, false, true);
+    /* Below 2×16 body. */
+    draw_dotted_separator(46); /* compose-only: bottom sep up 1px */
+    msg_draw_hint("SEND", 0, 48, false);
     if (py)
-        GUI_DisplaySmallest("pinyin", 92, 50, false, true);
+        GUI_DisplaySmallest("pinyin", 92, 48, false, true);
     else
-        GUI_DisplaySmallest((gMsgEditor.mode == 2U) ? "2" : (gMsgEditor.upper ? "B" : "b"), 120, 50, false, true);
+        GUI_DisplaySmallest((gMsgEditor.mode == 2U) ? "2" : (gMsgEditor.upper ? "B" : "b"), 120, 48, false, true);
 }
 
 static void draw_range(void)
 {
     char buf[28];
     draw_title((gMsgRangeStatus == 1u || gMsgRangeStatus == 2u) ? "RANGE CHECK" : "HEARD");
-    if (gMsgRangeStatus == 1u) GUI_DisplaySmallest("WAIT", 0, 1, false, true);
-    else if (gMsgRangeStatus == 2u) GUI_DisplaySmallest("RESULT", 0, 1, false, true);
+    if (gMsgRangeStatus == 1u) msg_draw_hint("WAIT", 0, 1, false);
+    else if (gMsgRangeStatus == 2u) msg_draw_hint("RESULT", 0, 1, false);
 
     const uint8_t top_sep = 9u;
-    const uint8_t bottom_sep = 46u;
+    const uint8_t bottom_sep = 45u; /* up 1px */
     const uint8_t page_size = 3u;
     draw_dotted_separator(top_sep);
     draw_dotted_separator(bottom_sep);
@@ -982,13 +1035,20 @@ static void draw_range(void)
         }
         if (session_count == 0u) {
             if (gMsgRangeStatus == 1u) {
-                msg_draw_small_at_y("WAITING", 40, 20, false);
-                msg_draw_small_at_y("FOR PONG", 36, 29, false);
+                if (msg_lang_cn()) {
+                    msg_draw_cn8_at_y(msg_label("WAIT"), 48, 24, false);
+                } else {
+                    msg_draw_small_at_y("WAITING", 40, 20, false);
+                    msg_draw_small_at_y("FOR PONG", 36, 29, false);
+                }
             } else {
-                msg_draw_small_at_y("NOT FOUND", 33, 24, false);
+                if (msg_lang_cn())
+                    msg_draw_cn8_at_y(msg_label("NOT FOUND"), 40, 24, false);
+                else
+                    msg_draw_small_at_y("NOT FOUND", 33, 24, false);
             }
         } else {
-            GUI_DisplaySmallest("FOUND:", 0, 12, false, true);
+            msg_draw_hint("FOUND:", 0, 12, false);
             bool used[MSG_RANGE_MAX_FOUND];
             memset(used, 0, sizeof(used));
             uint8_t drawn = 0u;
@@ -1031,7 +1091,7 @@ static void draw_range(void)
             (void)drawn;
         }
     } else {
-        GUI_DisplaySmallest("LAST HEARD:", 0, 12, false, true);
+        msg_draw_hint("LAST HEARD:", 0, 12, false);
         uint8_t pages = 1u;
         if (gMsgRangeCount > 0u) pages = (uint8_t)((gMsgRangeCount + page_size - 1u) / page_size);
         if (gMsgRangeScroll >= pages) gMsgRangeScroll = (uint8_t)(pages - 1u);
@@ -1040,7 +1100,10 @@ static void draw_range(void)
         GUI_DisplaySmallest(buf, x, 12, false, true);
 
         if (gMsgRangeCount == 0u) {
-            msg_draw_small_at_y("NO HEARD", 36, 24, false);
+            if (msg_lang_cn())
+                msg_draw_cn8_at_y(msg_label("NO HEARD"), 40, 24, false);
+            else
+                msg_draw_small_at_y("NO HEARD", 36, 24, false);
         }
         for (uint8_t row = 0; row < page_size; row++) {
             uint8_t idx = (uint8_t)(gMsgRangeScroll * page_size + row);
@@ -1059,8 +1122,8 @@ static void draw_range(void)
         }
     }
 
-    GUI_DisplaySmallest("PING", 0, 49, false, true);
-    GUI_DisplaySmallest("EXIT", 112, 49, false, true);
+    GUI_DisplaySmallest("PING", 0, 47, false, true); /* up 2px */
+    msg_draw_hint("EXIT", 0, 47, true);
 }
 
 void UI_DisplayMessenger(void)

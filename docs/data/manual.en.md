@@ -438,6 +438,17 @@ Short **`#` (F)** cycles:
 | MsgLed | Light on receive |
 | RngRsp | Range-check response |
 
+### Messenger hidden menu
+
+Power off, then hold **PTT + Side1 (upper side key)** while powering on. After releasing keys, open the menu to see hidden items (same entry path as **F Lock**). Chinese labels: **信息调试** / **信息跳数**.
+
+| Menu | Chinese | Role |
+|------|---------|------|
+| MsgDbg | 信息调试 | Messenger debug toggle (OFF / ON) for diagnosing send/receive |
+| MsgHop | 信息跳数 | Relay hop count (TTL) when sending: **OFF**, or **1–5** max hops. Higher values can reach farther via other radios, but use more airtime |
+
+On the read screen, `HOP:used/init` shows how many hops were used versus the initial TTL.
+
 ### HEARD / Range Check
 
 1. Open with short **F+7** or side **HEARD**.

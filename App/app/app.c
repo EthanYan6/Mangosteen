@@ -1707,7 +1707,11 @@ void APP_TimeSlice10ms(void)
     }
 
 #ifdef ENABLE_FEAT_F4HWN_AUDIO_SCOPE
-    if (gSetting_mic_bar && (gFlashLightBlinkCounter % (20 / 10)) == 0) // once every 20ms
+    if (
+#ifdef ENABLE_AUDIO_BAR
+        gSetting_mic_bar &&
+#endif
+        (gFlashLightBlinkCounter % (20 / 10)) == 0) // once every 20ms
         // Home card: paints scope on screen-bottom row during TX
         UI_DisplayAudioScope();
 #endif

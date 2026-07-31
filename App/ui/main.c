@@ -2250,7 +2250,11 @@ void UI_DisplayMain(void)
         else
 #endif
 #ifdef ENABLE_FEAT_F4HWN_AUDIO_SCOPE
-        if (gSetting_mic_bar && gCurrentFunction == FUNCTION_TRANSMIT) {
+        if (gCurrentFunction == FUNCTION_TRANSMIT
+#ifdef ENABLE_AUDIO_BAR
+            && gSetting_mic_bar
+#endif
+           ) {
             // Reserve the line so no other element overwrites it.
             // Actual drawing is handled exclusively by the app.c timeslice.
             center_line = CENTER_LINE_AUDIO_SCOPE;

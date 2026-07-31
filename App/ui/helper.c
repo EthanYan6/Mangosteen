@@ -152,6 +152,7 @@ void UI_PrintString(const char *pString, uint8_t Start, uint8_t End, uint8_t Lin
     size_t i;
     size_t Length = strlen(pString);
     uint8_t cur = Start;
+    bool prev_cn = false;
     /* Mixed CN + ASCII: drop Latin/digits 1px to optically align with 16×16 楷体. */
     const uint8_t ascii_dy = UI_StringHasGb2312(pString) ? 1u : 0u;
 
@@ -187,6 +188,7 @@ void UI_PrintString(const char *pString, uint8_t Start, uint8_t End, uint8_t Lin
                 memcpy(gFrameBuffer[Line + 0] + cur, cnDot + CN_LEFT_MARGIN, CN_WIDTH);
                 memcpy(gFrameBuffer[Line + 1] + cur, cnDot + 16u + CN_LEFT_MARGIN, CN_WIDTH);
                 cur = (uint8_t)(cur + CN_WIDTH);
+                prev_cn = true;
                 i++;
                 continue;
             }
@@ -195,6 +197,9 @@ void UI_PrintString(const char *pString, uint8_t Start, uint8_t End, uint8_t Lin
         if (c > ' ' && c < 127)
         {
             const unsigned int index = c - ' ' - 1;
+            /* 1px gap when ASCII follows Chinese (home channel names, etc.) */
+            if (prev_cn)
+                cur = (uint8_t)(cur + 1u);
             if (ascii_dy == 0u) {
                 memcpy(gFrameBuffer[Line + 0] + cur, &gFontBig[index][0], 7);
                 memcpy(gFrameBuffer[Line + 1] + cur, &gFontBig[index][7], 7);
@@ -209,8 +214,10 @@ void UI_PrintString(const char *pString, uint8_t Start, uint8_t End, uint8_t Lin
                 }
             }
             cur = (uint8_t)(cur + Width);
+            prev_cn = false;
         } else if (c == ' ') {
             cur = (uint8_t)(cur + Width);
+            prev_cn = false;
         }
     }
 }
