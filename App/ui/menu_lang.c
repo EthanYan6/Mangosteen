@@ -144,7 +144,7 @@ const char *UI_MENU_GetMenuTitle(const t_menu_item *item)
     case MENU_SET_SCN: return "\xC9\xE8\xD6\xC3\xC9\xA8\xC3\xE8";
 #endif
 #ifdef ENABLE_FEAT_F4HWN_LOGO_SAV
-    case MENU_SET_SAV: return "\xC9\xE8\xD6\xC3\xB1\xA3\xB4\xE6";
+    case MENU_SET_SAV: return "\xC9\xE8\xD6\xC3\xC6\xC1\xB1\xA3"; /* 设置屏保 */
 #endif
     case MENU_SET_MET: return "\xC9\xE8\xD6\xC3\xD2\xC7\xB1\xED";
     case MENU_SET_GUI: return "\xC9\xE8\xD6\xC3\x47\x55\x49";

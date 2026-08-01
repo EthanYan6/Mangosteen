@@ -115,7 +115,7 @@ titles = [
     ("MENU_SET_KEY", "设置按键"),
     ("MENU_NOAA_S", "设NWR"),
     ("MENU_SET_SCN", "设置扫描"),
-    ("MENU_SET_SAV", "设置保存"),
+    ("MENU_SET_SAV", "设置屏保"),
     ("MENU_F_LOCK", "锁定频段"),
     ("MENU_200TX", "Tx200"),
     ("MENU_350TX", "Tx350"),
