@@ -217,13 +217,14 @@ void BATTERY_GetReadings(const bool bDisplayBatteryLevel)
         else
         {
             gLowBattery = false;
-
-            if (bDisplayBatteryLevel)
-                UI_DisplayBattery(gBatteryDisplayLevel, gLowBatteryBlink);
         }
 
         if(!gLowBatteryConfirmed)
             gUpdateDisplay = true;
+
+        /* Battery icon now lives in gStatusLine / gFrameBuffer only; refresh
+           the status bar so it updates without the old direct-to-LCD overlay. */
+        gUpdateStatus = true;
 
         lowBatteryCountdown = 0;
     }
@@ -237,7 +238,9 @@ void BATTERY_TimeSlice500ms(void)
 
     gLowBatteryBlink = ++lowBatteryCountdown & 1;
 
-    UI_DisplayBattery(0, gLowBatteryBlink);
+    /* The low-battery icon used to be stamped directly onto the LCD here,
+       floating above all other content. It is now drawn only through the
+       regular status bar / home card refresh (gStatusLine / gFrameBuffer). */
 
     if (gCurrentFunction == FUNCTION_TRANSMIT) {
         return;

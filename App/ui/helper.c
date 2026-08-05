@@ -556,23 +556,49 @@ static void UI_StrokePopupFrame(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
     UI_DrawLineBuffer(gFrameBuffer, x1 + 1, y2 + 1, x2 + 1, y2 + 1, true);
 }
 
-void UI_DrawMessageBox(void)
+/* Shared centered popup box: a 90×20 framed box with the text centered on
+   both axes. Used by UI_DrawMessageBox (TX Disabled, Key Locked, …) and by
+   the low-battery popup so they share one look. Text never exceeds the box:
+   CN width is measured per glyph (CN_WIDTH=12) and the start column is taken
+   from the real rendered width; ASCII uses the 7px small-font pitch which
+   UI_PrintStringSmallNormal centers itself. */
+void UI_DrawPopupBox(const char *text)
 {
-    if (gMessageBoxCountdown == 0 || gMessageBoxText == NULL)
-        return;
-
-    const int16_t x1 = (LCD_WIDTH - 90) / 2;
-    const int16_t y1 = ((FRAME_LINES * 8) - 20) / 2;
-    const int16_t x2 = x1 + 89;
-    const int16_t y2 = y1 + 19;
+    const int16_t box_w = 90;
+    const int16_t box_h = 20;
+    const int16_t x1 = (LCD_WIDTH - box_w) / 2;
+    const int16_t y1 = ((FRAME_LINES * 8) - box_h) / 2;
+    const int16_t x2 = x1 + box_w - 1;
+    const int16_t y2 = y1 + box_h - 1;
+    const uint8_t inner_x = (uint8_t)(x1 + 2);
+    const uint8_t inner_w = (uint8_t)((x2 - 1) - inner_x + 1);
 
     UI_ClearPopupArea(x1, y1, x2, y2);
 
     if (gUiLanguage == UI_LANGUAGE_CN) {
-        /* 16×16；当前文案均为 4 字=64px，下移 4px 在 20 高框内居中 */
-        UI_PrintString(gMessageBoxText, (uint8_t)(x1 + 2), (uint8_t)(x2 - 1), 2, 8);
-        const uint8_t text_x = (uint8_t)(x1 + 2 + (86 - 64 + 1) / 2);
-        for (uint8_t x = text_x; x < text_x + 64u; x++) {
+        /* Count GB2312 double-byte glyphs to measure the real width.
+           UI_PrintString centers CN text assuming Width=8 per unit (16px/glyph)
+           which does not match the 12px rendered glyphs, so place the start
+           column ourselves and pass Start==End to disable its centering. */
+        uint8_t cn_count = 0;
+        for (const char *p = text; *p != '\0'; ) {
+            const uint8_t hi = (uint8_t)p[0];
+            const uint8_t lo = (uint8_t)p[1];
+            if (hi >= 0xA1 && hi <= 0xF7 && lo >= 0xA1 && lo <= 0xFE) {
+                cn_count++;
+                p += 2;
+            } else {
+                p++;
+            }
+        }
+        const uint8_t text_w = (uint8_t)(cn_count * CN_WIDTH);
+        const uint8_t start_x = (uint8_t)(inner_x + (inner_w - text_w) / 2);
+
+        UI_PrintString(text, start_x, start_x, 2, 8);
+
+        /* 16px font drawn at Line 2 (y=16); box top is y=18, so shift down
+           4px to center inside the 20px-tall box (y=18..37). */
+        for (uint8_t x = start_x; x < start_x + text_w; x++) {
             uint32_t v = (uint32_t)gFrameBuffer[2][x]
                        | ((uint32_t)gFrameBuffer[3][x] << 8)
                        | ((uint32_t)gFrameBuffer[4][x] << 16);
@@ -582,10 +608,20 @@ void UI_DrawMessageBox(void)
             gFrameBuffer[4][x] = (uint8_t)(v >> 16);
         }
     } else {
-        UI_PrintStringSmallNormal(gMessageBoxText, (uint8_t)(x1 + 2), (uint8_t)(x2 - 1), 3);
+        /* 8px small font at Line 3 (y=24) centers vertically in y=18..37;
+           UI_PrintStringSmallNormal centers horizontally. */
+        UI_PrintStringSmallNormal(text, inner_x, (uint8_t)(x2 - 1), 3);
     }
 
     UI_StrokePopupFrame(x1, y1, x2, y2);
+}
+
+void UI_DrawMessageBox(void)
+{
+    if (gMessageBoxCountdown == 0 || gMessageBoxText == NULL)
+        return;
+
+    UI_DrawPopupBox(gMessageBoxText);
 }
 
 /* Yan ID: phone icon left, callsign right — one landscape row. */

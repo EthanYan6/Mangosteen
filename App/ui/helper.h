@@ -52,6 +52,7 @@ void UI_DisplayFrequency(const char *string, uint8_t X, uint8_t Y, bool center);
 
 void UI_DisplayPopup(const char *string);
 
+void UI_DrawPopupBox(const char *text);
 void UI_ShowMessageBox(const char *text);
 void UI_DrawMessageBox(void);
 void UI_DrawCallSignPopup(void);

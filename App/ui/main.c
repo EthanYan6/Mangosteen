@@ -1296,7 +1296,10 @@ void UI_DisplayMain(void)
     UI_DisplayClear();
 
     if(gLowBattery && !gLowBatteryConfirmed) {
-        UI_DisplayPopup("LOW BATTERY");
+        UI_DrawPopupBox((gUiLanguage == UI_LANGUAGE_CN)
+            ? "\xB5\xCD\xB5\xE7\xC1\xBF"  /* 低电量 */
+            : "LOW BATTERY");
+        UI_PrintStringSmallNormal("Press EXIT", 9, 118, 6);
         ST7565_BlitFullScreen();
         return;
     }
