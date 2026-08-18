@@ -575,17 +575,33 @@
       return true;
     }
 
-    function loadDonationData() {
-      if (donationDataLoaded) return;
-      fetch('data/donations.csv?t=' + Date.now()).then(function(r) {
+    function fetchDonationText(url) {
+      return fetch(url).then(function(r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.text();
-      }).then(function(text) {
-        if (parseDonationCSV(text)) donationDataLoaded = true;
-      }).catch(function() {
-        var tbody = document.getElementById('donationTableBody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="donation-loading">姒滃崟鍔犺浇澶辫触</td></tr>';
       });
+    }
+
+    function loadDonationData() {
+      if (donationDataLoaded) return;
+      var bust = '?t=' + Date.now();
+      var urls = [
+        'https://ethanyan6.github.io/Dondji/data/donations.csv' + bust,
+        'https://raw.githubusercontent.com/EthanYan6/Dondji/motorola_r7/docs/data/donations.csv' + bust
+      ];
+      var i = 0;
+      function fail() {
+        var tbody = document.getElementById('donationTableBody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="donation-loading">榜单加载失败</td></tr>';
+      }
+      function tryNext() {
+        if (i >= urls.length) { fail(); return; }
+        fetchDonationText(urls[i++]).then(function(text) {
+          if (parseDonationCSV(text)) donationDataLoaded = true;
+          else tryNext();
+        }).catch(tryNext);
+      }
+      tryNext();
     }
 
     function openCoffeeModal() {
