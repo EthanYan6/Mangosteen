@@ -729,18 +729,41 @@ static void HC_SmallFit(const char *s, uint8_t x, uint8_t y)
 		HC_Small(p, x, y);
 }
 
+static void HC_FillDtmfFit(char *out, uint8_t out_len, const char *prefix, const char *codes)
+{
+	const uint8_t max_w = (FRONT_X1 > HC_DTMF_X) ? (uint8_t)(FRONT_X1 - HC_DTMF_X) : 0;
+
+	if (codes == NULL)
+		codes = "";
+
+	for (;;) {
+		snprintf(out, out_len, "%s%s", prefix, codes);
+		if (HomeCardFont_GetSmallTextWidth(out) <= max_w || codes[0] == 0)
+			break;
+		codes++;
+	}
+}
+
 static void HC_FillDtmf(char *out, uint8_t out_len)
 {
 	out[0] = 0;
 	if (out_len == 0)
 		return;
 
-#ifdef ENABLE_DTMF_CALLING
-	char Contact[16];
+	/* Input is independent of ENABLE_DTMF_CALLING (STAR + keypad). Same line as live DTMF. */
 	if (gDTMF_InputMode) {
-		snprintf(out, out_len, ">%s", gDTMF_InputBox);
+		char codes[sizeof(gDTMF_InputBox)];
+		const uint8_t n = (gDTMF_InputBox_Index < sizeof(codes) - 1u)
+			? gDTMF_InputBox_Index : (uint8_t)(sizeof(codes) - 1u);
+
+		memcpy(codes, gDTMF_InputBox, n);
+		codes[n] = 0;
+		HC_FillDtmfFit(out, out_len, ">", codes);
 		return;
 	}
+
+#ifdef ENABLE_DTMF_CALLING
+	char Contact[16];
 	if (gDTMF_CallState == DTMF_CALL_STATE_CALL_OUT) {
 		strcpy(out, (gDTMF_State == DTMF_STATE_CALL_OUT_RSP) ? "CALL OUT(RSP)" : "CALL OUT");
 		return;
@@ -757,15 +780,7 @@ static void HC_FillDtmf(char *out, uint8_t out_len)
 #endif
 	if (gDTMF_RX_live[0] != 0 && gDTMF_RX_live_timeout > 0) {
 		/* Keep "DTMF:" fixed; scroll decoded digits from the left when too wide. */
-		const uint8_t max_w = (FRONT_X1 > HC_DTMF_X) ? (uint8_t)(FRONT_X1 - HC_DTMF_X) : 0;
-		const char *live = gDTMF_RX_live;
-
-		for (;;) {
-			snprintf(out, out_len, "DTMF:%s", live);
-			if (HomeCardFont_GetSmallTextWidth(out) <= max_w || live[0] == 0)
-				break;
-			live++;
-		}
+		HC_FillDtmfFit(out, out_len, "DTMF:", gDTMF_RX_live);
 	}
 }
 
